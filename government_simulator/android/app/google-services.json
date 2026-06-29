@@ -1,0 +1,446 @@
+{
+  "project_info": {
+    "project_number": "250444577503",
+    "firebase_url": "https://petit-works-games-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "petit-works-games",
+    "storage_bucket": "petit-works-games.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:9e7407bf906252a7c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.beastiarybistro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:dbdc4f6a0d2b86b0c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.brainbattle"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:0cd4bc3140d93254c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.cardcrown"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:dfa2a7d020227316c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.governmentsimulator"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:38cb968cde213222c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.kouki"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:465de59d8395a527c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.morphgate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:84d71932b6de1c00c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.neuropath"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:f29f3974d54795f2c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.nexuscommand"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:a09c016319d25f05c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.nihonryododefence"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:8784a8b2c5472359c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.pathduel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:1cfef801d8b185cac1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.potionkitchen"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:3606d746a6d556b1c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.roguemerge"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:12607324e363e4bbc1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.sengokusaihairoku"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:ef9f6e10b911add6c1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksapps.spaceminers"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250444577503:android:2076ddb8482dc39ac1476a",
+        "android_client_info": {
+          "package_name": "com.petitworksappsdev.governmentsimulator"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdIuk0UifwgliMGDdU-06TwUsvkJESPc0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "250444577503-9u6lmvk65hda00jr5cj9v1v9pm4vbj5h.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
