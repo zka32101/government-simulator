@@ -1,0 +1,398 @@
+{
+  "app_icon": {
+    "nameJp": "アプリアイコン",
+    "category": "icon",
+    "file": "app_icon.png",
+    "prompt": "minimalist app icon, classical government building silhouette (columns and pediment), centered composition, bold simple shapes readable at small size, deep navy background, single antique gold accent light, flat vector-ish illustration, no gradients clutter, square composition, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:47:34.886Z"
+  },
+  "minister_finance": {
+    "nameJp": "財務大臣",
+    "category": "minister",
+    "file": "minister_finance.png",
+    "prompt": "sharp-eyed finance minister in formal dark suit, holding ledger, calculating expression, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:47:43.196Z"
+  },
+  "minister_defense": {
+    "nameJp": "国防大臣",
+    "category": "minister",
+    "file": "minister_defense.png",
+    "prompt": "stern military-uniformed defense minister, medals on chest, rigid disciplined posture, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:05.899Z"
+  },
+  "minister_interior": {
+    "nameJp": "内務大臣",
+    "category": "minister",
+    "file": "minister_interior.png",
+    "prompt": "composed bureaucratic interior minister, spectacles, calm authoritative gaze, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:14.374Z"
+  },
+  "minister_foreign": {
+    "nameJp": "外務大臣",
+    "category": "minister",
+    "file": "minister_foreign.png",
+    "prompt": "elegant diplomatic foreign minister, refined formal attire, subtle knowing smile, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:22.797Z"
+  },
+  "minister_environment": {
+    "nameJp": "環境大臣",
+    "category": "minister",
+    "file": "minister_environment.png",
+    "prompt": "earthy idealistic environment minister, simpler attire, weathered thoughtful face, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:31.333Z"
+  },
+  "ending_authoritarian_prosperity_supported": {
+    "nameJp": "開発独裁の父",
+    "category": "ending",
+    "file": "ending_authoritarian_prosperity_supported.png",
+    "prompt": "a stern leader overlooking a thriving illuminated city from a balcony, adoring yet uneasy crowd below, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:40.254Z"
+  },
+  "ending_authoritarian_prosperity_oppressive": {
+    "nameJp": "黄金の独裁者",
+    "category": "ending",
+    "file": "ending_authoritarian_prosperity_oppressive.png",
+    "prompt": "a leader on a golden throne surrounded by wealth, silent fearful subjects bowing in shadow, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:48.239Z"
+  },
+  "ending_authoritarian_stagnation_supported": {
+    "nameJp": "停滞の統率者",
+    "category": "ending",
+    "file": "ending_authoritarian_stagnation_supported.png",
+    "prompt": "a rigid military leader standing before a grey unchanging cityscape, order without progress, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:52:57.335Z"
+  },
+  "ending_authoritarian_stagnation_oppressive": {
+    "nameJp": "灰色の権威主義者",
+    "category": "ending",
+    "file": "ending_authoritarian_stagnation_oppressive.png",
+    "prompt": "a faceless bureaucrat-leader in a fog-grey plaza, empty streets, oppressive quiet, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:05.781Z"
+  },
+  "ending_authoritarian_collapse_supported": {
+    "nameJp": "悲劇の強権者",
+    "category": "ending",
+    "file": "ending_authoritarian_collapse_supported.png",
+    "prompt": "a leader kneeling amid crumbling monuments, loyal few still standing beside him, tragic dusk light, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:14.178Z"
+  },
+  "ending_authoritarian_collapse_oppressive": {
+    "nameJp": "暴君",
+    "category": "ending",
+    "file": "ending_authoritarian_collapse_oppressive.png",
+    "prompt": "a tyrant silhouette against a burning palace, revolutionary torches surrounding in the dark, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:22.428Z"
+  },
+  "ending_democratic_prosperity_supported": {
+    "nameJp": "黄金時代を築いた改革者",
+    "category": "ending",
+    "file": "ending_democratic_prosperity_supported.png",
+    "prompt": "a beloved reformist leader among cheering diverse citizens, golden sunrise over a prosperous capital, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:30.788Z"
+  },
+  "ending_democratic_prosperity_oppressive": {
+    "nameJp": "孤高の実務家",
+    "category": "ending",
+    "file": "ending_democratic_prosperity_oppressive.png",
+    "prompt": "a competent leader alone at a desk full of good economic charts, empty chamber, unloved success, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:42.160Z"
+  },
+  "ending_democratic_stagnation_supported": {
+    "nameJp": "愛された凡庸な指導者",
+    "category": "ending",
+    "file": "ending_democratic_stagnation_supported.png",
+    "prompt": "a modest well-liked leader having tea with ordinary townspeople, quiet unremarkable contentment, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:53:52.976Z"
+  },
+  "ending_democratic_stagnation_oppressive": {
+    "nameJp": "迷走した調整役",
+    "category": "ending",
+    "file": "ending_democratic_stagnation_oppressive.png",
+    "prompt": "a leader surrounded by conflicting advisors and paperwork, indecisive fog, directionless parliament, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:01.506Z"
+  },
+  "ending_democratic_collapse_supported": {
+    "nameJp": "志半ばの改革者",
+    "category": "ending",
+    "file": "ending_democratic_collapse_supported.png",
+    "prompt": "a determined leader still reaching forward as the nation crumbles, loyal supporters holding firm, tragic hope, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:09.883Z"
+  },
+  "ending_democratic_collapse_oppressive": {
+    "nameJp": "見捨てられた指導者",
+    "category": "ending",
+    "file": "ending_democratic_collapse_oppressive.png",
+    "prompt": "a leader standing alone in an emptied grand hall, abandoned podium, echoing solitude, atmospheric symbolic cinematic scene illustration, wide composition, storytelling mood, stylized characters not photorealistic, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:22.223Z"
+  },
+  "scenario_great_depression": {
+    "nameJp": "大恐慌下の新興国",
+    "category": "scenario",
+    "file": "scenario_great_depression.png",
+    "prompt": "crowds outside a shuttered bank, grey depression-era city street, breadlines in fog, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:30.625Z"
+  },
+  "scenario_oil_shock": {
+    "nameJp": "オイルショックの資源輸入国",
+    "category": "scenario",
+    "file": "scenario_oil_shock.png",
+    "prompt": "long queues at gas stations, oil derricks silhouette, hazy amber industrial skyline, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:41.871Z"
+  },
+  "scenario_cold_war_divide": {
+    "nameJp": "分断国家の最前線",
+    "category": "scenario",
+    "file": "scenario_cold_war_divide.png",
+    "prompt": "a concrete dividing wall under searchlights, guard towers, tense cold-war border night, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:54:52.856Z"
+  },
+  "scenario_new_independence": {
+    "nameJp": "独立直後の新興国家",
+    "category": "scenario",
+    "file": "scenario_new_independence.png",
+    "prompt": "a new flag being raised over a modest capital at dawn, hopeful crowd, fragile optimism, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:04.327Z"
+  },
+  "scenario_export_boom": {
+    "nameJp": "高度成長期の輸出大国",
+    "category": "scenario",
+    "file": "scenario_export_boom.png",
+    "prompt": "towering factories and cargo ports at golden hour, smokestacks, booming industrial energy, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:12.658Z"
+  },
+  "scenario_welfare_debt": {
+    "nameJp": "財政危機の福祉国家",
+    "category": "scenario",
+    "file": "scenario_welfare_debt.png",
+    "prompt": "grand welfare-state architecture with cracks showing, ledgers of red ink, opulent decay, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:23.241Z"
+  },
+  "scenario_post_coup": {
+    "nameJp": "クーデター後の暫定政権",
+    "category": "scenario",
+    "file": "scenario_post_coup.png",
+    "prompt": "tanks parked in a plaza at dawn, uneasy soldiers, a provisional government building, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:31.395Z"
+  },
+  "scenario_currency_crisis": {
+    "nameJp": "通貨危機の新興市場",
+    "category": "scenario",
+    "file": "scenario_currency_crisis.png",
+    "prompt": "a currency exchange board with plummeting numbers, panicked traders, red warning glow, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:41.049Z"
+  },
+  "scenario_reunification": {
+    "nameJp": "統一直後の東西融合国家",
+    "category": "scenario",
+    "file": "scenario_reunification.png",
+    "prompt": "two halves of a city merging, old wall fragments among new construction, mixed architecture, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:55:50.565Z"
+  },
+  "scenario_post_pandemic": {
+    "nameJp": "感染症危機後の再建期",
+    "category": "scenario",
+    "file": "scenario_post_pandemic.png",
+    "prompt": "workers reopening shuttered shops, masks being lowered, cautious hopeful reconstruction light, moody historical scene illustration, atmospheric period detail, wide composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:12.071Z"
+  },
+  "neighbor_northern_power": {
+    "nameJp": "北方大国",
+    "category": "neighbor",
+    "file": "neighbor_northern_power.png",
+    "prompt": "heraldic crest featuring a bear, militaristic ornamentation, cold steel-grey and gold, ornate heraldic crest emblem, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:22.559Z"
+  },
+  "neighbor_eastern_ally": {
+    "nameJp": "東方連邦",
+    "category": "neighbor",
+    "file": "neighbor_eastern_ally.png",
+    "prompt": "heraldic crest featuring cherry blossoms, elegant balanced symmetry, soft pink and gold, ornate heraldic crest emblem, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:30.869Z"
+  },
+  "neighbor_southern_trade": {
+    "nameJp": "南方通商圏",
+    "category": "neighbor",
+    "file": "neighbor_southern_trade.png",
+    "prompt": "heraldic crest featuring palm fronds and a merchant ship, warm amber and gold, ornate heraldic crest emblem, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:39.096Z"
+  },
+  "neighbor_western_confederation": {
+    "nameJp": "西方諸国連合",
+    "category": "neighbor",
+    "file": "neighbor_western_confederation.png",
+    "prompt": "heraldic crest featuring an eagle with multiple small shields joined, muted bronze and gold, ornate heraldic crest emblem, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:47.504Z"
+  },
+  "neighbor_island_nation": {
+    "nameJp": "孤島共和国",
+    "category": "neighbor",
+    "file": "neighbor_island_nation.png",
+    "prompt": "heraldic crest featuring waves and a small island, serene teal and gold, ornate heraldic crest emblem, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:56:55.985Z"
+  },
+  "faction_military": {
+    "nameJp": "軍部",
+    "category": "faction",
+    "file": "faction_military.png",
+    "prompt": "emblem of crossed swords beneath a star, disciplined military insignia, clean emblem icon, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:04.855Z"
+  },
+  "faction_business": {
+    "nameJp": "財界",
+    "category": "faction",
+    "file": "faction_business.png",
+    "prompt": "emblem of a laurel wreath encircling a coin, prosperous commercial insignia, clean emblem icon, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:12.919Z"
+  },
+  "faction_labor": {
+    "nameJp": "労働者",
+    "category": "faction",
+    "file": "faction_labor.png",
+    "prompt": "emblem of a raised gear and wrench crossed, workers solidarity insignia, clean emblem icon, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:21.733Z"
+  },
+  "faction_citizen": {
+    "nameJp": "市民",
+    "category": "faction",
+    "file": "faction_citizen.png",
+    "prompt": "emblem of an open hand beneath a rising sun, civic unity insignia, clean emblem icon, flat symmetrical vector-ish illustration, circular composition, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:30.263Z"
+  },
+  "advisor_economic": {
+    "nameJp": "経済顧問",
+    "category": "advisor",
+    "file": "advisor_economic.png",
+    "prompt": "economic advisor character bust, holding a briefcase, sharp calculating gaze, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:39.160Z"
+  },
+  "advisor_employment": {
+    "nameJp": "雇用顧問",
+    "category": "advisor",
+    "file": "advisor_employment.png",
+    "prompt": "employment advisor character bust, rolled-up sleeves, practical grounded expression, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:49.715Z"
+  },
+  "advisor_social": {
+    "nameJp": "社会顧問",
+    "category": "advisor",
+    "file": "advisor_social.png",
+    "prompt": "social affairs advisor character bust, warm approachable demeanor, community-minded, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:57:58.023Z"
+  },
+  "advisor_political": {
+    "nameJp": "政治顧問",
+    "category": "advisor",
+    "file": "advisor_political.png",
+    "prompt": "political advisor character bust, sly strategic half-smile, sharp formal attire, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:58:18.199Z"
+  },
+  "advisor_environmental": {
+    "nameJp": "環境顧問",
+    "category": "advisor",
+    "file": "advisor_environmental.png",
+    "prompt": "environmental advisor character bust, earthy attire, concerned thoughtful eyes, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:58:27.850Z"
+  },
+  "advisor_military": {
+    "nameJp": "軍事顧問",
+    "category": "advisor",
+    "file": "advisor_military.png",
+    "prompt": "military advisor character bust, decorated uniform, hardened watchful stare, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:58:37.999Z"
+  },
+  "advisor_external": {
+    "nameJp": "外交顧問",
+    "category": "advisor",
+    "file": "advisor_external.png",
+    "prompt": "foreign affairs advisor character bust, cosmopolitan refined look, guarded diplomatic smile, stylized character design bust, centered composition, plain dark background vignette, stylized character design, not photorealistic, illustrated character portrait, expressive simplified features, dark navy and antique gold color palette, dramatic chiaroscuro lighting, stylized game character illustration, clean bold linework, semi-realistic anime-adjacent character design, serious institutional tone, no text no watermark no border",
+    "provider": "leonardo",
+    "modelId": "de7d3faf-762f-48e0-b3b7-9d0ac3a3fcf3",
+    "generatedAt": "2026-08-02T06:58:46.734Z"
+  }
+}
