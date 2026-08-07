@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/event.dart';
-import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/achievement.dart';

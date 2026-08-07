@@ -17,7 +17,6 @@ import 'package:government_simulator/widgets/achievement_popup.dart';
 import 'event_detail_screen.dart';
 import 'graph_screen.dart';
 import 'country_history_screen.dart';
-import 'play_time_config_screen.dart';
 import 'settings_screen.dart';
 import 'year_end_screen.dart';
 import 'game_over_screen.dart';

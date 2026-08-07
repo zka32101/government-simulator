@@ -36,9 +36,6 @@ class FirestoreService {
   Map<String, dynamic> _statusToMap(CountryStatus s) =>
       _withTimestamp(s.toMap(), 'lastUpdated', s.lastUpdated);
 
-  CountryStatus _mapToStatus(Map<String, dynamic> d) =>
-      CountryStatus.fromMap(_isoFromTimestamp(d, 'lastUpdated'));
-
   // =================== User Profile ===================
 
   Future<UserProfile?> getUserProfile(String userId) async {

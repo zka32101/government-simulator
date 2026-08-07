@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:government_simulator/models/faction.dart';
 
 class CountryStatus {
