@@ -1,30 +1,37 @@
-// This is a basic Flutter widget test.
+// 元のファイルは Flutter デフォルトテンプレートのカウンターアプリ用テストが
+// そのまま残っており、本アプリには存在しない `MyApp` を参照していたため
+// コンパイルすら通らなかった（`flutter analyze`/`flutter test` が常に失敗）。
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// アプリ本体（GovernmentSimulator）は起動時に Firebase
+// （FirebaseAuth.instance 等）へアクセスするため、素の `flutter test`
+// （Firebase のプラットフォームチャンネルをモックしていない）ではpumpできない。
+// そのため、ここでは Firebase/Riverpod に依存しないウィジェットの
+// スモークテストに置き換える。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:government_simulator/main.dart';
+import 'package:government_simulator/widgets/animated_counter.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('AnimatedCounter は初期値と更新後の値を正しく表示する',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: AnimatedCounter(value: 42, decimals: 0)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('42'), findsOneWidget);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // 値が変わったら、アニメーション後に新しい値へ収束する
+    // （以前は Tween(begin: value, end: value) で自分自身とトゥイーンして
+    // いたため、瞬時に切り替わるだけでアニメーションしていなかった）。
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: AnimatedCounter(value: 100, decimals: 0)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('100'), findsOneWidget);
   });
 }

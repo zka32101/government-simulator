@@ -214,4 +214,75 @@ class FirestoreService {
     map['afterStatus'] = _statusToMap(d.afterStatus);
     return map;
   }
+
+  // =================== Weekly Poll ===================
+  //
+  // 週替わり全国民投票。全プレイヤーが同じ週は同じ設問に投票し、
+  // 投票は weekId+userId をドキュメントIDにして二重投票を防ぐ。
+  // 集計はプレイヤー数分の全投票ドキュメントを毎回読むのではなく、
+  // 週ごとの集計ドキュメントをトランザクションでインクリメントする。
+
+  static const String _weeklyPollVotesCollection = 'weekly_poll_votes';
+  static const String _weeklyPollCountsCollection = 'weekly_poll_counts';
+
+  /// このユーザーが指定週にどちらへ投票したか（未投票なら null）。
+  Future<String?> getUserVote(String weekId, String userId) async {
+    try {
+      final doc = await _db
+          .collection(_weeklyPollVotesCollection)
+          .doc('${weekId}_$userId')
+          .get();
+      if (!doc.exists) return null;
+      return doc.data()?['choice'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 指定週の選択肢A/Bそれぞれの投票数。
+  Future<Map<String, int>> getPollCounts(String weekId) async {
+    try {
+      final doc =
+          await _db.collection(_weeklyPollCountsCollection).doc(weekId).get();
+      final data = doc.data();
+      return {
+        'A': ((data?['A'] ?? 0) as num).toInt(),
+        'B': ((data?['B'] ?? 0) as num).toInt(),
+      };
+    } catch (_) {
+      return {'A': 0, 'B': 0};
+    }
+  }
+
+  /// 投票を記録する。既に投票済みなら false を返し、二重投票を防ぐ。
+  Future<bool> submitVote(String weekId, String userId, String choice) async {
+    final voteRef =
+        _db.collection(_weeklyPollVotesCollection).doc('${weekId}_$userId');
+    final countRef = _db.collection(_weeklyPollCountsCollection).doc(weekId);
+    try {
+      return await _db.runTransaction<bool>((tx) async {
+        final existingVote = await tx.get(voteRef);
+        if (existingVote.exists) return false;
+
+        final countDoc = await tx.get(countRef);
+        final currentCount =
+            ((countDoc.data()?[choice] ?? 0) as num).toInt();
+
+        tx.set(voteRef, {
+          'weekId': weekId,
+          'userId': userId,
+          'choice': choice,
+          'votedAt': Timestamp.now(),
+        });
+        tx.set(
+          countRef,
+          {choice: currentCount + 1},
+          SetOptions(merge: true),
+        );
+        return true;
+      });
+    } catch (_) {
+      return false;
+    }
+  }
 }

@@ -25,6 +25,23 @@ jobs:
         working-directory: government_simulator
         run: flutter pub get
 
+      # lib/config/firebase_options.dart is generated locally by
+      # `flutterfire configure` and is gitignored (it contains
+      # per-platform Firebase API keys), so it doesn't exist in a fresh
+      # checkout. Unlike the analyze/test workflow, a real release build
+      # must not silently fall back to placeholder keys — fail loudly and
+      # tell whoever tagged the release what to do.
+      - name: Write Firebase config
+        working-directory: government_simulator
+        env:
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          if [ -z "$FIREBASE_OPTIONS_DART" ]; then
+            echo "::error::FIREBASE_OPTIONS_DART repo secret is not set. Run 'flutterfire configure' locally, then store the generated lib/config/firebase_options.dart content as a repository secret named FIREBASE_OPTIONS_DART before tagging a release."
+            exit 1
+          fi
+          echo "$FIREBASE_OPTIONS_DART" > lib/config/firebase_options.dart
+
       - name: Build APK
         working-directory: government_simulator
         run: flutter build apk --release
