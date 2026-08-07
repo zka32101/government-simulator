@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// 数値が滑らかにカウントアップ/ダウンするテキスト。
-class AnimatedCounter extends StatelessWidget {
+class AnimatedCounter extends StatefulWidget {
   final double value;
   final int decimals;
   final String prefix;
@@ -20,15 +20,33 @@ class AnimatedCounter extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<AnimatedCounter> createState() => _AnimatedCounterState();
+}
+
+class _AnimatedCounterState extends State<AnimatedCounter> {
+  late double _previousValue = widget.value;
+
+  @override
+  void didUpdateWidget(covariant AnimatedCounter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 直前にビルドされた値から今回の値へアニメーションする。
+    // 以前は Tween(begin: value, end: value) と同じ値同士でトゥイーン
+    // していたため、数値が一切アニメーションせず瞬時に切り替わっていた。
+    if (oldWidget.value != widget.value) {
+      _previousValue = oldWidget.value;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: value, end: value),
-      duration: duration,
+      tween: Tween(begin: _previousValue, end: widget.value),
+      duration: widget.duration,
       curve: Curves.easeOutCubic,
       builder: (context, val, _) {
         return Text(
-          '$prefix${val.toStringAsFixed(decimals)}$suffix',
-          style: style,
+          '${widget.prefix}${val.toStringAsFixed(widget.decimals)}${widget.suffix}',
+          style: widget.style,
         );
       },
     );

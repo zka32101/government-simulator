@@ -72,10 +72,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final beforeStatus = session.status;
     _previousStatus = beforeStatus;
-    final narrative =
-        _gameLogic.generateNarrative(choice, beforeStatus, beforeStatus);
 
     final newStatus = _gameLogic.applyImpact(beforeStatus, choice.impact);
+    final narrative =
+        _gameLogic.generateNarrative(choice, beforeStatus, newStatus);
     final impactScore =
         _gameLogic.calculateImpactScore(beforeStatus, newStatus);
 

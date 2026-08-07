@@ -56,6 +56,9 @@ dependencies:
   # Monetization
   purchases_flutter: ^8.0.0
 
+  # HTTP client (used by history_book_service.dart)
+  dio: ^5.7.0
+
   # Notifications
   flutter_local_notifications: ^17.1.0
 

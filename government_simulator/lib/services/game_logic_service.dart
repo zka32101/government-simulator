@@ -334,8 +334,11 @@ class GameLogicService {
     }
 
     // 通常時は総合的な改善を判定
+    // 失業率は下がる(負の変化)ほど良いので符号を反転する。
+    // .abs() で符号を潰していたため、失業率を改善する選択が常に
+    // 減点されるバグがあった（calculateImpactScore と同じ向きに統一）。
     final score = impact.gdpChange * 0.3 +
-        impact.unemploymentChange.abs() * -0.3 +
+        -impact.unemploymentChange * 0.3 +
         impact.satisfactionChange * 0.2 +
         impact.stabilityChange * 0.2;
 
