@@ -1,0 +1,49 @@
+name: content-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan diff for forbidden words
+        env:
+          # Register comma-separated words to detect (real name, employer, etc.)
+          # as a repository secret so they never appear in the workflow file itself:
+          # Settings > Secrets and variables > Actions > New repository secret
+          #   Name: FORBIDDEN_WORDS_CSV  Value: "実名,勤務先名,..."
+          FORBIDDEN_WORDS_CSV: ${{ secrets.FORBIDDEN_WORDS_CSV }}
+        run: |
+          if [ -z "$FORBIDDEN_WORDS_CSV" ]; then
+            echo "FORBIDDEN_WORDS_CSV is not set. Register it in repo Secrets to enable this check."
+            exit 0
+          fi
+          DIFF=$(git diff origin/${{ github.base_ref || 'main' }}...HEAD || git show HEAD)
+          FOUND=0
+          IFS=',' read -ra WORDS <<< "$FORBIDDEN_WORDS_CSV"
+          for w in "${WORDS[@]}"; do
+            if echo "$DIFF" | grep -iq -- "$w"; then
+              echo "::error::Forbidden word detected in diff (details masked)"
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            exit 1
+          fi
+
+      - name: Check for accidentally committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

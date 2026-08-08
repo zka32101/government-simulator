@@ -157,6 +157,11 @@ class _GraphScreenState extends State<GraphScreen> {
 
     final minY = spots.map((e) => e.y).reduce((a, b) => a < b ? a : b);
     final maxY = spots.map((e) => e.y).reduce((a, b) => a > b ? a : b);
+    // 全ての値が同じ（決定が1件だけ、または選択中の指標が変化していない）
+    // 場合 maxY - minY == 0 になり、fl_chart に interval: 0 を渡すと
+    // アサーションで落ちるため、その場合は 1.0 にフォールバックする。
+    final horizontalInterval =
+        (maxY - minY) > 0 ? (maxY - minY) / 5 : 1.0;
 
     return Card(
       child: Padding(
@@ -168,7 +173,7 @@ class _GraphScreenState extends State<GraphScreen> {
               gridData: FlGridData(
                 show: true,
                 drawVerticalLine: true,
-                horizontalInterval: (maxY - minY) / 5,
+                horizontalInterval: horizontalInterval,
                 verticalInterval: (decisions.length / 5).ceil().toDouble(),
               ),
               titlesData: FlTitlesData(

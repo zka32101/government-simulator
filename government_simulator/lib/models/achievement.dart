@@ -1,5 +1,4 @@
 import 'package:government_simulator/models/game_session.dart';
-import 'package:government_simulator/models/country_status.dart';
 
 /// 実績・称号。年末やゲームオーバー時に達成判定する。
 class Achievement {

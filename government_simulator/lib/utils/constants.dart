@@ -46,6 +46,16 @@ class AppConstants {
 
   // ローカライゼーション
   static const String defaultLocale = 'ja_JP';
+
+  // History Book機能（AI生成の統治サマリー）で使用するClaude API設定。
+  // ⚠️ 現状はクライアントから直接Claude APIを呼ぶ設計（history_book_service.dart）
+  // だが、これは公開アプリではAPIキーの抜き取りを許すアンチパターンなので、
+  // 出荷前に自前バックエンド/Cloud Functions経由の呼び出しに置き換えること。
+  // キー自体は絶対にハードコードせず --dart-define=CLAUDE_API_KEY=... で注入する。
+  static const String claudeApiKey =
+      String.fromEnvironment('CLAUDE_API_KEY', defaultValue: '');
+  static const String claudeApiBase = 'https://api.anthropic.com/v1';
+  static const String claudeTextModel = 'claude-sonnet-4-5';
 }
 
 class GameLevels {

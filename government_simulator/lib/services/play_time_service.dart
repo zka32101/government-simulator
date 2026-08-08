@@ -209,7 +209,6 @@ class PlayTimeService {
     int currentDay,
     int currentYear,
   ) async {
-    final now = DateTime.now();
     final isPlayable = await isPlayableNow(config);
     final daysPassed = await calculateDaysPassed(config, lastPlayedAt);
 

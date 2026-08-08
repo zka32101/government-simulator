@@ -1,0 +1,64 @@
+name: Analyze and Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: government_simulator
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      # lib/config/firebase_options.dart is generated locally by
+      # `flutterfire configure` and is gitignored (it contains
+      # per-platform Firebase API keys), so a fresh checkout can't
+      # analyze/compile without it. Prefer a real config from a repo
+      # secret if one has been set up; otherwise fall back to the
+      # tracked placeholder template, which is only good enough to
+      # satisfy static analysis and let the Firebase-independent
+      # unit/widget tests run (main.dart already treats a failed
+      # Firebase.initializeApp() as non-fatal). Either way this file is
+      # written at CI-time only and is never committed as itself.
+      - name: Write Firebase config for analysis/tests
+        env:
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          if [ -n "$FIREBASE_OPTIONS_DART" ]; then
+            echo "$FIREBASE_OPTIONS_DART" > lib/config/firebase_options.dart
+          else
+            cp ../.github/ci-templates/firebase_options.ci-placeholder.dart \
+              lib/config/firebase_options.dart
+          fi
+
+      # This Flutter/Dart SDK version fails `flutter analyze` on any
+      # issue by default, including plain "info" (--fatal-infos
+      # defaults to true here). The repo currently carries ~110 info-
+      # level style suggestions (deprecated withOpacity() calls ahead
+      # of a Flutter upgrade, "could be a super parameter", etc.)
+      # spread across most UI files — real, but a separate lint-sweep
+      # task, not something to fold into a security/bug-fix pass.
+      # --no-fatal-infos keeps CI failing on genuine errors/warnings
+      # (which is the point of this job) without blocking every PR on
+      # unrelated style debt.
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test

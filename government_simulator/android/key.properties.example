@@ -1,0 +1,10 @@
+## Copy this file to android/key.properties (which is gitignored) and fill in
+## real values for local release builds. In CI, generate this file from
+## GitHub Actions Secrets instead of committing it.
+##
+## See: https://docs.flutter.dev/deployment/android#signing-the-app
+
+storePassword=your-keystore-password
+keyPassword=your-key-password
+keyAlias=your-key-alias
+storeFile=/absolute/or/relative/path/to/release.keystore

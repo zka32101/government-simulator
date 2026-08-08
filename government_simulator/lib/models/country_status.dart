@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:government_simulator/models/faction.dart';
 
 class CountryStatus {
@@ -55,7 +54,10 @@ class CountryStatus {
 
   // 国家の"健全性スコア" (0-100)
   double get healthScore {
-    final gdpScore = (gdp / 1000).clamp(0, 100);
+    // gdp は 100〜10000 の範囲（applyImpact でクランプ）。/1000 だと
+    // 最大値でも 10 点にしかならず、achievement.dart の perfect_score
+    // (healthScore >= 85) が数学的に到達不可能になっていたバグがあった。
+    final gdpScore = (gdp / 100).clamp(0, 100);
     final employmentScore = ((100 - unemployment) / 100) * 100;
     final satisfactionScore = satisfaction;
     final stabilityScore = stability;

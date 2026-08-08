@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -5,8 +8,17 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-// Redirect build output to ASCII path to avoid Japanese-character CMake JSON issues
-layout.buildDirectory.set(file("C:/flutter_build/government_simulator/app"))
+// Release signing config is loaded from android/key.properties (gitignored, never committed).
+// See android/key.properties.example for the expected format. Falls back to the debug
+// keystore only when key.properties is absent (e.g. local debug builds), so CI/local
+// release builds without a keystore fail loudly instead of silently shipping a
+// debug-signed release APK.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+val hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
 
 android {
     namespace = "com.petitworks.government_simulator"
@@ -17,12 +29,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    externalNativeBuild {
-        cmake {
-            buildStagingDirectory = file("C:/cmake_staging/govt_sim")
-        }
     }
 
     defaultConfig {
@@ -36,11 +42,33 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // NEVER sign release builds with the debug keystore (it is public and
+            // shared across all Flutter installs). Configure android/key.properties
+            // for real release builds.
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

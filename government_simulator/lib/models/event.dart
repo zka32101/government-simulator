@@ -1,5 +1,3 @@
-import 'package:government_simulator/models/country_status.dart';
-
 class GameEvent {
   final String id;
   final String title;
