@@ -45,7 +45,7 @@ dependencies:
   flutter_hooks: ^0.21.3
 
   # UI & Animations
-  fl_chart: ^0.63.0
+  fl_chart: ^1.2.0
   animations: ^2.0.0
 
   # Utilities
