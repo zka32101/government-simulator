@@ -47,7 +47,7 @@ jobs:
         run: flutter build apk --release
 
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: government_simulator-release-apk
           path: government_simulator/build/app/outputs/flutter-apk/app-release.apk
