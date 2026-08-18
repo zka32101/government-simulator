@@ -485,7 +485,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 社会系イベント (5件)
+  // 社会系イベント (6件)
   // =====================
   static final List<GameEvent> _socialEvents = [
     GameEvent(
@@ -634,6 +634,34 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'soc_06_epidemic',
+      title: '地方都市での疫病集団感染',
+      description: '地方の都市で原因不明の伝染病が集団発生し、急速に広がっています。\n医療体制が逼迫しています。',
+      category: EventCategory.social,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'soc_06_a',
+          text: '都市封鎖と医療資源の集中投入',
+          shortDescription: '感染拡大防止 | 経済的損失 | 医療費増',
+          impact: Impact(gdpChange: -2.0, satisfactionChange: -8, unemploymentChange: 1.0, stabilityChange: 3),
+        ),
+        Choice(
+          id: 'soc_06_b',
+          text: '情報公開を最小限に抑え混乱を回避',
+          shortDescription: '短期混乱回避 | 感染拡大リスク | 隠蔽との批判',
+          impact: Impact(satisfactionChange: -20, stabilityChange: -12, gdpChange: 0.5),
+        ),
+        Choice(
+          id: 'soc_06_c',
+          text: '国際医療機関と連携して対応',
+          shortDescription: '専門知見を活用 | 主体性やや低下 | 信頼回復',
+          impact: Impact(satisfactionChange: 8, nationalPowerChange: -3, stabilityChange: 5, gdpChange: -0.8),
+        ),
+      ],
+    ),
   ];
 
   // =====================
@@ -754,7 +782,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 環境系イベント (4件)
+  // 環境系イベント (5件)
   // =====================
   static final List<GameEvent> _environmentalEvents = [
     GameEvent(
@@ -865,6 +893,34 @@ class EventDatabase {
           text: 'リサイクル技術への投資を優先',
           shortDescription: 'イノベーション重視 | 即効性なし',
           impact: Impact(nationalPowerChange: 6, gdpChange: 0.3, satisfactionChange: 5, stabilityChange: 5),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'env_05_earthquake',
+      title: '大規模地震の発生',
+      description: '国内で大規模な地震が発生し、インフラや住宅に甚大な被害が出ています。',
+      category: EventCategory.environmental,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'env_05_a',
+          text: '国家総動員による緊急復興',
+          shortDescription: '復興加速 | 財政大幅悪化 | 国民の安心感',
+          impact: Impact(satisfactionChange: 22, gdpChange: -3.0, unemploymentChange: -1.5, stabilityChange: -8),
+        ),
+        Choice(
+          id: 'env_05_b',
+          text: '民間主導の復興を支援',
+          shortDescription: 'バランス型 | 復興はやや遅め',
+          impact: Impact(satisfactionChange: 10, gdpChange: -1.0, stabilityChange: -3),
+        ),
+        Choice(
+          id: 'env_05_c',
+          text: '最低限の支援に留め財政を優先',
+          shortDescription: '財政健全性を維持 | 国民の不満増大',
+          impact: Impact(satisfactionChange: -25, gdpChange: 0.5, stabilityChange: -15, nationalPowerChange: -5),
         ),
       ],
     ),
@@ -988,7 +1044,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 軍事系イベント (3件)
+  // 軍事系イベント (4件)
   // =====================
   static final List<GameEvent> _militaryEvents = [
     GameEvent(
@@ -1072,6 +1128,34 @@ class EventDatabase {
           text: '証拠が不十分として穏便に対応',
           shortDescription: '緊張回避 | 弱腰批判',
           impact: Impact(nationalPowerChange: -5, satisfactionChange: -8, stabilityChange: 5),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'mil_04_invasion',
+      title: '隣国からの軍事侵攻',
+      description: '北方の隣国が国境を越えて軍を進めてきました。\n即座の対応が求められています。',
+      category: EventCategory.military,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'mil_04_a',
+          text: '全面的に迎撃する',
+          shortDescription: '国力↑↑ | 経済打撃大 | 犠牲者増',
+          impact: Impact(nationalPowerChange: 15, gdpChange: -4.0, satisfactionChange: -15, stabilityChange: -15),
+        ),
+        Choice(
+          id: 'mil_04_b',
+          text: '国際社会に支援を要請しつつ交渉',
+          shortDescription: '国際協調 | 時間を稼ぐ | 主体性低下',
+          impact: Impact(nationalPowerChange: 3, gdpChange: -1.5, satisfactionChange: -5, stabilityChange: -5),
+        ),
+        Choice(
+          id: 'mil_04_c',
+          text: '領土の一部割譲で和平交渉',
+          shortDescription: '短期的平和 | 国民の屈辱感 | 国力大幅低下',
+          impact: Impact(nationalPowerChange: -20, gdpChange: 1.0, satisfactionChange: -25, stabilityChange: -10),
         ),
       ],
     ),
