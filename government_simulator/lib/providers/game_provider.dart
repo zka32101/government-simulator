@@ -4,20 +4,32 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/achievement.dart';
+import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/minister.dart';
+import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 
-/// applyChoice の結果（実績解除・ゲームオーバー）
+/// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
 class ChoiceResult {
   final List<Achievement> newAchievements;
   final GameOverType gameOver;
+  final MinisterRole? betrayedMinister;
+  final List<PromiseResolution> promiseResolutions;
 
-  ChoiceResult({required this.newAchievements, required this.gameOver});
+  ChoiceResult({
+    required this.newAchievements,
+    required this.gameOver,
+    this.betrayedMinister,
+    this.promiseResolutions = const [],
+  });
 
-  factory ChoiceResult.empty() =>
-      ChoiceResult(newAchievements: const [], gameOver: GameOverType.none);
+  factory ChoiceResult.empty() => ChoiceResult(
+        newAchievements: const [],
+        gameOver: GameOverType.none,
+      );
 
   bool get isGameOver => gameOver != GameOverType.none;
 }
@@ -158,6 +170,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required Impact impact,
     required String eventId,
     required String narrative,
+    Faction? promiseTarget,
   }) async {
     final session = state.session;
     if (session == null) return ChoiceResult.empty();
@@ -168,9 +181,36 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       decisionsCount: session.status.decisionsCount + 1,
       lastUpdated: DateTime.now(),
     );
-    final newStatus = _logic.applyImpact(baseStatus, impact);
+    var newStatus = _logic.applyImpact(baseStatus, impact);
     final impactScore = _logic.calculateImpactScore(session.status, newStatus);
     final isPositive = _logic.wasPositiveOutcome(impact, session.status);
+
+    // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
+    final ministerDeltas =
+        _logic.deriveMinisterImpact(impact, corruption: newStatus.corruption);
+    var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
+    final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
+    if (betrayedRole != null) {
+      newCabinet = newCabinet.markBetrayed(betrayedRole);
+      newStatus = newStatus.copyWith(
+        stability: (newStatus.stability - 15).clamp(0, 100),
+        satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
+      );
+    }
+    newStatus = newStatus.copyWith(cabinet: newCabinet);
+
+    // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
+    var activePromises = session.activePromises;
+    if (promiseTarget != null) {
+      activePromises = [
+        ...activePromises,
+        _logic.makePromise(promiseTarget, newStatus),
+      ];
+    }
+    final resolution = _logic.resolvePromises(activePromises, newStatus);
+    newStatus = newStatus.copyWith(factions: resolution.factions);
+    activePromises = resolution.remaining;
+
     final decision = Decision(
       id: '${session.id}_${DateTime.now().millisecondsSinceEpoch}',
       sessionId: session.id,
@@ -191,6 +231,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       totalDecisions: session.totalDecisions + 1,
       positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
       negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
+      activePromises: activePromises,
     );
 
     // 実績判定
@@ -218,6 +259,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     return ChoiceResult(
       newAchievements: newAchievements,
       gameOver: gameOver,
+      betrayedMinister: betrayedRole,
+      promiseResolutions: resolution.resolutions,
     );
   }
 
@@ -233,11 +276,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String userId,
     required String countryName,
     required String difficulty,
+    String? previousSessionId,
   }) async {
     final newSession = _logic.createNewSession(
       userId: userId,
       countryName: countryName,
       difficulty: difficulty,
+      previousSessionId: previousSessionId,
     );
     await _firestore.createGameSession(newSession);
     state = GameSessionState(

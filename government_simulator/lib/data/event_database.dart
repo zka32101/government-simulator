@@ -1,4 +1,5 @@
 import 'package:government_simulator/models/event.dart';
+import 'package:government_simulator/models/faction.dart';
 
 class EventDatabase {
   static List<GameEvent> getAllEvents() => [
@@ -269,6 +270,7 @@ class EventDatabase {
           text: '課税強化を見送る',
           shortDescription: '投資家支持↑ | 格差継続',
           impact: Impact(gdpChange: 0.5, satisfactionChange: -8, nationalPowerChange: 2),
+          promiseTarget: Faction.business,
         ),
       ],
     ),
@@ -352,6 +354,7 @@ class EventDatabase {
           text: '要求通り大幅引き上げを承認',
           shortDescription: '低賃金層満足度↑↑ | 中小企業圧迫',
           impact: Impact(satisfactionChange: 25, unemploymentChange: 1.5, gdpChange: 0.5, stabilityChange: -5),
+          promiseTarget: Faction.labor,
         ),
         Choice(
           id: 'emp_02_b',
@@ -587,6 +590,7 @@ class EventDatabase {
           text: '富の再分配政策を強化する',
           shortDescription: '格差↓ | 低所得層満足↑ | 富裕層反発',
           impact: Impact(satisfactionChange: 20, gdpChange: -0.5, stabilityChange: 8, nationalPowerChange: -2),
+          promiseTarget: Faction.citizen,
         ),
         Choice(
           id: 'soc_04_b',
@@ -999,6 +1003,7 @@ class EventDatabase {
           text: 'GDP比2%まで防衛費を増額する',
           shortDescription: '抑止力↑ | 財政圧迫 | 外交緊張',
           impact: Impact(nationalPowerChange: 12, gdpChange: -1.0, satisfactionChange: -5, stabilityChange: 5),
+          promiseTarget: Faction.military,
         ),
         Choice(
           id: 'mil_01_b',

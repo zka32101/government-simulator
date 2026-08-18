@@ -1,4 +1,5 @@
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/promise.dart';
 
 class GameSession {
   final String id;
@@ -20,6 +21,9 @@ class GameSession {
   final List<String> unlockedAchievements;
   final bool hasSeenTutorial;
 
+  // 二枚舌外交システム：まだ期限が来ていない公約
+  final List<Promise> activePromises;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -35,6 +39,7 @@ class GameSession {
     this.negativeOutcomes = 0,
     this.unlockedAchievements = const [],
     this.hasSeenTutorial = false,
+    this.activePromises = const [],
   });
 
   // プレイ時間（分）
@@ -77,6 +82,7 @@ class GameSession {
     int? negativeOutcomes,
     List<String>? unlockedAchievements,
     bool? hasSeenTutorial,
+    List<Promise>? activePromises,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -93,6 +99,7 @@ class GameSession {
       negativeOutcomes: negativeOutcomes ?? this.negativeOutcomes,
       unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
       hasSeenTutorial: hasSeenTutorial ?? this.hasSeenTutorial,
+      activePromises: activePromises ?? this.activePromises,
     );
   }
 
@@ -112,6 +119,7 @@ class GameSession {
       'negativeOutcomes': negativeOutcomes,
       'unlockedAchievements': unlockedAchievements,
       'hasSeenTutorial': hasSeenTutorial,
+      'activePromises': activePromises.map((p) => p.toMap()).toList(),
     };
   }
 
@@ -146,6 +154,10 @@ class GameSession {
       unlockedAchievements:
           List<String>.from(map['unlockedAchievements'] ?? []),
       hasSeenTutorial: map['hasSeenTutorial'] ?? false,
+      activePromises: (map['activePromises'] as List?)
+              ?.map((p) => Promise.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 }

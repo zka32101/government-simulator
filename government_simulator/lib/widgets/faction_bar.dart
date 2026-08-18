@@ -51,7 +51,11 @@ class FactionBars extends StatelessWidget {
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: _FactionColumn(faction: f, value: v),
+                  child: _FactionColumn(
+                    faction: f,
+                    value: v,
+                    isLiarTo: factions.isLiarTo(f),
+                  ),
                 ),
               );
             }).toList(),
@@ -65,8 +69,13 @@ class FactionBars extends StatelessWidget {
 class _FactionColumn extends StatelessWidget {
   final Faction faction;
   final double value;
+  final bool isLiarTo;
 
-  const _FactionColumn({required this.faction, required this.value});
+  const _FactionColumn({
+    required this.faction,
+    required this.value,
+    this.isLiarTo = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +89,8 @@ class _FactionColumn extends StatelessWidget {
 
     return Column(
       children: [
-        Text(faction.emoji, style: const TextStyle(fontSize: 18)),
+        Text(isLiarTo ? '${faction.emoji} 🤥' : faction.emoji,
+            style: const TextStyle(fontSize: 18)),
         const SizedBox(height: 4),
         Text(faction.label,
             style: const TextStyle(

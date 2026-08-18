@@ -6,12 +6,19 @@ import 'package:government_simulator/utils/app_theme.dart';
 class CabinetPanel extends StatelessWidget {
   final Cabinet cabinet;
 
-  const CabinetPanel({Key? key, required this.cabinet}) : super(key: key);
+  /// 0-100。汚職度が高いほど内閣全体の忠誠が蝕まれていく
+  /// （GameLogicService.deriveMinisterImpact 参照）。省略時はバッジ非表示。
+  final double? corruption;
+
+  const CabinetPanel({Key? key, required this.cabinet, this.corruption})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final lowest = cabinet.mostDisloyal;
     final atRisk = lowest != null && lowest.value <= 20;
+    final corruptionLevel = corruption ?? 0;
+    final corrupt = corruptionLevel >= 40;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -31,6 +38,23 @@ class CabinetPanel extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: AppTheme.textPrimary)),
               const Spacer(),
+              if (corrupt) ...[
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                      '🕵️ 汚職度 ${corruptionLevel.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          color: AppTheme.warning,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(width: 6),
+              ],
               if (atRisk)
                 Container(
                   padding:

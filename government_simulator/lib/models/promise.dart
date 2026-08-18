@@ -48,3 +48,19 @@ class PromiseResolution {
     required this.narrative,
   });
 }
+
+/// GameLogicService.resolvePromises() のまとめ結果。
+/// [factions] は破約ペナルティ・嘘つきフラグ適用済みの派閥支持率、
+/// [remaining] はまだ期限が来ていない公約、[resolutions] は今回判定された
+/// （果たされた／破られた）公約の一覧。
+class PromiseResolutionResult {
+  final FactionSupport factions;
+  final List<Promise> remaining;
+  final List<PromiseResolution> resolutions;
+
+  const PromiseResolutionResult({
+    required this.factions,
+    required this.remaining,
+    required this.resolutions,
+  });
+}

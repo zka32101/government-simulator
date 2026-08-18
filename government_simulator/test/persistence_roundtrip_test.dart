@@ -1,23 +1,29 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/minister.dart';
+import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/user_profile.dart';
 
 // FirestoreService はこれらのモデルの toMap()/fromMap() を単一ソースとして
 // 委譲する（Timestamp⇄ISO8601 の変換のみを橋渡しする）。ここではその前提となる
 // モデル自体のラウンドトリップが完全であることを検証する。
-// 過去に factions・unlockedAchievements・email 等が FirestoreService 側で
-// 手動シリアライズされておらず、アプリ再起動でリセットされるバグがあった。
+// 過去に factions/cabinet/activePromises/unlockedAchievements が FirestoreService
+// 側で手動シリアライズされておらず、アプリ再起動でリセットされるバグがあった。
 void main() {
   group('CountryStatus round-trip', () {
-    test('factions・派閥支持率・追加ステータス項目が保持される', () {
+    test('factions・cabinet・派閥の嘘つきフラグが保持される', () {
       final factions = const FactionSupport({
         Faction.military: 72,
         Faction.business: 33,
         Faction.labor: 60,
         Faction.citizen: 45,
-      });
+      }).markLiar(Faction.labor);
+
+      final cabinet = Cabinet.initial()
+          .applyDeltas({MinisterRole.finance: -30})
+          .markBetrayed(MinisterRole.defense);
 
       final original = CountryStatus(
         gdp: 1234.5,
@@ -27,28 +33,34 @@ void main() {
         year: 3,
         day: 4,
         lastUpdated: DateTime(2026, 5, 1, 10, 30),
-        inflationRate: 3.5,
-        publicDebt: 72.0,
-        countryPersonality: '企業家型',
-        decisionsCount: 12,
-        stability: 66.0,
         factions: factions,
+        cabinet: cabinet,
+        previousSessionId: 'prev-123',
+        isNewGame: false,
       );
 
       final restored = CountryStatus.fromMap(original.toMap());
 
       expect(restored.factions.of(Faction.military), 72);
       expect(restored.factions.of(Faction.labor), 60);
-      expect(restored.inflationRate, 3.5);
-      expect(restored.publicDebt, 72.0);
-      expect(restored.countryPersonality, '企業家型');
-      expect(restored.decisionsCount, 12);
-      expect(restored.stability, 66.0);
+      expect(restored.factions.liarFlags, contains(Faction.labor));
+      expect(restored.cabinet.of(MinisterRole.finance), 30);
+      expect(restored.cabinet.betrayed, contains(MinisterRole.defense));
+      expect(restored.previousSessionId, 'prev-123');
+      expect(restored.isNewGame, false);
     });
   });
 
   group('GameSession round-trip', () {
-    test('unlockedAchievements・hasSeenTutorial・成績カウンタが保持される', () {
+    test('activePromises・unlockedAchievements・hasSeenTutorial が保持される', () {
+      final promise = Promise(
+        id: 'p1',
+        faction: Faction.citizen,
+        madeAtDecisionCount: 5,
+        dueAtDecisionCount: 8,
+        supportAtPromiseTime: 50,
+      );
+
       final original = GameSession(
         id: 'session-1',
         userId: 'user-1',
@@ -64,12 +76,9 @@ void main() {
         ),
         createdAt: DateTime(2026, 1, 1),
         lastPlayedAt: DateTime(2026, 1, 2),
-        difficulty: 'hard',
-        totalDecisions: 9,
-        positiveOutcomes: 6,
-        negativeOutcomes: 3,
         unlockedAchievements: const ['first_year', 'economic_boom'],
         hasSeenTutorial: true,
+        activePromises: [promise],
       );
 
       final restored = GameSession.fromMap(original.toMap());
@@ -77,13 +86,9 @@ void main() {
       expect(restored.unlockedAchievements,
           containsAll(['first_year', 'economic_boom']));
       expect(restored.hasSeenTutorial, true);
-      expect(restored.difficulty, 'hard');
-      expect(restored.totalDecisions, 9);
-      expect(restored.positiveOutcomes, 6);
-      expect(restored.negativeOutcomes, 3);
-      // status もネストしたまま正しく復元される
-      expect(restored.status.gdp, 1000);
-      expect(restored.status.year, 1);
+      expect(restored.activePromises, hasLength(1));
+      expect(restored.activePromises.first.faction, Faction.citizen);
+      expect(restored.activePromises.first.dueAtDecisionCount, 8);
     });
   });
 

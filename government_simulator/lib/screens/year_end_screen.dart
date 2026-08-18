@@ -9,12 +9,16 @@ class YearEndScreen extends StatelessWidget {
   final VoidCallback onContinue;
   final VoidCallback onRestart;
 
+  /// 自ら引退し、分岐エンディングを見る。null なら「引退する」選択肢は表示しない。
+  final VoidCallback? onRetire;
+
   const YearEndScreen({
     Key? key,
     required this.session,
     required this.decisions,
     required this.onContinue,
     required this.onRestart,
+    this.onRetire,
   }) : super(key: key);
 
   @override
@@ -181,6 +185,25 @@ class YearEndScreen extends StatelessWidget {
                 ),
               ),
 
+              if (onRetire != null) ...[
+                const SizedBox(height: AppConstants.paddingM),
+                // 引退ボタン（分岐エンディングへ）
+                OutlinedButton.icon(
+                  onPressed: () => _showRetireDialog(context),
+                  icon: const Icon(Icons.flag),
+                  label: const Text('引退し、統治の結末を見る'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFC9A227),
+                    side: const BorderSide(color: Color(0xFFC9A227)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadiusM),
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: AppConstants.paddingM),
 
               // 再スタートボタン
@@ -204,6 +227,30 @@ class YearEndScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showRetireDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('引退しますか？'),
+        content: const Text('これまでの統治を締めくくり、結末を確認します。'
+            'この国家の記録はそこで確定します。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              onRetire?.call();
+            },
+            child: const Text('引退する'),
+          ),
+        ],
       ),
     );
   }
