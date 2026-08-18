@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/decision.dart';
+import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/constants.dart';
 
 class YearEndScreen extends StatelessWidget {
@@ -29,6 +30,7 @@ class YearEndScreen extends StatelessWidget {
     final successRate = session.successRate;
 
     final evaluation = _getYearEvaluation(status.healthScore, successRate);
+    final tier = CountryTier.evaluate(status);
 
     return Scaffold(
       body: SafeArea(
@@ -127,6 +129,71 @@ class YearEndScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: AppConstants.paddingM),
                       _StatusGrid(status: status),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppConstants.paddingM),
+
+              // 現実世界の国家水準になぞらえた評価
+              Card(
+                color: tier.color.withOpacity(0.08),
+                child: Padding(
+                  padding: const EdgeInsets.all(AppConstants.paddingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '🌍 現実世界でいうと',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppConstants.paddingS),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: tier.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: tier.color),
+                        ),
+                        child: Text(
+                          tier.label,
+                          style: TextStyle(
+                            color: tier.color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppConstants.paddingS),
+                      Text(
+                        tier.comparison,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tier.description,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      if (tier.warnings.isNotEmpty) ...[
+                        const SizedBox(height: AppConstants.paddingS),
+                        ...tier.warnings.map(
+                          (w) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Text(
+                              w,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(VisualConstants.colorDanger),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
