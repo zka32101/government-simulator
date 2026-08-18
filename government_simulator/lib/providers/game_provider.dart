@@ -7,6 +7,7 @@ import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
+import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -163,6 +164,40 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       decisions: decisions,
       isLoading: false,
     );
+  }
+
+  /// 「歴史のif」チャレンジ：シナリオの固定初期ステータスで新規セッションを開始する。
+  Future<void> loadOrCreateFromScenario({
+    required String userId,
+    required String countryName,
+    required HistoricalScenario scenario,
+  }) async {
+    state = state.copyWith(isLoading: true);
+
+    final previousSessionId = state.session?.id;
+    final session = _logic.createSessionFromScenario(
+      userId: userId,
+      countryName: countryName,
+      scenario: scenario,
+      previousSessionId: previousSessionId,
+    );
+    await _firestore.createGameSession(session);
+
+    state = GameSessionState(
+      session: session,
+      decisions: const [],
+      isLoading: false,
+    );
+  }
+
+  /// チュートリアルの完了/スキップを記録する。
+  Future<void> markTutorialSeen() async {
+    final session = state.session;
+    if (session == null || session.hasSeenTutorial) return;
+
+    final updated = session.copyWith(hasSeenTutorial: true);
+    await _firestore.updateGameSession(updated);
+    state = state.copyWith(session: updated);
   }
 
   Future<ChoiceResult> applyChoice({

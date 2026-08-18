@@ -16,6 +16,7 @@ import 'package:government_simulator/widgets/faction_bar.dart';
 import 'package:government_simulator/widgets/cabinet_panel.dart';
 import 'package:government_simulator/widgets/news_ticker.dart';
 import 'package:government_simulator/widgets/achievement_popup.dart';
+import 'package:government_simulator/widgets/tutorial_overlay.dart';
 import 'event_detail_screen.dart';
 import 'graph_screen.dart';
 import 'country_history_screen.dart';
@@ -23,6 +24,8 @@ import 'settings_screen.dart';
 import 'year_end_screen.dart';
 import 'game_over_screen.dart';
 import 'ending_screen.dart';
+import 'world_map_screen.dart';
+import 'weekly_poll_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -212,6 +215,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _onTutorialFinish() {
+    ref.read(gameSessionProvider.notifier).markTutorialSeen();
+  }
+
   void _showEventBanner(String title, String body) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -267,7 +274,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final advisor =
         _advisors[_currentEvent!.category] ?? '🏛️';
 
-    return Scaffold(
+    final home = Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: AppTheme.crisisGradient(status.crisisLevel),
@@ -299,6 +306,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 color: AppTheme.textSecondary),
                           ),
                         ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.public,
+                          color: AppTheme.textSecondary),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => WorldMapScreen(
+                            status: status,
+                            countryName: session.countryName,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.how_to_vote,
+                          color: AppTheme.textSecondary),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const WeeklyPollScreen(),
+                        ),
                       ),
                     ),
                     IconButton(
@@ -393,5 +421,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+
+    // 初回プレイ時のみ操作チュートリアルを重ねて表示する。
+    if (!session.hasSeenTutorial) {
+      return Stack(
+        children: [
+          home,
+          TutorialOverlay(onFinish: _onTutorialFinish),
+        ],
+      );
+    }
+    return home;
   }
 }
