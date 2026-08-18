@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/ending.dart';
+import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/widgets/history_book_button.dart';
 
@@ -46,6 +47,7 @@ class _EndingScreenState extends State<EndingScreen>
   Widget build(BuildContext context) {
     final s = widget.session;
     final ending = Ending.determine(s.status, s.status.factions);
+    final tier = CountryTier.evaluate(s.status);
 
     return Scaffold(
       body: Container(
@@ -136,6 +138,57 @@ class _EndingScreenState extends State<EndingScreen>
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: tier.color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: tier.color.withOpacity(0.5)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('🌍 現実世界でいうと',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textSecondary)),
+                      const SizedBox(height: 8),
+                      Text(tier.label,
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: tier.color)),
+                      const SizedBox(height: 6),
+                      Text(tier.comparison,
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary)),
+                      const SizedBox(height: 4),
+                      Text(tier.description,
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textSecondary,
+                              height: 1.4)),
+                      if (tier.warnings.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        ...tier.warnings.map(
+                          (w) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Text(w,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFFF44336))),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
                 const SizedBox(height: 28),
 
                 if (widget.onGenerateHistoryBook != null) ...[
