@@ -338,6 +338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onProfileChanged: (p) => ref
                                 .read(userProfileProvider.notifier)
                                 .update(p),
+                            onReset: _onRestartGame,
                           ),
                         ),
                       ),

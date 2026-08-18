@@ -6,10 +6,15 @@ class SettingsScreen extends StatefulWidget {
   final UserProfile userProfile;
   final ValueChanged<UserProfile> onProfileChanged;
 
+  /// 「ゲームをリセット」確定後に呼ばれる。設定画面を閉じた後、
+  /// 呼び出し元（HomeScreen）が新しいセッションを作成して表示し直す。
+  final VoidCallback onReset;
+
   const SettingsScreen({
     Key? key,
     required this.userProfile,
     required this.onProfileChanged,
+    required this.onReset,
   }) : super(key: key);
 
   @override
@@ -214,18 +219,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showResetDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('ゲームをリセット？'),
         content: const Text('すべてのゲームセッションが削除されます。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('キャンセル'),
           ),
           TextButton(
             onPressed: () {
-              // TODO: リセット処理
-              Navigator.pop(context);
+              Navigator.pop(dialogContext); // 確認ダイアログを閉じる
+              // 新しいセッションの作成とホーム画面までの画面遷移(popUntil)は
+              // 呼び出し元（HomeScreen._onRestartGame）が担う。
+              widget.onReset();
             },
             child: const Text(
               'リセット',
