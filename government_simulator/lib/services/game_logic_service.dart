@@ -6,6 +6,7 @@ import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/achievement.dart';
+import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -56,6 +57,42 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: difficulty,
+    );
+  }
+
+  /// 「歴史のif」チャレンジ：シナリオが定めた固定の初期ステータスから開始する。
+  /// シナリオ自体が難易度を体現しているため、AppConstants の初期値や
+  /// difficulty による補正は適用しない。
+  GameSession createSessionFromScenario({
+    required String userId,
+    required String countryName,
+    required HistoricalScenario scenario,
+    String? previousSessionId,
+  }) {
+    final initialStatus = CountryStatus(
+      gdp: scenario.gdp,
+      unemployment: scenario.unemployment,
+      satisfaction: scenario.satisfaction,
+      nationalPower: scenario.nationalPower,
+      year: AppConstants.initialYear,
+      day: AppConstants.initialDay,
+      lastUpdated: DateTime.now(),
+      inflationRate: scenario.inflationRate,
+      publicDebt: scenario.publicDebt,
+      stability: scenario.stability,
+      countryPersonality: scenario.title,
+      previousSessionId: previousSessionId,
+      isNewGame: true,
+    );
+
+    return GameSession(
+      id: _uuid.v4(),
+      userId: userId,
+      countryName: countryName,
+      status: initialStatus,
+      createdAt: DateTime.now(),
+      lastPlayedAt: DateTime.now(),
+      difficulty: 'normal',
     );
   }
 

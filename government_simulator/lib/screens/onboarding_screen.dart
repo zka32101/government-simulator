@@ -1,10 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'scenario_select_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final void Function(String countryName, String difficulty) onStart;
 
-  const OnboardingScreen({Key? key, required this.onStart}) : super(key: key);
+  /// 「歴史のif」チャレンジ：選ばれたシナリオで開始する。セッション作成が
+  /// 完了するまで待ってから ScenarioSelectScreen を閉じるため Future を返す。
+  final Future<void> Function(String countryName, HistoricalScenario scenario)
+      onStartScenario;
+
+  const OnboardingScreen({
+    Key? key,
+    required this.onStart,
+    required this.onStartScenario,
+  }) : super(key: key);
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -38,6 +49,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final name = _nameController.text.trim();
     if (name.isEmpty) return;
     widget.onStart(name, _difficulty);
+  }
+
+  void _onOpenScenarioSelect() {
+    final name = _nameController.text.trim();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScenarioSelectScreen(
+          onSelect: (scenario) async {
+            // セッション作成が完了してから閉じる（ホーム画面がすでに
+            // 表示された状態でこの画面を閉じるため、一瞬オンボーディングに
+            // 戻って見えるのを防ぐ）。
+            await widget.onStartScenario(
+                name.isEmpty ? '新興共和国' : name, scenario);
+            if (mounted) Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -201,6 +230,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: const Text(
                     '🚀 統治を開始する',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: AppConstants.paddingM),
+
+                // 歴史のIfチャレンジ
+                OutlinedButton(
+                  onPressed: _onOpenScenarioSelect,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Color(VisualConstants.colorPrimary),
+                    side: BorderSide(color: Color(VisualConstants.colorPrimary)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadiusM),
+                    ),
+                  ),
+                  child: const Text(
+                    '📖 歴史のIfチャレンジに挑む',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ),
 
