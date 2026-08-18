@@ -32,6 +32,12 @@ class _PolicyCardState extends State<PolicyCard>
   Choice? get _rightChoice =>
       widget.event.choices.length > 1 ? widget.event.choices[1] : null;
 
+  // 派閥への公約となる選択肢には目印を付ける（二枚舌外交システム）。
+  String _label(Choice? c) {
+    if (c == null) return '';
+    return c.promiseTarget != null ? '🤝 ${c.text}' : c.text;
+  }
+
   void _onPanUpdate(DragUpdateDetails d) {
     if (_dismissing) return;
     setState(() => _dx += d.delta.dx);
@@ -74,7 +80,7 @@ class _PolicyCardState extends State<PolicyCard>
             children: [
               Expanded(
                 child: _SwipeHint(
-                  text: _leftChoice?.text ?? '',
+                  text: _label(_leftChoice),
                   icon: Icons.arrow_back,
                   active: leftActive,
                   opacity: leftActive ? progress : 0.35,
@@ -83,7 +89,7 @@ class _PolicyCardState extends State<PolicyCard>
               ),
               Expanded(
                 child: _SwipeHint(
-                  text: _rightChoice?.text ?? '',
+                  text: _label(_rightChoice),
                   icon: Icons.arrow_forward,
                   active: rightActive,
                   opacity: rightActive ? progress : 0.35,
@@ -163,7 +169,7 @@ class _PolicyCardState extends State<PolicyCard>
                       ),
                       child: Column(
                         children: [
-                          Text(c.text,
+                          Text(_label(c),
                               style: const TextStyle(
                                   fontWeight: FontWeight.w600)),
                           if (c.shortDescription.isNotEmpty)

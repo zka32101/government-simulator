@@ -3,6 +3,8 @@ import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/minister.dart';
+import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
@@ -22,6 +24,7 @@ class GameLogicService {
     required String userId,
     required String countryName,
     required String difficulty,
+    String? previousSessionId,
   }) {
     final difficultyMultiplier = difficulty == 'hard'
         ? 0.9
@@ -41,6 +44,8 @@ class GameLogicService {
       inflationRate: AppConstants.initialInflationRate,
       publicDebt: AppConstants.initialPublicDebt,
       stability: AppConstants.initialStability,
+      previousSessionId: previousSessionId,
+      isNewGame: true,
     );
 
     return GameSession(
@@ -111,6 +116,15 @@ class GameLogicService {
     final factionDeltas = deriveFactionImpact(impact);
     final newFactions = current.factions.applyDeltas(factionDeltas);
 
+    // 汚職度の自然な推移：安定度を犠牲にする決定や、満足度を無視して
+    // GDPだけを追う「裏取引」的な決定で悪化し、それ以外はゆっくり改善する。
+    final backroomDeal = impact.gdpChange > 0 && impact.satisfactionChange < 0;
+    final corruptionDrift = (-impact.stabilityChange * 0.15) +
+        (backroomDeal ? 1.5 : 0) -
+        0.3;
+    final newCorruption =
+        _clamp(current.corruption + corruptionDrift, 0, 100);
+
     return current.copyWith(
       gdp: newGdp,
       unemployment: newUnemployment,
@@ -119,6 +133,106 @@ class GameLogicService {
       inflationRate: newInflationRate,
       stability: newStability,
       factions: newFactions,
+      corruption: newCorruption,
+    );
+  }
+
+  /// Impact と現在の汚職度から、各大臣の忠誠度変化を推定する。
+  /// 汚職が蔓延しているほど、内閣全体の忠誠が一様に蝕まれていく。
+  Map<MinisterRole, double> deriveMinisterImpact(Impact impact,
+      {required double corruption}) {
+    final corruptionDrag = corruption / 100 * -3.0;
+
+    final d = <MinisterRole, double>{
+      // 財務大臣: GDP↑を歓迎、インフレを嫌う。汚職の影響を最も強く受ける。
+      MinisterRole.finance:
+          impact.gdpChange * 1.5 - impact.inflationChange * 1.0 + corruptionDrag,
+      // 国防大臣: 国力↑・安定↑を歓迎
+      MinisterRole.defense: impact.nationalPowerChange * 0.6 +
+          impact.stabilityChange * 0.3 +
+          corruptionDrag * 0.5,
+      // 内務大臣: 国民満足度・安定度に敏感
+      MinisterRole.interior: impact.satisfactionChange * 0.5 +
+          impact.stabilityChange * 0.4 +
+          corruptionDrag,
+      // 外務大臣: インフレ（≒通商の混乱）を嫌い、国力を歓迎
+      MinisterRole.foreign: -impact.inflationChange * 0.8 +
+          impact.nationalPowerChange * 0.2 +
+          corruptionDrag * 0.5,
+      // 環境大臣: 安定を歓迎、軍拡偏重（環境軽視）を嫌う
+      MinisterRole.environment: impact.stabilityChange * 0.3 -
+          (impact.nationalPowerChange > 0 ? impact.nationalPowerChange * 0.4 : 0) +
+          corruptionDrag * 0.7,
+    };
+
+    return d.map((k, v) => MapEntry(k, v.clamp(-10.0, 10.0)));
+  }
+
+  /// 内閣の裏切り判定。最も忠誠度が低い大臣（まだ裏切っていない中で）を対象に、
+  /// 忠誠度が低いほど高い確率で裏切りが発覚する。
+  MinisterRole? checkMinisterBetrayal(Cabinet cabinet) {
+    final candidate = cabinet.mostDisloyal;
+    if (candidate == null || candidate.value > 15) return null;
+
+    // 忠誠度0で最大35%、15で0%に近づく発覚確率
+    final betrayalChance = (15 - candidate.value) / 15 * 0.35;
+    if (_random.nextDouble() < betrayalChance) return candidate.key;
+    return null;
+  }
+
+  /// 派閥への公約を作成する（二枚舌外交システム）。
+  Promise makePromise(Faction faction, CountryStatus status) {
+    return Promise(
+      id: _uuid.v4(),
+      faction: faction,
+      madeAtDecisionCount: status.decisionsCount,
+      dueAtDecisionCount: status.decisionsCount + 5,
+      supportAtPromiseTime: status.factions.of(faction),
+    );
+  }
+
+  /// 期限が来た公約を判定する。支持率が公約時より上がっていれば果たされた
+  /// とみなし、横ばい・下降なら破約となり通常より重い支持率低下と
+  /// 永続的な「嘘つき」評価を受ける。
+  PromiseResolutionResult resolvePromises(
+      List<Promise> promises, CountryStatus status) {
+    final remaining = <Promise>[];
+    final resolutions = <PromiseResolution>[];
+    var factions = status.factions;
+
+    for (final p in promises) {
+      if (status.decisionsCount < p.dueAtDecisionCount) {
+        remaining.add(p);
+        continue;
+      }
+
+      final currentSupport = factions.of(p.faction);
+      final fulfilled = currentSupport > p.supportAtPromiseTime;
+
+      if (fulfilled) {
+        resolutions.add(PromiseResolution(
+          promise: p,
+          fulfilled: true,
+          narrative: '${p.faction.label}との公約を果たした。信頼が深まっている。',
+        ));
+      } else {
+        // 通常の失望よりも重いペナルティ（一回の決定の最大変動幅の目安 ±12 の
+        // 3倍相当）＋永続的な「嘘つき」評価。
+        factions = factions
+            .applyDeltas({p.faction: -15.0}).markLiar(p.faction);
+        resolutions.add(PromiseResolution(
+          promise: p,
+          fulfilled: false,
+          narrative: '${p.faction.label}との公約が反故にされたと報じられた。'
+              '「嘘つき」との評価が広まっている。',
+        ));
+      }
+    }
+
+    return PromiseResolutionResult(
+      factions: factions,
+      remaining: remaining,
+      resolutions: resolutions,
     );
   }
 

@@ -66,7 +66,10 @@ extension FactionExt on Faction {
 class FactionSupport {
   final Map<Faction, double> support;
 
-  const FactionSupport(this.support);
+  /// 一度でも公約を破った相手の派閥（永続的な「嘘つき」評価）。
+  final Set<Faction> liarFlags;
+
+  const FactionSupport(this.support, {this.liarFlags = const {}});
 
   factory FactionSupport.initial() => const FactionSupport({
         Faction.military: 50,
@@ -76,6 +79,8 @@ class FactionSupport {
       });
 
   double of(Faction f) => support[f] ?? 50;
+
+  bool isLiarTo(Faction f) => liarFlags.contains(f);
 
   /// 最も敵対的な派閥（支持率最低）
   MapEntry<Faction, double> get mostHostile {
@@ -98,18 +103,32 @@ class FactionSupport {
     deltas.forEach((f, d) {
       next[f] = ((next[f] ?? 50) + d).clamp(0, 100).toDouble();
     });
-    return FactionSupport(next);
+    return FactionSupport(next, liarFlags: liarFlags);
   }
 
-  Map<String, dynamic> toMap() =>
-      support.map((k, v) => MapEntry(k.name, v));
+  /// 公約を破った際に呼ぶ。以後この派閥からは「嘘つき」として扱われる。
+  FactionSupport markLiar(Faction f) {
+    return FactionSupport(support, liarFlags: {...liarFlags, f});
+  }
+
+  Map<String, dynamic> toMap() => {
+        'support': support.map((k, v) => MapEntry(k.name, v)),
+        'liarFlags': liarFlags.map((f) => f.name).toList(),
+      };
 
   factory FactionSupport.fromMap(Map<String, dynamic>? map) {
     if (map == null) return FactionSupport.initial();
+    // 旧フォーマット（{faction: value} を直接持つマップ）との後方互換。
+    final rawSupport = (map['support'] as Map<String, dynamic>?) ?? map;
     final result = <Faction, double>{};
     for (final f in Faction.values) {
-      result[f] = (map[f.name] ?? 50).toDouble();
+      result[f] = (rawSupport[f.name] ?? 50).toDouble();
     }
-    return FactionSupport(result);
+    final liarFlags = (map['liarFlags'] as List?)
+            ?.map((s) => Faction.values.firstWhere((f) => f.name == s,
+                orElse: () => Faction.citizen))
+            .toSet() ??
+        <Faction>{};
+    return FactionSupport(result, liarFlags: liarFlags);
   }
 }

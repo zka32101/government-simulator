@@ -4,6 +4,7 @@ import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
@@ -12,6 +13,7 @@ import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/widgets/policy_card.dart';
 import 'package:government_simulator/widgets/status_dashboard.dart';
 import 'package:government_simulator/widgets/faction_bar.dart';
+import 'package:government_simulator/widgets/cabinet_panel.dart';
 import 'package:government_simulator/widgets/news_ticker.dart';
 import 'package:government_simulator/widgets/achievement_popup.dart';
 import 'event_detail_screen.dart';
@@ -20,6 +22,7 @@ import 'country_history_screen.dart';
 import 'settings_screen.dart';
 import 'year_end_screen.dart';
 import 'game_over_screen.dart';
+import 'ending_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -98,11 +101,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               impact: choice.impact,
               eventId: _currentEvent?.id ?? 'unknown',
               narrative: narrative,
+              promiseTarget: choice.promiseTarget,
             );
 
     // 実績解除トースト
     if (choiceResult.newAchievements.isNotEmpty && mounted) {
       AchievementPopup.show(context, choiceResult.newAchievements);
+    }
+
+    // 内閣裏切りの発覚
+    final betrayed = choiceResult.betrayedMinister;
+    if (betrayed != null && mounted) {
+      final countryName = ref.read(gameSessionProvider).session?.countryName ??
+          session.countryName;
+      _showEventBanner(
+        '🎭 内閣の裏切り',
+        betrayed.betrayalNarrative(countryName),
+      );
+    }
+
+    // 公約の顛末（果たされた／破られた）
+    for (final r in choiceResult.promiseResolutions) {
+      if (mounted) {
+        _showEventBanner(r.fulfilled ? '🤝 公約履行' : '💔 公約破棄', r.narrative);
+      }
     }
 
     // ゲームオーバー判定
@@ -134,6 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               decisions: updatedState.decisions,
               onContinue: _onContinueYear,
               onRestart: _onRestartGame,
+              onRetire: _onRetire,
             ),
           ),
         );
@@ -164,6 +187,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           userId: userId,
           countryName: countryName,
           difficulty: difficulty,
+          previousSessionId: currentSession?.id,
         );
 
     final newStatus = ref.read(gameSessionProvider).session?.status;
@@ -173,6 +197,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _previousStatus = null;
       _pickNextEvent(newStatus);
     }
+  }
+
+  void _onRetire() {
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null || !mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => EndingScreen(
+          session: session,
+          onRestart: _onRestartGame,
+        ),
+      ),
+    );
+  }
+
+  void _showEventBanner(String title, String body) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(body),
+          ],
+        ),
+      ),
+    );
   }
 
   List<String> _buildHeadlines(CountryStatus s, String country) {
@@ -305,6 +361,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // 派閥バー
                       FactionBars(factions: status.factions),
+                      const SizedBox(height: 14),
+
+                      // 内閣の忠誠
+                      CabinetPanel(
+                        cabinet: status.cabinet,
+                        corruption: status.corruption,
+                      ),
                       const SizedBox(height: 20),
 
                       // スワイプ政策カード

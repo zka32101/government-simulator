@@ -1,4 +1,5 @@
 import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/minister.dart';
 
 class CountryStatus {
   final double gdp; // 10-10000 (billions)
@@ -16,6 +17,12 @@ class CountryStatus {
   final int decisionsCount; // 総意思決定数
   final double stability; // 0-100 (経済安定度)
   final FactionSupport factions; // 派閥支持率
+  final Cabinet cabinet; // 内閣（大臣忠誠度）
+  final double corruption; // 0-100 汚職度。高いほど内閣の忠誠が蝕まれる
+
+  // 引退→新しい国家で再起する際、直前のセッションを辿れるようにする。
+  final String? previousSessionId;
+  final bool isNewGame;
 
   const CountryStatus({
     required this.gdp,
@@ -31,11 +38,25 @@ class CountryStatus {
     this.decisionsCount = 0,
     this.stability = 70.0,
     FactionSupport? factions,
-  }) : factions = factions ?? const FactionSupport({
+    Cabinet? cabinet,
+    this.corruption = 0.0,
+    this.previousSessionId,
+    this.isNewGame = true,
+  })  : factions = factions ?? const FactionSupport({
           Faction.military: 50,
           Faction.business: 50,
           Faction.labor: 50,
           Faction.citizen: 50,
+        }),
+        // Cabinet.initial() と同じ初期値（大臣忠誠度60）。const コンストラクタの
+        // 初期化子はコンパイル時定数のみ許されるため、Cabinet.initial() を
+        // 呼ぶ代わりにここでもリテラルを複製している。
+        cabinet = cabinet ?? const Cabinet(loyalty: {
+          MinisterRole.finance: 60,
+          MinisterRole.defense: 60,
+          MinisterRole.interior: 60,
+          MinisterRole.foreign: 60,
+          MinisterRole.environment: 60,
         });
 
   // 国家危機レベルを計算（ゲーム性向上用）
@@ -88,6 +109,10 @@ class CountryStatus {
     int? decisionsCount,
     double? stability,
     FactionSupport? factions,
+    Cabinet? cabinet,
+    double? corruption,
+    String? previousSessionId,
+    bool? isNewGame,
   }) {
     return CountryStatus(
       gdp: gdp ?? this.gdp,
@@ -103,6 +128,10 @@ class CountryStatus {
       decisionsCount: decisionsCount ?? this.decisionsCount,
       stability: stability ?? this.stability,
       factions: factions ?? this.factions,
+      cabinet: cabinet ?? this.cabinet,
+      corruption: corruption ?? this.corruption,
+      previousSessionId: previousSessionId ?? this.previousSessionId,
+      isNewGame: isNewGame ?? this.isNewGame,
     );
   }
 
@@ -121,6 +150,10 @@ class CountryStatus {
       'decisionsCount': decisionsCount,
       'stability': stability,
       'factions': factions.toMap(),
+      'cabinet': cabinet.toMap(),
+      'corruption': corruption,
+      'previousSessionId': previousSessionId,
+      'isNewGame': isNewGame,
     };
   }
 
@@ -142,6 +175,10 @@ class CountryStatus {
       stability: (map['stability'] ?? 70).toDouble(),
       factions: FactionSupport.fromMap(
           map['factions'] as Map<String, dynamic>?),
+      cabinet: Cabinet.fromMap(map['cabinet'] as Map<String, dynamic>?),
+      corruption: (map['corruption'] ?? 0.0).toDouble(),
+      previousSessionId: map['previousSessionId'],
+      isNewGame: map['isNewGame'] ?? true,
     );
   }
 

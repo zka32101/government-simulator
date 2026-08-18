@@ -1,3 +1,5 @@
+import 'package:government_simulator/models/faction.dart';
+
 class GameEvent {
   final String id;
   final String title;
@@ -54,11 +56,17 @@ class Choice {
   final String shortDescription; // UI表示用の簡潔な説明
   final Impact impact; // 選択の影響
 
+  /// この選択が特定の派閥への公約である場合に設定する（二枚舌外交システム）。
+  /// 一定ターン後、当該派閥の支持率が上昇していれば公約は果たされ、
+  /// 横ばい・下降なら公約は破られる。
+  final Faction? promiseTarget;
+
   const Choice({
     required this.id,
     required this.text,
     required this.shortDescription,
     required this.impact,
+    this.promiseTarget,
   });
 
   Map<String, dynamic> toMap() {
@@ -67,6 +75,7 @@ class Choice {
       'text': text,
       'shortDescription': shortDescription,
       'impact': impact.toMap(),
+      'promiseTarget': promiseTarget?.name,
     };
   }
 
@@ -76,6 +85,10 @@ class Choice {
       text: map['text'] ?? '',
       shortDescription: map['shortDescription'] ?? '',
       impact: map['impact'] != null ? Impact.fromMap(map['impact']) : Impact(),
+      promiseTarget: map['promiseTarget'] != null
+          ? Faction.values.firstWhere((f) => f.name == map['promiseTarget'],
+              orElse: () => Faction.citizen)
+          : null,
     );
   }
 }
