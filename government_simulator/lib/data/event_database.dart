@@ -13,7 +13,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 経済系イベント (10件)
+  // 経済系イベント (11件)
   // =====================
   static final List<GameEvent> _economicEvents = [
     GameEvent(
@@ -299,6 +299,34 @@ class EventDatabase {
           text: '技術革新で競争力を高める',
           shortDescription: '長期的効果↑ | 即効性なし',
           impact: Impact(gdpChange: 0.3, nationalPowerChange: 6, stabilityChange: 5),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'eco_11_stock_crash',
+      title: '株式市場の暴落',
+      description: '国内株式市場が一日で急落し、パニック売りが広がっています。\n年金基金や個人投資家の資産が急速に目減りしています。',
+      category: EventCategory.economic,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'eco_11_a',
+          text: '公的資金で市場に介入する',
+          shortDescription: '市場安定化 | 財政負担 | モラルハザード批判',
+          impact: Impact(gdpChange: -0.5, satisfactionChange: 5, stabilityChange: 6, inflationChange: 0.5),
+        ),
+        Choice(
+          id: 'eco_11_b',
+          text: '取引を一時停止し様子を見る',
+          shortDescription: '時間を稼ぐ | 不透明感が残る',
+          impact: Impact(gdpChange: -1.5, satisfactionChange: -8, stabilityChange: -3),
+        ),
+        Choice(
+          id: 'eco_11_c',
+          text: '市場原理に任せ介入しない',
+          shortDescription: '財政健全性維持 | 資産減少で不満増大',
+          impact: Impact(gdpChange: -2.5, satisfactionChange: -15, unemploymentChange: 0.5, stabilityChange: -6),
         ),
       ],
     ),
@@ -665,7 +693,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 政治系イベント (4件)
+  // 政治系イベント (5件)
   // =====================
   static final List<GameEvent> _politicalEvents = [
     GameEvent(
@@ -776,6 +804,34 @@ class EventDatabase {
           text: '中央集権体制を維持する',
           shortDescription: '統一性維持 | 地方の不満↑',
           impact: Impact(stabilityChange: 8, satisfactionChange: -10, nationalPowerChange: 3),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'pol_05_coalition_collapse',
+      title: '連立政権の崩壊危機',
+      description: '連立を組む政党が政策方針の対立から離脱を示唆しています。\n政権の存続が危ぶまれています。',
+      category: EventCategory.political,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'pol_05_a',
+          text: '連立相手に大幅譲歩し政権を維持',
+          shortDescription: '政権安定 | 独自政策の後退',
+          impact: Impact(stabilityChange: 10, satisfactionChange: -5, nationalPowerChange: -5),
+        ),
+        Choice(
+          id: 'pol_05_b',
+          text: '少数与党として単独運営に踏み切る',
+          shortDescription: '政策の自由度↑ | 政局不安定化',
+          impact: Impact(stabilityChange: -12, satisfactionChange: 3, nationalPowerChange: -3),
+        ),
+        Choice(
+          id: 'pol_05_c',
+          text: '解散総選挙に打って出る',
+          shortDescription: '民意に信を問う | 短期的混乱 | 結果次第で大きく変動',
+          impact: Impact(stabilityChange: -8, satisfactionChange: 8, gdpChange: -0.5),
         ),
       ],
     ),
@@ -927,7 +983,7 @@ class EventDatabase {
   ];
 
   // ========================
-  // 外部ショック系イベント (4件)
+  // 外部ショック系イベント (5件)
   // ========================
   static final List<GameEvent> _externalShockEvents = [
     GameEvent(
@@ -1041,10 +1097,38 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'ext_05_refugee_crisis',
+      title: '難民危機の発生',
+      description: '近隣国の紛争により大量の難民が国境に押し寄せています。\n人道的対応と社会的受容力の両立が問われています。',
+      category: EventCategory.external,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'ext_05_a',
+          text: '難民を積極的に受け入れる',
+          shortDescription: '国際評価↑ | 社会統合コスト | 国内反発リスク',
+          impact: Impact(nationalPowerChange: 10, gdpChange: -0.8, satisfactionChange: -5, stabilityChange: -5),
+        ),
+        Choice(
+          id: 'ext_05_b',
+          text: '国境で人数を制限しつつ支援キャンプを設置',
+          shortDescription: 'バランス型 | 人道支援と管理を両立',
+          impact: Impact(nationalPowerChange: 3, gdpChange: -0.3, satisfactionChange: 2, stabilityChange: 2),
+        ),
+        Choice(
+          id: 'ext_05_c',
+          text: '国境を封鎖し受け入れを拒否',
+          shortDescription: '社会的負担回避 | 国際的批判 | 人道問題化',
+          impact: Impact(nationalPowerChange: -15, satisfactionChange: -8, stabilityChange: 5, gdpChange: 0.2),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 軍事系イベント (4件)
+  // 軍事系イベント (5件)
   // =====================
   static final List<GameEvent> _militaryEvents = [
     GameEvent(
@@ -1156,6 +1240,34 @@ class EventDatabase {
           text: '領土の一部割譲で和平交渉',
           shortDescription: '短期的平和 | 国民の屈辱感 | 国力大幅低下',
           impact: Impact(nationalPowerChange: -20, gdpChange: 1.0, satisfactionChange: -25, stabilityChange: -10),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'mil_05_domestic_terror',
+      title: '国内テロ・大規模暴動',
+      description: '首都で爆破テロが発生し、混乱に乗じた大規模暴動が拡大しています。\n治安維持と自由のバランスが問われています。',
+      category: EventCategory.military,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'mil_05_a',
+          text: '非常事態宣言と厳戒態勢を敷く',
+          shortDescription: '治安回復 | 自由の制限に反発',
+          impact: Impact(stabilityChange: 12, satisfactionChange: -12, nationalPowerChange: 3, gdpChange: -1.0),
+        ),
+        Choice(
+          id: 'mil_05_b',
+          text: '対話と社会対策で沈静化を図る',
+          shortDescription: '長期的安定 | 即効性に欠ける',
+          impact: Impact(stabilityChange: -5, satisfactionChange: 6, gdpChange: -0.5),
+        ),
+        Choice(
+          id: 'mil_05_c',
+          text: '最小限の対応にとどめ様子を見る',
+          shortDescription: '介入コスト回避 | 事態悪化のリスク',
+          impact: Impact(stabilityChange: -15, satisfactionChange: -10, nationalPowerChange: -5, gdpChange: -1.5),
         ),
       ],
     ),
