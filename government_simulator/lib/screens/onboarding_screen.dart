@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
+import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'scenario_select_screen.dart';
+import 'country_stage_select_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final void Function(String countryName, String difficulty) onStart;
@@ -11,10 +13,17 @@ class OnboardingScreen extends StatefulWidget {
   final Future<void> Function(String countryName, HistoricalScenario scenario)
       onStartScenario;
 
+  /// 「国家ステージ」チャレンジ：選ばれたステージ（国の設定・難易度）で
+  /// 開始する。CountryStageSelectScreen を閉じる前にセッション作成を
+  /// 待つため Future を返す（onStartScenario と同じ理由）。
+  final Future<void> Function(String countryName, CountryStage stage)
+      onStartStage;
+
   const OnboardingScreen({
     Key? key,
     required this.onStart,
     required this.onStartScenario,
+    required this.onStartStage,
   }) : super(key: key);
 
   @override
@@ -62,6 +71,20 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             // 戻って見えるのを防ぐ）。
             await widget.onStartScenario(
                 name.isEmpty ? '新興共和国' : name, scenario);
+            if (mounted) Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _onOpenStageSelect() {
+    final name = _nameController.text.trim();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CountryStageSelectScreen(
+          onSelect: (stage) async {
+            await widget.onStartStage(name.isEmpty ? '新興共和国' : name, stage);
             if (mounted) Navigator.of(context).pop();
           },
         ),
@@ -249,6 +272,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                   child: const Text(
                     '📖 歴史のIfチャレンジに挑む',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: AppConstants.paddingM),
+
+                // 国家ステージ選択（様々な国の設定を難易度付きで選ぶ）
+                OutlinedButton(
+                  onPressed: _onOpenStageSelect,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Color(VisualConstants.colorPrimary),
+                    side: BorderSide(color: Color(VisualConstants.colorPrimary)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadiusM),
+                    ),
+                  ),
+                  child: const Text(
+                    '🌍 ステージを選んで始める',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ),

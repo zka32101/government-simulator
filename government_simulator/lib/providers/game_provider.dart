@@ -8,6 +8,7 @@ import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
+import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -179,6 +180,31 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       userId: userId,
       countryName: countryName,
       scenario: scenario,
+      previousSessionId: previousSessionId,
+    );
+    await _firestore.createGameSession(session);
+
+    state = GameSessionState(
+      session: session,
+      decisions: const [],
+      isLoading: false,
+    );
+  }
+
+  /// 「国家ステージ」チャレンジ：選ばれたステージの固定初期ステータスで
+  /// 新規セッションを開始する。
+  Future<void> loadOrCreateFromStage({
+    required String userId,
+    required String countryName,
+    required CountryStage stage,
+  }) async {
+    state = state.copyWith(isLoading: true);
+
+    final previousSessionId = state.session?.id;
+    final session = _logic.createSessionFromStage(
+      userId: userId,
+      countryName: countryName,
+      stage: stage,
       previousSessionId: previousSessionId,
     );
     await _firestore.createGameSession(session);

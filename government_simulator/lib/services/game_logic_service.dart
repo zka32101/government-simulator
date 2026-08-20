@@ -7,6 +7,7 @@ import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
+import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -93,6 +94,42 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: 'normal',
+    );
+  }
+
+  /// 「国家ステージ」チャレンジ：資源大国・分断国家など、性格の異なる
+  /// 初期環境（ステージ）から新規セッションを開始する。難易度はステージの
+  /// 星評価に応じて 'easy'/'normal'/'hard' へマッピングされる。
+  GameSession createSessionFromStage({
+    required String userId,
+    required String countryName,
+    required CountryStage stage,
+    String? previousSessionId,
+  }) {
+    final initialStatus = CountryStatus(
+      gdp: stage.gdp,
+      unemployment: stage.unemployment,
+      satisfaction: stage.satisfaction,
+      nationalPower: stage.nationalPower,
+      year: AppConstants.initialYear,
+      day: AppConstants.initialDay,
+      lastUpdated: DateTime.now(),
+      inflationRate: stage.inflationRate,
+      publicDebt: stage.publicDebt,
+      stability: stage.stability,
+      countryPersonality: stage.title,
+      previousSessionId: previousSessionId,
+      isNewGame: true,
+    );
+
+    return GameSession(
+      id: _uuid.v4(),
+      userId: userId,
+      countryName: countryName,
+      status: initialStatus,
+      createdAt: DateTime.now(),
+      lastPlayedAt: DateTime.now(),
+      difficulty: stage.difficultyLabel,
     );
   }
 
