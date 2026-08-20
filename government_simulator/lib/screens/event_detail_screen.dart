@@ -3,6 +3,8 @@ import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'package:government_simulator/widgets/animated_counter.dart';
+import 'package:government_simulator/widgets/celebration_effect.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final CountryStatus beforeStatus;
@@ -23,8 +25,9 @@ class EventDetailScreen extends StatefulWidget {
 }
 
 class _EventDetailScreenState extends State<EventDetailScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _animController;
+  late AnimationController _listController;
   late GameLogicService _gameLogic;
 
   @override
@@ -36,12 +39,41 @@ class _EventDetailScreenState extends State<EventDetailScreen>
       vsync: this,
     );
     _animController.forward();
+    // ステータス変化の各行を時間差で表示するためのコントローラー。
+    _listController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
+    _listController.forward();
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    _listController.dispose();
     super.dispose();
+  }
+
+  // 4つのステータス行を index/4 ずつずらしてフェード＋スライドインさせる。
+  Animation<double> _staggered(int index, int total) {
+    final start = index / total * 0.5;
+    final end = start + 0.5;
+    return CurvedAnimation(
+      parent: _listController,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+  }
+
+  Widget _staggeredRow({required int index, required Widget child}) {
+    final anim = _staggered(index, 4);
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+            .animate(anim),
+        child: child,
+      ),
+    );
   }
 
   @override
@@ -65,42 +97,59 @@ class _EventDetailScreenState extends State<EventDetailScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 結果評価
-              ScaleTransition(
-                scale: Tween<double>(begin: 0.5, end: 1.0).animate(
-                  CurvedAnimation(parent: _animController, curve: Curves.elasticOut),
-                ),
-                child: Card(
-                  color: evaluation.color,
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppConstants.paddingL),
-                    child: Column(
-                      children: [
-                        Text(
-                          evaluation.emoji,
-                          style: const TextStyle(fontSize: 48),
-                        ),
-                        const SizedBox(height: AppConstants.paddingM),
-                        Text(
-                          evaluation.label,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+              // 結果評価（卓越した決定なら祝福エフェクト、失敗なら衝撃演出）
+              Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  ScaleTransition(
+                    scale: Tween<double>(begin: 0.5, end: 1.0).animate(
+                      CurvedAnimation(
+                          parent: _animController, curve: Curves.elasticOut),
+                    ),
+                    child: ShakeOnce(
+                      trigger: widget.impactScore <= -50,
+                      child: Card(
+                        color: evaluation.color,
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppConstants.paddingL),
+                          child: Column(
+                            children: [
+                              Text(
+                                evaluation.emoji,
+                                style: const TextStyle(fontSize: 48),
                               ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppConstants.paddingS),
-                        Text(
-                          'インパクトスコア: ${widget.impactScore.toStringAsFixed(0)}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.bold,
+                              const SizedBox(height: AppConstants.paddingM),
+                              Text(
+                                evaluation.label,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                textAlign: TextAlign.center,
                               ),
+                              const SizedBox(height: AppConstants.paddingS),
+                              Text(
+                                'インパクトスコア: ${widget.impactScore.toStringAsFixed(0)}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  if (widget.impactScore > 50) const CelebrationBurst(),
+                ],
               ),
 
               const SizedBox(height: AppConstants.paddingL),
@@ -137,40 +186,59 @@ class _EventDetailScreenState extends State<EventDetailScreen>
               ),
               const SizedBox(height: AppConstants.paddingM),
 
-              _StatusChangeRow(
-                icon: '💰',
-                label: 'GDP',
-                before: '\$${widget.beforeStatus.gdp.toStringAsFixed(0)}B',
-                after: '\$${widget.afterStatus.gdp.toStringAsFixed(0)}B',
-                delta: widget.afterStatus.gdp - widget.beforeStatus.gdp,
-                isPositiveBetter: true,
+              _staggeredRow(
+                index: 0,
+                child: _StatusChangeRow(
+                  icon: '💰',
+                  label: 'GDP',
+                  beforeValue: widget.beforeStatus.gdp,
+                  afterValue: widget.afterStatus.gdp,
+                  prefix: '\$',
+                  suffix: 'B',
+                  delta: widget.afterStatus.gdp - widget.beforeStatus.gdp,
+                  isPositiveBetter: true,
+                ),
               ),
 
-              _StatusChangeRow(
-                icon: '👥',
-                label: '失業率',
-                before: '${widget.beforeStatus.unemployment.toStringAsFixed(1)}%',
-                after: '${widget.afterStatus.unemployment.toStringAsFixed(1)}%',
-                delta: widget.afterStatus.unemployment - widget.beforeStatus.unemployment,
-                isPositiveBetter: false,
+              _staggeredRow(
+                index: 1,
+                child: _StatusChangeRow(
+                  icon: '👥',
+                  label: '失業率',
+                  beforeValue: widget.beforeStatus.unemployment,
+                  afterValue: widget.afterStatus.unemployment,
+                  suffix: '%',
+                  decimals: 1,
+                  delta: widget.afterStatus.unemployment -
+                      widget.beforeStatus.unemployment,
+                  isPositiveBetter: false,
+                ),
               ),
 
-              _StatusChangeRow(
-                icon: '😊',
-                label: '国民満足度',
-                before: '${widget.beforeStatus.satisfaction.toStringAsFixed(0)}',
-                after: '${widget.afterStatus.satisfaction.toStringAsFixed(0)}',
-                delta: widget.afterStatus.satisfaction - widget.beforeStatus.satisfaction,
-                isPositiveBetter: true,
+              _staggeredRow(
+                index: 2,
+                child: _StatusChangeRow(
+                  icon: '😊',
+                  label: '国民満足度',
+                  beforeValue: widget.beforeStatus.satisfaction,
+                  afterValue: widget.afterStatus.satisfaction,
+                  delta: widget.afterStatus.satisfaction -
+                      widget.beforeStatus.satisfaction,
+                  isPositiveBetter: true,
+                ),
               ),
 
-              _StatusChangeRow(
-                icon: '📈',
-                label: '国力',
-                before: '${widget.beforeStatus.nationalPower.toStringAsFixed(0)}',
-                after: '${widget.afterStatus.nationalPower.toStringAsFixed(0)}',
-                delta: widget.afterStatus.nationalPower - widget.beforeStatus.nationalPower,
-                isPositiveBetter: true,
+              _staggeredRow(
+                index: 3,
+                child: _StatusChangeRow(
+                  icon: '📈',
+                  label: '国力',
+                  beforeValue: widget.beforeStatus.nationalPower,
+                  afterValue: widget.afterStatus.nationalPower,
+                  delta: widget.afterStatus.nationalPower -
+                      widget.beforeStatus.nationalPower,
+                  isPositiveBetter: true,
+                ),
               ),
 
               const SizedBox(height: AppConstants.paddingL),
@@ -234,16 +302,22 @@ class _EventDetailScreenState extends State<EventDetailScreen>
 class _StatusChangeRow extends StatelessWidget {
   final String icon;
   final String label;
-  final String before;
-  final String after;
+  final double beforeValue;
+  final double afterValue;
+  final String prefix;
+  final String suffix;
+  final int decimals;
   final double delta;
   final bool isPositiveBetter;
 
   const _StatusChangeRow({
     required this.icon,
     required this.label,
-    required this.before,
-    required this.after,
+    required this.beforeValue,
+    required this.afterValue,
+    this.prefix = '',
+    this.suffix = '',
+    this.decimals = 0,
     required this.delta,
     required this.isPositiveBetter,
   });
@@ -268,6 +342,7 @@ class _StatusChangeRow extends StatelessWidget {
     final deltaColor = _getDeltaColor();
     final deltaArrow = _getDeltaArrow();
     final deltaAbsStr = delta.abs().toStringAsFixed(delta.abs() < 1 ? 2 : 1);
+    final beforeStr = '$prefix${beforeValue.toStringAsFixed(decimals)}$suffix';
 
     return Card(
       child: Padding(
@@ -287,9 +362,21 @@ class _StatusChangeRow extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '$before → $after',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  Row(
+                    children: [
+                      Text(
+                        '$beforeStr → ',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      TransitionCounter(
+                        from: beforeValue,
+                        to: afterValue,
+                        decimals: decimals,
+                        prefix: prefix,
+                        suffix: suffix,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ],
               ),
