@@ -23,29 +23,56 @@ class AnimatedCounter extends StatefulWidget {
   State<AnimatedCounter> createState() => _AnimatedCounterState();
 }
 
-class _AnimatedCounterState extends State<AnimatedCounter> {
-  late double _previousValue = widget.value;
+class _AnimatedCounterState extends State<AnimatedCounter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _animation;
+
+  // 現在画面に表示されている値。アニメーション中も毎フレーム更新される。
+  // TweenAnimationBuilder ベースの旧実装は、アニメーション完了前に value が
+  // 再び変化すると begin を「直前の目標値」(oldWidget.value) にしていたため、
+  // アニメーションが実際に到達していた中間地点を無視してそこへ一瞬で
+  // 飛んでから改めてアニメーションし直す、という視覚的な "ジャンプ" が
+  // 起きていた（700ms未満の間隔で2回更新されると再現する）。
+  // ここでは実際に表示中の値から常に滑らかに継続するようにする。
+  late double _displayValue = widget.value;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _animation = AlwaysStoppedAnimation(widget.value);
+  }
 
   @override
   void didUpdateWidget(covariant AnimatedCounter oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 直前にビルドされた値から今回の値へアニメーションする。
-    // 以前は Tween(begin: value, end: value) と同じ値同士でトゥイーン
-    // していたため、数値が一切アニメーションせず瞬時に切り替わっていた。
     if (oldWidget.value != widget.value) {
-      _previousValue = oldWidget.value;
+      _animateTo(widget.value);
     }
+  }
+
+  void _animateTo(double target) {
+    _animation = Tween<double>(begin: _displayValue, end: target).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: _previousValue, end: widget.value),
-      duration: widget.duration,
-      curve: Curves.easeOutCubic,
-      builder: (context, val, _) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        _displayValue = _animation.value;
         return Text(
-          '${widget.prefix}${val.toStringAsFixed(widget.decimals)}${widget.suffix}',
+          '${widget.prefix}${_displayValue.toStringAsFixed(widget.decimals)}${widget.suffix}',
           style: widget.style,
         );
       },

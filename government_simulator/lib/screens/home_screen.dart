@@ -42,6 +42,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final Set<String> _recentEventIds = {};
   bool _showingYearEnd = false;
 
+  // 各種ボタンの連打（ダブルタップ）による二重実行を防ぐガード。
+  bool _processingChoice = false;
+  bool _continuingYear = false;
+  bool _restarting = false;
+
   // イベントカテゴリ別の大臣アバター
   static const Map<EventCategory, String> _advisors = {
     EventCategory.economic: '💼',
@@ -72,134 +77,167 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _handleChoice(Choice choice) async {
-    final sessionState = ref.read(gameSessionProvider);
-    final session = sessionState.session;
-    if (session == null) return;
+    // カードのスワイプ確定演出やボタン連打で同じ選択が二重に発火すると、
+    // 同一イベントに対する EventDetailScreen が二重に積まれたり、
+    // applyChoice が二重適用されうるため、処理中は再入を無視する。
+    if (_processingChoice) return;
+    _processingChoice = true;
+    try {
+      final sessionState = ref.read(gameSessionProvider);
+      final session = sessionState.session;
+      if (session == null) return;
 
-    final beforeStatus = session.status;
-    _previousStatus = beforeStatus;
+      final beforeStatus = session.status;
+      _previousStatus = beforeStatus;
 
-    final newStatus = _gameLogic.applyImpact(beforeStatus, choice.impact);
-    final narrative =
-        _gameLogic.generateNarrative(choice, beforeStatus, newStatus);
-    final impactScore =
-        _gameLogic.calculateImpactScore(beforeStatus, newStatus);
+      final newStatus = _gameLogic.applyImpact(beforeStatus, choice.impact);
+      final narrative =
+          _gameLogic.generateNarrative(choice, beforeStatus, newStatus);
+      final impactScore =
+          _gameLogic.calculateImpactScore(beforeStatus, newStatus);
 
-    if (!mounted) return;
-    final result = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => EventDetailScreen(
-          beforeStatus: beforeStatus,
-          afterStatus: newStatus,
-          choice: choice,
-          impactScore: impactScore,
-        ),
-      ),
-    );
-
-    if (result != true || !mounted) return;
-
-    final choiceResult =
-        await ref.read(gameSessionProvider.notifier).applyChoice(
-              choiceId: choice.id,
-              impact: choice.impact,
-              eventId: _currentEvent?.id ?? 'unknown',
-              narrative: narrative,
-              promiseTarget: choice.promiseTarget,
-            );
-
-    // 実績解除トースト
-    if (choiceResult.newAchievements.isNotEmpty && mounted) {
-      AchievementPopup.show(context, choiceResult.newAchievements);
-    }
-
-    // 内閣裏切りの発覚
-    final betrayed = choiceResult.betrayedMinister;
-    if (betrayed != null && mounted) {
-      final countryName = ref.read(gameSessionProvider).session?.countryName ??
-          session.countryName;
-      _showEventBanner(
-        '🎭 内閣の裏切り',
-        betrayed.betrayalNarrative(countryName),
-      );
-    }
-
-    // 公約の顛末（果たされた／破られた）
-    for (final r in choiceResult.promiseResolutions) {
-      if (mounted) {
-        _showEventBanner(r.fulfilled ? '🤝 公約履行' : '💔 公約破棄', r.narrative);
-      }
-    }
-
-    // ゲームオーバー判定
-    if (choiceResult.isGameOver && mounted) {
-      await Navigator.of(context).push(
+      if (!mounted) return;
+      final result = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
-          builder: (_) => GameOverScreen(
-            session: ref.read(gameSessionProvider).session!,
-            type: choiceResult.gameOver,
-            onRestart: _onRestartGame,
+          builder: (_) => EventDetailScreen(
+            beforeStatus: beforeStatus,
+            afterStatus: newStatus,
+            choice: choice,
+            impactScore: impactScore,
           ),
         ),
       );
-      return;
-    }
 
-    final updatedState = ref.read(gameSessionProvider);
-    final updatedStatus = updatedState.session?.status;
-    if (updatedStatus == null) return;
+      if (result != true || !mounted) return;
 
-    // 年末チェック
-    if (updatedStatus.day >= AppConstants.daysPerYear && !_showingYearEnd) {
-      _showingYearEnd = true;
-      if (mounted) {
+      final choiceResult =
+          await ref.read(gameSessionProvider.notifier).applyChoice(
+                choiceId: choice.id,
+                impact: choice.impact,
+                eventId: _currentEvent?.id ?? 'unknown',
+                narrative: narrative,
+                promiseTarget: choice.promiseTarget,
+              );
+
+      if (!mounted) return;
+
+      // 実績解除トースト
+      if (choiceResult.newAchievements.isNotEmpty) {
+        AchievementPopup.show(context, choiceResult.newAchievements);
+      }
+
+      // 内閣裏切りの発覚
+      final betrayed = choiceResult.betrayedMinister;
+      if (betrayed != null) {
+        final countryName =
+            ref.read(gameSessionProvider).session?.countryName ??
+                session.countryName;
+        _showEventBanner(
+          '🎭 内閣の裏切り',
+          betrayed.betrayalNarrative(countryName),
+        );
+      }
+
+      // 公約の顛末（果たされた／破られた）
+      for (final r in choiceResult.promiseResolutions) {
+        _showEventBanner(r.fulfilled ? '🤝 公約履行' : '💔 公約破棄', r.narrative);
+      }
+
+      // ゲームオーバー判定
+      if (choiceResult.isGameOver) {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => YearEndScreen(
-              session: updatedState.session!,
-              decisions: updatedState.decisions,
-              onContinue: _onContinueYear,
+            builder: (_) => GameOverScreen(
+              session: ref.read(gameSessionProvider).session!,
+              type: choiceResult.gameOver,
               onRestart: _onRestartGame,
-              onRetire: _onRetire,
             ),
           ),
         );
-        _showingYearEnd = false;
+        return;
       }
-    } else {
-      _pickNextEvent(updatedStatus);
+
+      if (!mounted) return;
+      final updatedState = ref.read(gameSessionProvider);
+      final updatedStatus = updatedState.session?.status;
+      if (updatedStatus == null) return;
+
+      // 年末チェック
+      if (updatedStatus.day >= AppConstants.daysPerYear && !_showingYearEnd) {
+        _showingYearEnd = true;
+        try {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => YearEndScreen(
+                session: updatedState.session!,
+                decisions: updatedState.decisions,
+                onContinue: _onContinueYear,
+                onRestart: _onRestartGame,
+                onRetire: _onRetire,
+              ),
+            ),
+          );
+        } finally {
+          // mounted が false になっていたり push が例外を投げた場合でも、
+          // このフラグが true のまま固定化されると、以後このセッションでは
+          // 二度と年末画面が表示されなくなってしまうため、必ず解除する。
+          _showingYearEnd = false;
+        }
+      } else {
+        _pickNextEvent(updatedStatus);
+      }
+    } finally {
+      _processingChoice = false;
     }
   }
 
   void _onContinueYear() async {
-    await ref.read(gameSessionProvider.notifier).continueToNextYear();
-    final updatedStatus = ref.read(gameSessionProvider).session?.status;
-    if (updatedStatus != null && mounted) {
-      Navigator.of(context).pop();
-      _pickNextEvent(updatedStatus);
+    // 「続行」ボタンの連打で continueToNextYear/pop が二重発火すると、
+    // 2回目の pop が YearEndScreen ではなく既にその下にある HomeScreen
+    // （Navigator のルート）に対して行われてしまうため、処理中は無視する。
+    if (_continuingYear) return;
+    _continuingYear = true;
+    try {
+      await ref.read(gameSessionProvider.notifier).continueToNextYear();
+      final updatedStatus = ref.read(gameSessionProvider).session?.status;
+      if (updatedStatus != null && mounted) {
+        Navigator.of(context).pop();
+        _pickNextEvent(updatedStatus);
+      }
+    } finally {
+      _continuingYear = false;
     }
   }
 
   void _onRestartGame() async {
-    final auth = ref.read(authServiceProvider);
-    final userId = auth.userId ?? 'demo';
-    final currentSession = ref.read(gameSessionProvider).session;
-    final countryName = currentSession?.countryName ?? '新興共和国';
-    final difficulty = currentSession?.difficulty ?? 'normal';
+    // GameOverScreen/EndingScreen/SettingsScreen のいずれからも呼ばれうる
+    // ため、連打で startNewYear が二重発火し、Firestore 上に余分な
+    // セッションが作られてしまうことを防ぐ。
+    if (_restarting) return;
+    _restarting = true;
+    try {
+      final auth = ref.read(authServiceProvider);
+      final userId = auth.userId ?? 'demo';
+      final currentSession = ref.read(gameSessionProvider).session;
+      final countryName = currentSession?.countryName ?? '新興共和国';
+      final difficulty = currentSession?.difficulty ?? 'normal';
 
-    await ref.read(gameSessionProvider.notifier).startNewYear(
-          userId: userId,
-          countryName: countryName,
-          difficulty: difficulty,
-          previousSessionId: currentSession?.id,
-        );
+      await ref.read(gameSessionProvider.notifier).startNewYear(
+            userId: userId,
+            countryName: countryName,
+            difficulty: difficulty,
+            previousSessionId: currentSession?.id,
+          );
 
-    final newStatus = ref.read(gameSessionProvider).session?.status;
-    if (newStatus != null && mounted) {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-      _recentEventIds.clear();
-      _previousStatus = null;
-      _pickNextEvent(newStatus);
+      final newStatus = ref.read(gameSessionProvider).session?.status;
+      if (newStatus != null && mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        _recentEventIds.clear();
+        _previousStatus = null;
+        _pickNextEvent(newStatus);
+      }
+    } finally {
+      _restarting = false;
     }
   }
 

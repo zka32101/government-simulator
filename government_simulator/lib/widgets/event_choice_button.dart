@@ -20,6 +20,7 @@ class _EventChoiceButtonState extends State<EventChoiceButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
+  bool _pressed = false;
 
   @override
   void initState() {
@@ -40,6 +41,11 @@ class _EventChoiceButtonState extends State<EventChoiceButton>
   }
 
   void _onPressed() {
+    // 押下アニメーション(200ms)の最中に連打されると、以前は毎回
+    // forward().then(...) が積まれ widget.onPressed が複数回呼ばれて
+    // いたため、押下中は以降のタップを無視する。
+    if (_pressed) return;
+    _pressed = true;
     _controller.forward().then((_) {
       widget.onPressed();
     });

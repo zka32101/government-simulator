@@ -13,6 +13,7 @@ import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
+import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
 class ChoiceResult {
@@ -88,9 +89,13 @@ class UserProfileNotifier extends StateNotifier<UserProfile?> {
     state = updated;
   }
 
-  void update(UserProfile profile) {
+  /// 以前は Firestore への書き込みを await せず投げっぱなし（fire-and-forget）
+  /// にしていたため、書き込みが失敗してもローカルの state だけが更新され、
+  /// 実際に永続化された内容との乖離に誰も気づけなかった。呼び出し側が
+  /// エラーハンドリングできるよう Future を返すようにした。
+  Future<void> update(UserProfile profile) async {
     state = profile;
-    _firestore.updateUserProfile(profile);
+    await _firestore.updateUserProfile(profile);
   }
 }
 
@@ -129,6 +134,12 @@ class GameSessionState {
 class GameSessionNotifier extends StateNotifier<GameSessionState> {
   final FirestoreService _firestore;
   final GameLogicService _logic;
+  final _uuid = const Uuid();
+
+  // applyChoice の多重実行を防ぐガード。連打やダブルタップで同じ選択が
+  // 二重に適用され、片方のセッション更新が silently 失われるバグが
+  // あったため、処理中は以降の呼び出しを無視する。
+  bool _applyingChoice = false;
 
   GameSessionNotifier(this._firestore, this._logic)
       : super(const GameSessionState());
@@ -156,6 +167,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         userId: userId,
         countryName: countryName,
         difficulty: difficulty,
+        previousSessionId: state.session?.id,
       );
       await _firestore.createGameSession(session);
     }
@@ -233,96 +245,117 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String narrative,
     Faction? promiseTarget,
   }) async {
-    final session = state.session;
-    if (session == null) return ChoiceResult.empty();
+    // 処理中に二重に呼ばれた場合（ダブルタップ等）、後発の呼び出しは
+    // 古い session を基に計算してしまい、先発の呼び出しによる状態更新を
+    // 上書きして消してしまう（後勝ち）レースコンディションがあったため、
+    // 処理中は再入を無視する。
+    if (_applyingChoice) return ChoiceResult.empty();
+    _applyingChoice = true;
+    try {
+      final session = state.session;
+      if (session == null) return ChoiceResult.empty();
 
-    // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
-    final baseStatus = session.status.copyWith(
-      day: session.status.day + 1,
-      decisionsCount: session.status.decisionsCount + 1,
-      lastUpdated: DateTime.now(),
-    );
-    var newStatus = _logic.applyImpact(baseStatus, impact);
-    final impactScore = _logic.calculateImpactScore(session.status, newStatus);
-    final isPositive = _logic.wasPositiveOutcome(impact, session.status);
-
-    // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
-    final ministerDeltas =
-        _logic.deriveMinisterImpact(impact, corruption: newStatus.corruption);
-    var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
-    final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
-    if (betrayedRole != null) {
-      newCabinet = newCabinet.markBetrayed(betrayedRole);
-      newStatus = newStatus.copyWith(
-        stability: (newStatus.stability - 15).clamp(0, 100),
-        satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
+      // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
+      final baseStatus = session.status.copyWith(
+        day: session.status.day + 1,
+        decisionsCount: session.status.decisionsCount + 1,
+        lastUpdated: DateTime.now(),
       );
-    }
-    newStatus = newStatus.copyWith(cabinet: newCabinet);
+      var newStatus = _logic.applyImpact(baseStatus, impact);
 
-    // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
-    var activePromises = session.activePromises;
-    if (promiseTarget != null) {
-      activePromises = [
-        ...activePromises,
-        _logic.makePromise(promiseTarget, newStatus),
-      ];
-    }
-    final resolution = _logic.resolvePromises(activePromises, newStatus);
-    newStatus = newStatus.copyWith(factions: resolution.factions);
-    activePromises = resolution.remaining;
+      // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
+      final ministerDeltas = _logic.deriveMinisterImpact(impact,
+          corruption: newStatus.corruption);
+      var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
+      final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
+      if (betrayedRole != null) {
+        newCabinet = newCabinet.markBetrayed(betrayedRole);
+        newStatus = newStatus.copyWith(
+          stability: (newStatus.stability - 15).clamp(0, 100),
+          satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
+        );
+      }
+      newStatus = newStatus.copyWith(cabinet: newCabinet);
 
-    final decision = Decision(
-      id: '${session.id}_${DateTime.now().millisecondsSinceEpoch}',
-      sessionId: session.id,
-      eventId: eventId,
-      chosenChoiceId: choiceId,
-      decidedAt: DateTime.now(),
-      narrative: narrative,
-      impactScore: impactScore,
-      appliedImpact: impact,
-      wasPositiveOutcome: isPositive,
-      beforeStatus: session.status,
-      afterStatus: newStatus,
-    );
+      // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
+      var activePromises = session.activePromises;
+      if (promiseTarget != null) {
+        activePromises = [
+          ...activePromises,
+          _logic.makePromise(promiseTarget, newStatus),
+        ];
+      }
+      final resolution = _logic.resolvePromises(activePromises, newStatus);
+      newStatus = newStatus.copyWith(factions: resolution.factions);
+      activePromises = resolution.remaining;
 
-    var updatedSession = session.copyWith(
-      status: newStatus,
-      lastPlayedAt: DateTime.now(),
-      totalDecisions: session.totalDecisions + 1,
-      positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
-      negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
-      activePromises: activePromises,
-    );
+      // インパクトスコア/成功判定は、内閣裏切り・公約破棄による追加の
+      // ステータス変動まで織り込んだ「最終的な」newStatus を基に算出する。
+      // 以前はこれらの効果が適用される前の中間状態から計算していたため、
+      // 裏切りが起きたターンでは「決定の結果」画面の評価やAI生成される
+      // 統治記録の文章が、実際の変化量と食い違うことがあった。
+      final impactScore =
+          _logic.calculateImpactScore(session.status, newStatus);
+      final isPositive = _logic.wasPositiveOutcome(impact, session.status);
 
-    // 実績判定
-    final newAchievements =
-        Achievements.checkNew(updatedSession, session.unlockedAchievements);
-    if (newAchievements.isNotEmpty) {
-      updatedSession = updatedSession.copyWith(
-        unlockedAchievements: [
-          ...session.unlockedAchievements,
-          ...newAchievements.map((a) => a.id),
-        ],
+      final decision = Decision(
+        // セッションID+ミリ秒タイムスタンプでは、同一ミリ秒内に2回
+        // applyChoice が呼ばれた場合にIDが衝突し、Firestore上で片方の
+        // Decision が silently 上書きされて消えてしまっていたため、
+        // 他のモデル（セッション・公約等）と同様に UUID を用いる。
+        id: _uuid.v4(),
+        sessionId: session.id,
+        eventId: eventId,
+        chosenChoiceId: choiceId,
+        decidedAt: DateTime.now(),
+        narrative: narrative,
+        impactScore: impactScore,
+        appliedImpact: impact,
+        wasPositiveOutcome: isPositive,
+        beforeStatus: session.status,
+        afterStatus: newStatus,
       );
+
+      var updatedSession = session.copyWith(
+        status: newStatus,
+        lastPlayedAt: DateTime.now(),
+        totalDecisions: session.totalDecisions + 1,
+        positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
+        negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
+        activePromises: activePromises,
+      );
+
+      // 実績判定
+      final newAchievements =
+          Achievements.checkNew(updatedSession, session.unlockedAchievements);
+      if (newAchievements.isNotEmpty) {
+        updatedSession = updatedSession.copyWith(
+          unlockedAchievements: [
+            ...session.unlockedAchievements,
+            ...newAchievements.map((a) => a.id),
+          ],
+        );
+      }
+
+      // ゲームオーバー判定
+      final gameOver = _logic.checkGameOver(newStatus);
+
+      await _firestore.batchUpdateSession(updatedSession, decision);
+
+      state = state.copyWith(
+        session: updatedSession,
+        decisions: [...state.decisions, decision],
+      );
+
+      return ChoiceResult(
+        newAchievements: newAchievements,
+        gameOver: gameOver,
+        betrayedMinister: betrayedRole,
+        promiseResolutions: resolution.resolutions,
+      );
+    } finally {
+      _applyingChoice = false;
     }
-
-    // ゲームオーバー判定
-    final gameOver = _logic.checkGameOver(newStatus);
-
-    await _firestore.batchUpdateSession(updatedSession, decision);
-
-    state = state.copyWith(
-      session: updatedSession,
-      decisions: [...state.decisions, decision],
-    );
-
-    return ChoiceResult(
-      newAchievements: newAchievements,
-      gameOver: gameOver,
-      betrayedMinister: betrayedRole,
-      promiseResolutions: resolution.resolutions,
-    );
   }
 
   void loadExisting(GameSession session, List<Decision> decisions) {

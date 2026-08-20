@@ -18,11 +18,23 @@ class _TutorialOverlayState extends State<TutorialOverlay> {
   final _controller = PageController();
   int _index = 0;
 
+  // 最終ページの「開始する」ボタンとヘッダーの「スキップ」ボタンの
+  // どちらも widget.onFinish を呼びうる。どちらか一方が押された後に
+  // 素早くもう一方が押されると（あるいは同じボタンを連打すると）
+  // onFinish が二重に呼ばれてしまうため、一度呼んだら以降は無視する。
+  bool _finished = false;
+
   static const int _pageCount = 5;
+
+  void _finish() {
+    if (_finished) return;
+    _finished = true;
+    widget.onFinish();
+  }
 
   void _next() {
     if (_index >= _pageCount - 1) {
-      widget.onFinish();
+      _finish();
       return;
     }
     _controller.nextPage(
@@ -49,7 +61,7 @@ class _TutorialOverlayState extends State<TutorialOverlay> {
             Align(
               alignment: Alignment.topRight,
               child: TextButton(
-                onPressed: widget.onFinish,
+                onPressed: _finish,
                 child: const Text('スキップ',
                     style: TextStyle(color: AppTheme.textSecondary)),
               ),

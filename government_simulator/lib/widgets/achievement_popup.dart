@@ -12,6 +12,12 @@ class AchievementPopup {
   static void _showOne(
       BuildContext context, List<Achievement> list, int index) {
     if (index >= list.length) return;
+    // 複数の実績を順番に表示している間に、呼び出し元の画面が
+    // 破棄される（遷移等）と、この context は無効になる。story_banner.dart
+    // の _showOne は元々このチェックを持っていたが、こちらには無く、
+    // Overlay.of(context) が deactivated widget に対して呼ばれ例外に
+    // なることがあった。
+    if (!context.mounted) return;
     final a = list[index];
     final overlay = Overlay.of(context);
     late OverlayEntry entry;

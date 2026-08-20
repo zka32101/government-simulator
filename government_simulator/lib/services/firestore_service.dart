@@ -38,26 +38,31 @@ class FirestoreService {
 
   // =================== User Profile ===================
 
+  /// ユーザープロフィールを取得する。ドキュメントが存在しない場合のみ
+  /// null を返す。それ以外の例外（ネットワーク断・権限エラー等）は
+  /// 呼び出し側が「新規ユーザー」と誤判定して createUserProfile で
+  /// 既存プロフィール（購入履歴・DLC等）を上書き消去してしまわないよう、
+  /// ここでは握りつぶさずに再送出する。
   Future<UserProfile?> getUserProfile(String userId) async {
-    try {
-      final doc =
-          await _db.collection(FirebaseCollections.users).doc(userId).get();
-      if (!doc.exists || doc.data() == null) return null;
-      var map = Map<String, dynamic>.from(doc.data()!);
-      map = _isoFromTimestamp(map, 'createdAt');
-      map = _isoFromTimestamp(map, 'lastLoginAt');
-      map['id'] = userId;
-      return UserProfile.fromMap(map);
-    } catch (_) {
-      return null;
-    }
+    final doc =
+        await _db.collection(FirebaseCollections.users).doc(userId).get();
+    if (!doc.exists || doc.data() == null) return null;
+    var map = Map<String, dynamic>.from(doc.data()!);
+    map = _isoFromTimestamp(map, 'createdAt');
+    map = _isoFromTimestamp(map, 'lastLoginAt');
+    map['id'] = userId;
+    return UserProfile.fromMap(map);
   }
 
   Future<void> createUserProfile(UserProfile profile) async {
-    await _db
-        .collection(FirebaseCollections.users)
-        .doc(profile.id)
-        .set(_userProfileToMap(profile));
+    // merge: true にしておくことで、万一この呼び出しが既存ユーザーに対して
+    // 誤って行われた場合でも、対象外フィールドを持つ既存ドキュメントを
+    // 全消去してしまう被害を最小限にする（多層防御。根本対策は
+    // getUserProfile が読み取りエラーを新規ユーザーと誤判定しないこと）。
+    await _db.collection(FirebaseCollections.users).doc(profile.id).set(
+          _userProfileToMap(profile),
+          SetOptions(merge: true),
+        );
   }
 
   Future<void> updateUserProfile(UserProfile profile) async {
@@ -76,19 +81,21 @@ class FirestoreService {
 
   // =================== Game Session ===================
 
+  /// 最新のゲームセッションを取得する。該当セッションが無い場合のみ
+  /// null を返す。読み取り自体が失敗した場合に null を返すと、呼び出し側
+  /// （GameSessionNotifier.loadOrCreate）が「セッションなし」と誤判定して
+  /// 既存セッションと別の新規セッションを作成してしまう（既存の進行が
+  /// 孤立し、プレイヤーからは進行が消えたように見える）ため、ここでは
+  /// 例外を握りつぶさずに再送出する。
   Future<GameSession?> getLatestSession(String userId) async {
-    try {
-      final query = await _db
-          .collection(FirebaseCollections.gameSessions)
-          .where('userId', isEqualTo: userId)
-          .orderBy('lastPlayedAt', descending: true)
-          .limit(1)
-          .get();
-      if (query.docs.isEmpty) return null;
-      return _docToSession(query.docs.first);
-    } catch (_) {
-      return null;
-    }
+    final query = await _db
+        .collection(FirebaseCollections.gameSessions)
+        .where('userId', isEqualTo: userId)
+        .orderBy('lastPlayedAt', descending: true)
+        .limit(1)
+        .get();
+    if (query.docs.isEmpty) return null;
+    return _docToSession(query.docs.first);
   }
 
   Future<GameSession?> getGameSession(String sessionId) async {
@@ -161,17 +168,16 @@ class FirestoreService {
         .set(_decisionToMap(decision));
   }
 
+  /// セッションの決定履歴を取得する。読み取り失敗を空リストとして
+  /// 握りつぶすと、履歴がある既存セッションが「履歴なし」に見えてしまう
+  /// ため（getLatestSession と同じ理由）、例外は再送出する。
   Future<List<Decision>> getSessionDecisions(String sessionId) async {
-    try {
-      final query = await _db
-          .collection(FirebaseCollections.decisions)
-          .where('sessionId', isEqualTo: sessionId)
-          .orderBy('decidedAt', descending: false)
-          .get();
-      return query.docs.map(_docToDecision).toList();
-    } catch (_) {
-      return [];
-    }
+    final query = await _db
+        .collection(FirebaseCollections.decisions)
+        .where('sessionId', isEqualTo: sessionId)
+        .orderBy('decidedAt', descending: false)
+        .get();
+    return query.docs.map(_docToDecision).toList();
   }
 
   Future<void> batchUpdateSession(

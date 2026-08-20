@@ -258,7 +258,7 @@ class _DayConfigCardState extends State<_DayConfigCard> {
       context: context,
       initialTime: TimeOfDay(hour: _timeRange.startHour, minute: 0),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _timeRange = TimeRange(
           startHour: picked.hour,
@@ -274,7 +274,7 @@ class _DayConfigCardState extends State<_DayConfigCard> {
       context: context,
       initialTime: TimeOfDay(hour: _timeRange.endHour, minute: 0),
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _timeRange = TimeRange(
           startHour: _timeRange.startHour,
@@ -367,7 +367,13 @@ class TimeRange {
 
   bool isPlayableAt(DateTime time) {
     if (isBlocked) return false;
-    return time.hour >= startHour && time.hour < endHour;
+    // endHour は「この時までプレイ可」の意図（UI上の終了時刻）だが、
+    // showTimePicker は最大23時までしか選べないため、endHour: 23
+    // （＝TimeRange.allDay() のデフォルト）で「終日プレイ可」を表現する
+    // 前提になっている。ここを time.hour < endHour（排他的）にしていると
+    // 23時台が終日プレイ可でも常にプレイ不可になり、「常時プレイ可」
+    // ラベルと矛盾していたため、endHour を含む（〜59分まで）比較にする。
+    return time.hour >= startHour && time.hour <= endHour;
   }
 
   @override

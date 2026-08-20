@@ -90,7 +90,12 @@ class PlayTimeService {
   ) {
     DateTime current = DateTime.now();
 
-    while (true) {
+    // 全曜日が isBlocked な設定（UIの禁止トグルで作れてしまう）だと
+    // 永久にプレイ可能な日が見つからず while(true) が無限ループして
+    // 呼び出し元のアイソレートがフリーズするバグがあった。曜日の
+    // 巡回は最大7通りしかないため、1週間分（+念のため1日）試しても
+    // 見つからなければ「常にプレイ不可」の設定として明示的に例外にする。
+    for (var i = 0; i < 8; i++) {
       final dayKey = getDayKey(current);
       final dayConfig = config[dayKey] ?? TimeRange.allDay();
 
@@ -132,6 +137,11 @@ class PlayTimeService {
         current.day + 1,
       );
     }
+
+    throw StateError(
+      'すべての曜日がプレイ不可に設定されているため、次のプレイ可能時刻が'
+      '存在しません。少なくとも1曜日はプレイ可能にしてください。',
+    );
   }
 
   // 設定をローカルストレージに保存

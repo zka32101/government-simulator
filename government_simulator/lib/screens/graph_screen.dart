@@ -155,13 +155,19 @@ class _GraphScreenState extends State<GraphScreen> {
       return const SizedBox.shrink();
     }
 
-    final minY = spots.map((e) => e.y).reduce((a, b) => a < b ? a : b);
-    final maxY = spots.map((e) => e.y).reduce((a, b) => a > b ? a : b);
+    final rawMinY = spots.map((e) => e.y).reduce((a, b) => a < b ? a : b);
+    final rawMaxY = spots.map((e) => e.y).reduce((a, b) => a > b ? a : b);
     // 全ての値が同じ（決定が1件だけ、または選択中の指標が変化していない）
     // 場合 maxY - minY == 0 になり、fl_chart に interval: 0 を渡すと
     // アサーションで落ちるため、その場合は 1.0 にフォールバックする。
     final horizontalInterval =
-        (maxY - minY) > 0 ? (maxY - minY) / 5 : 1.0;
+        (rawMaxY - rawMinY) > 0 ? (rawMaxY - rawMinY) / 5 : 1.0;
+    // minY/maxY 自体も *0.9/*1.1 の乗算パディングでは、値がちょうど 0
+    // （例：失業率0%や決定1件のみの場合）だと minY == maxY == 0 の
+    // ままとなり、Y軸の描画範囲がゼロ幅になってしまう。全て同値のときは
+    // 固定幅（±1、最低でも上下1ずつ）でパディングする。
+    final minY = rawMaxY > rawMinY ? rawMinY * 0.9 : rawMinY - 1;
+    final maxY = rawMaxY > rawMinY ? rawMaxY * 1.1 : rawMaxY + 1;
 
     return Card(
       child: Padding(
@@ -210,9 +216,15 @@ class _GraphScreenState extends State<GraphScreen> {
               ),
               borderData: FlBorderData(show: true),
               minX: 0,
-              maxX: (decisions.length - 1).toDouble(),
-              minY: minY * 0.9,
-              maxY: maxY * 1.1,
+              // decisions.length == 1 のとき (length - 1) == 0 となり
+              // minX と一致してX軸の描画範囲がゼロ幅になる
+              // （fl_chart 内部でのゼロ除算につながる）ため、
+              // 最低でも 1.0 を確保する。
+              maxX: decisions.length > 1
+                  ? (decisions.length - 1).toDouble()
+                  : 1.0,
+              minY: minY,
+              maxY: maxY,
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,

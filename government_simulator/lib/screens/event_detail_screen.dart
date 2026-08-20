@@ -30,6 +30,11 @@ class _EventDetailScreenState extends State<EventDetailScreen>
   late AnimationController _listController;
   late GameLogicService _gameLogic;
 
+  // 遷移アニメーション中に連打すると pop() が二重発火し、2回目の pop が
+  // このルートの下にある画面（HomeScreen 等）に対して行われてしまうため
+  // ガードする。
+  bool _popped = false;
+
   @override
   void initState() {
     super.initState();
@@ -245,7 +250,11 @@ class _EventDetailScreenState extends State<EventDetailScreen>
 
               // 次へボタン
               ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () {
+                  if (_popped) return;
+                  _popped = true;
+                  Navigator.of(context).pop(true);
+                },
                 icon: const Icon(Icons.arrow_forward),
                 label: const Text('次の決定へ'),
                 style: ElevatedButton.styleFrom(

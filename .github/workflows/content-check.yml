@@ -30,7 +30,24 @@ jobs:
             echo "FORBIDDEN_WORDS_CSV is not set. Register it in repo Secrets to enable this check."
             exit 0
           fi
-          DIFF=$(git diff origin/${{ github.base_ref || 'main' }}...HEAD || git show HEAD)
+          # pull_request イベントでは origin/<base> との比較で正しく差分が
+          # 取れるが、push イベント（main へのマージ等）では checkout 済みの
+          # origin/main が既に HEAD と同一コミットを指しているため
+          # `git diff origin/main...HEAD` は常に空になり、この安全チェックが
+          # push トリガーでは静かに何もスキャンしないバグがあった
+          # （空diffはgitのエラーにならないため `|| git show HEAD`
+          # フォールバックも発動しない）。push イベントでは代わりに
+          # このプッシュ直前のコミット(github.event.before)との差分を取る。
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            DIFF=$(git diff "origin/${{ github.base_ref }}...HEAD")
+          elif [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            DIFF=$(git diff "$BEFORE_SHA...HEAD")
+          else
+            # 初回push・force-push等で before が使えない場合は、最終手段として
+            # 直近コミットの内容だけでも見る。
+            DIFF=$(git show HEAD)
+          fi
           FOUND=0
           IFS=',' read -ra WORDS <<< "$FORBIDDEN_WORDS_CSV"
           for w in "${WORDS[@]}"; do

@@ -125,6 +125,19 @@ class _ShakeOnceState extends State<ShakeOnce>
   }
 
   @override
+  void didUpdateWidget(covariant ShakeOnce oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // trigger は initState でしか見ていなかったため、同じウィジェット
+    // インスタンスが再利用され trigger が false→true に変化しても
+    // 揺れが再生されなかった（呼び出し元が同じ State を使い回すケースへの
+    // 備え。現状の唯一の呼び出し元では毎回新しいインスタンスが作られる
+    // ため顕在化しないが、他の呼び出し元が現れた際の潜在バグだった）。
+    if (widget.trigger && !oldWidget.trigger) {
+      _ctrl.forward(from: 0);
+    }
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
