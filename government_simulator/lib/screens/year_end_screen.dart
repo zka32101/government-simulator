@@ -4,7 +4,7 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/constants.dart';
 
-class YearEndScreen extends StatelessWidget {
+class YearEndScreen extends StatefulWidget {
   final GameSession session;
   final List<Decision> decisions;
   final VoidCallback onContinue;
@@ -23,11 +23,61 @@ class YearEndScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<YearEndScreen> createState() => _YearEndScreenState();
+}
+
+class _YearEndScreenState extends State<YearEndScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  // 1年間の統治を締めくくる「大きな節目」の画面のため、各セクションを
+  // 一度に出さず上から順にフェード＋スライドインさせ、結果を噛みしめる
+  // 間を作る演出にした（従来は静的に一括表示されていた）。
+  static const int _sectionCount = 6;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _staggered(int index) {
+    final start = index / _sectionCount * 0.7;
+    final end = start + 0.4;
+    return CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(start, end.clamp(0.0, 1.0), curve: Curves.easeOutCubic),
+    );
+  }
+
+  Widget _section({required int index, required Widget child}) {
+    final anim = _staggered(index);
+    return FadeTransition(
+      opacity: anim,
+      child: SlideTransition(
+        position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
+            .animate(anim),
+        child: child,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final status = session.status;
-    final history = DecisionHistory(decisions);
+    final status = widget.session.status;
+    final history = DecisionHistory(widget.decisions);
     final avgScore = history.averageImpactScore;
-    final successRate = session.successRate;
+    final successRate = widget.session.successRate;
 
     final evaluation = _getYearEvaluation(status.healthScore, successRate);
     final tier = CountryTier.evaluate(status);
@@ -42,74 +92,88 @@ class YearEndScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // 年度ヘッダー
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      evaluation.emoji,
-                      style: const TextStyle(fontSize: 72),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      '${status.year}年目 終了',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: evaluation.color.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: evaluation.color),
-                      ),
-                      child: Text(
-                        evaluation.label,
-                        style: TextStyle(
-                          color: evaluation.color,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+              _section(
+                index: 0,
+                child: Center(
+                  child: Column(
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.4, end: 1.0),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.elasticOut,
+                        builder: (context, scale, child) =>
+                            Transform.scale(scale: scale, child: child),
+                        child: Text(
+                          evaluation.emoji,
+                          style: const TextStyle(fontSize: 72),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      Text(
+                        '${status.year}年目 終了',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: evaluation.color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: evaluation.color),
+                        ),
+                        child: Text(
+                          evaluation.label,
+                          style: TextStyle(
+                            color: evaluation.color,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
               const SizedBox(height: 32),
 
               // 年間実績カード
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '📊 ${status.year}年度 実績',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppConstants.paddingM),
-                      _StatRow(
-                          label: '意思決定数',
-                          value: '${session.totalDecisions}件',
-                          icon: '🎯'),
-                      _StatRow(
-                          label: '成功率',
-                          value: '${successRate.toStringAsFixed(1)}%',
-                          icon: '✅'),
-                      _StatRow(
-                          label: '平均スコア',
-                          value: avgScore.toStringAsFixed(1),
-                          icon: '📈'),
-                      _StatRow(
-                          label: '国家健全度',
-                          value: '${status.healthScore.toStringAsFixed(0)}/100',
-                          icon: '🏛️'),
-                    ],
+              _section(
+                index: 1,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppConstants.paddingM),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '📊 ${status.year}年度 実績',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppConstants.paddingM),
+                        _StatRow(
+                            label: '意思決定数',
+                            value: '${widget.session.totalDecisions}件',
+                            icon: '🎯'),
+                        _StatRow(
+                            label: '成功率',
+                            value: '${successRate.toStringAsFixed(1)}%',
+                            icon: '✅'),
+                        _StatRow(
+                            label: '平均スコア',
+                            value: avgScore.toStringAsFixed(1),
+                            icon: '📈'),
+                        _StatRow(
+                            label: '国家健全度',
+                            value:
+                                '${status.healthScore.toStringAsFixed(0)}/100',
+                            icon: '🏛️'),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -117,19 +181,22 @@ class YearEndScreen extends StatelessWidget {
               const SizedBox(height: AppConstants.paddingM),
 
               // 最終ステータス
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '🌍 ${session.countryName} 現況',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppConstants.paddingM),
-                      _StatusGrid(status: status),
-                    ],
+              _section(
+                index: 2,
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppConstants.paddingM),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🌍 ${widget.session.countryName} 現況',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: AppConstants.paddingM),
+                        _StatusGrid(status: status),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -137,64 +204,67 @@ class YearEndScreen extends StatelessWidget {
               const SizedBox(height: AppConstants.paddingM),
 
               // 現実世界の国家水準になぞらえた評価
-              Card(
-                color: tier.color.withOpacity(0.08),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '🌍 現実世界でいうと',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: AppConstants.paddingS),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: tier.color.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: tier.color),
+              _section(
+                index: 3,
+                child: Card(
+                  color: tier.color.withOpacity(0.08),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppConstants.paddingM),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '🌍 現実世界でいうと',
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        child: Text(
-                          tier.label,
-                          style: TextStyle(
-                            color: tier.color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppConstants.paddingS),
-                      Text(
-                        tier.comparison,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tier.description,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      if (tier.warnings.isNotEmpty) ...[
                         const SizedBox(height: AppConstants.paddingS),
-                        ...tier.warnings.map(
-                          (w) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text(
-                              w,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(VisualConstants.colorDanger),
-                              ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: tier.color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: tier.color),
+                          ),
+                          child: Text(
+                            tier.label,
+                            style: TextStyle(
+                              color: tier.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
                             ),
                           ),
                         ),
+                        const SizedBox(height: AppConstants.paddingS),
+                        Text(
+                          tier.comparison,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          tier.description,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        if (tier.warnings.isNotEmpty) ...[
+                          const SizedBox(height: AppConstants.paddingS),
+                          ...tier.warnings.map(
+                            (w) => Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                w,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(VisualConstants.colorDanger),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -202,26 +272,29 @@ class YearEndScreen extends StatelessWidget {
               const SizedBox(height: AppConstants.paddingM),
 
               // 評価メッセージ
-              Card(
-                color: evaluation.color.withOpacity(0.08),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingM),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '💬 ${evaluation.label}の評価',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: evaluation.color),
-                      ),
-                      const SizedBox(height: AppConstants.paddingS),
-                      Text(
-                        evaluation.message,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
+              _section(
+                index: 4,
+                child: Card(
+                  color: evaluation.color.withOpacity(0.08),
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppConstants.paddingM),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '💬 ${evaluation.label}の評価',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(color: evaluation.color),
+                        ),
+                        const SizedBox(height: AppConstants.paddingS),
+                        Text(
+                          evaluation.message,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -229,64 +302,72 @@ class YearEndScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               // 来年の選択
-              Text(
-                '次のステップを選択してください',
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppConstants.paddingM),
-
-              // 続行ボタン
-              ElevatedButton.icon(
-                onPressed: onContinue,
-                icon: const Icon(Icons.arrow_forward),
-                label: Text('${status.year + 1}年目に進む'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(VisualConstants.colorGood),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.borderRadiusM),
-                  ),
-                ),
-              ),
-
-              if (onRetire != null) ...[
-                const SizedBox(height: AppConstants.paddingM),
-                // 引退ボタン（分岐エンディングへ）
-                OutlinedButton.icon(
-                  onPressed: () => _showRetireDialog(context),
-                  icon: const Icon(Icons.flag),
-                  label: const Text('引退し、統治の結末を見る'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFC9A227),
-                    side: const BorderSide(color: Color(0xFFC9A227)),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.borderRadiusM),
+              _section(
+                index: 5,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '次のステップを選択してください',
+                      style: Theme.of(context).textTheme.titleMedium,
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(height: AppConstants.paddingM),
 
-              const SizedBox(height: AppConstants.paddingM),
+                    // 続行ボタン
+                    ElevatedButton.icon(
+                      onPressed: widget.onContinue,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: Text('${status.year + 1}年目に進む'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(VisualConstants.colorGood),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadiusM),
+                        ),
+                      ),
+                    ),
 
-              // 再スタートボタン
-              OutlinedButton.icon(
-                onPressed: () => _showRestartDialog(context),
-                icon: const Icon(Icons.refresh),
-                label: const Text('新しい国家で再スタート'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Color(VisualConstants.colorDanger),
-                  side:
-                      BorderSide(color: Color(VisualConstants.colorDanger)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.borderRadiusM),
-                  ),
+                    if (widget.onRetire != null) ...[
+                      const SizedBox(height: AppConstants.paddingM),
+                      // 引退ボタン（分岐エンディングへ）
+                      OutlinedButton.icon(
+                        onPressed: () => _showRetireDialog(context),
+                        icon: const Icon(Icons.flag),
+                        label: const Text('引退し、統治の結末を見る'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFC9A227),
+                          side: const BorderSide(color: Color(0xFFC9A227)),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppConstants.borderRadiusM),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: AppConstants.paddingM),
+
+                    // 再スタートボタン
+                    OutlinedButton.icon(
+                      onPressed: () => _showRestartDialog(context),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('新しい国家で再スタート'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Color(VisualConstants.colorDanger),
+                        side: BorderSide(
+                            color: Color(VisualConstants.colorDanger)),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.borderRadiusM),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
@@ -313,7 +394,7 @@ class YearEndScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              onRetire?.call();
+              widget.onRetire?.call();
             },
             child: const Text('引退する'),
           ),
@@ -336,7 +417,7 @@ class YearEndScreen extends StatelessWidget {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              onRestart();
+              widget.onRestart();
             },
             child: const Text(
               '再スタート',

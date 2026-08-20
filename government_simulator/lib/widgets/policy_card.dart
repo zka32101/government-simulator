@@ -25,7 +25,36 @@ class _PolicyCardState extends State<PolicyCard>
   double _dx = 0;
   bool _dismissing = false;
 
+  late final AnimationController _entranceCtrl;
+  late final Animation<double> _entranceScale;
+  late final Animation<double> _entranceFade;
+
   static const double _threshold = 110;
+
+  @override
+  void initState() {
+    super.initState();
+    // PolicyCard は home_screen.dart で event.id をキーにしているため、
+    // 新しいイベントが来るたびにこの State ごと作り直される。その瞬間に
+    // カードが軽くポップインするよう演出し、「次の決断が来た」ことを
+    // 視覚的にも伝える（決定結果画面の演出と対をなす、入場側の演出）。
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _entranceScale = Tween<double>(begin: 0.9, end: 1.0).animate(
+      CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutBack),
+    );
+    _entranceFade =
+        CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOut);
+    _entranceCtrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _entranceCtrl.dispose();
+    super.dispose();
+  }
 
   Choice? get _leftChoice =>
       widget.event.choices.isNotEmpty ? widget.event.choices[0] : null;
@@ -76,6 +105,17 @@ class _PolicyCardState extends State<PolicyCard>
     final rightActive = _dx > 30;
     final progress = (_dx.abs() / _threshold).clamp(0.0, 1.0);
 
+    return FadeTransition(
+      opacity: _entranceFade,
+      child: ScaleTransition(
+        scale: _entranceScale,
+        child: _buildContent(leftActive, rightActive, rot, progress),
+      ),
+    );
+  }
+
+  Widget _buildContent(
+      bool leftActive, bool rightActive, double rot, double progress) {
     return Column(
       children: [
         // スワイプ方向のヒントラベル
