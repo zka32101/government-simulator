@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
 
@@ -70,6 +71,16 @@ class _StageCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tier = CountryTier.evaluateStats(
+      gdp: stage.gdp,
+      unemployment: stage.unemployment,
+      satisfaction: stage.satisfaction,
+      nationalPower: stage.nationalPower,
+      inflationRate: stage.inflationRate,
+      publicDebt: stage.publicDebt,
+      stability: stage.stability,
+    );
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -111,12 +122,44 @@ class _StageCard extends StatelessWidget {
                           fontSize: 12,
                           color: AppTheme.textSecondary,
                           height: 1.4)),
+                  const SizedBox(height: 8),
+                  // 想定国：あくまで仮想の国家分類（先進国クラス等）としての
+                  // 目安表示であり、実在の国・地域を指すものではない。
+                  _TierBadge(tier: tier),
                   const SizedBox(height: 10),
                   _StatBadgeRow(stage: stage),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 想定国バッジ：このステージの初期指標を、現実の国家分類になぞらえた
+/// 仮想の目安（先進国クラス等）として表示する。実在の国・地域は指さない。
+class _TierBadge extends StatelessWidget {
+  final CountryTier tier;
+
+  const _TierBadge({required this.tier});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: tier.color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: tier.color.withOpacity(0.5)),
+      ),
+      child: Text(
+        '🌍 想定：${tier.label}',
+        style: TextStyle(
+          fontSize: 10,
+          color: tier.color,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );
