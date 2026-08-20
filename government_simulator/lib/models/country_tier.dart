@@ -64,6 +64,32 @@ class CountryTier {
         priceStabilityScore * 0.10;
   }
 
+  /// [CountryStatus]（実在のセッション）を組み立てずに、個々の指標だけから
+  /// 評価する簡易ヘルパー。ステージ/シナリオ選択画面のように、まだプレイが
+  /// 始まっていない「想定の」国家設定を評価する用途向け。
+  static CountryTier evaluateStats({
+    required double gdp,
+    required double unemployment,
+    required double satisfaction,
+    required double nationalPower,
+    required double inflationRate,
+    required double publicDebt,
+    required double stability,
+  }) {
+    return evaluate(CountryStatus(
+      gdp: gdp,
+      unemployment: unemployment,
+      satisfaction: satisfaction,
+      nationalPower: nationalPower,
+      year: 1,
+      day: 1,
+      lastUpdated: DateTime.now(),
+      inflationRate: inflationRate,
+      publicDebt: publicDebt,
+      stability: stability,
+    ));
+  }
+
   static CountryTier evaluate(CountryStatus status) {
     final composite = compositeScore(status);
     final warnings = _collectWarnings(status);
