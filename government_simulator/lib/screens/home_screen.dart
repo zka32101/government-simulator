@@ -20,6 +20,7 @@ import 'package:government_simulator/widgets/tutorial_overlay.dart';
 import 'event_detail_screen.dart';
 import 'graph_screen.dart';
 import 'country_history_screen.dart';
+import 'achievements_screen.dart';
 import 'settings_screen.dart';
 import 'year_end_screen.dart';
 import 'game_over_screen.dart';
@@ -348,6 +349,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             gameSession: session,
                             decisionHistory: decisionHistory,
                           ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.emoji_events,
+                          color: AppTheme.textSecondary),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AchievementsScreen(session: session),
                         ),
                       ),
                     ),
