@@ -78,10 +78,14 @@ class CountryStatus {
     // gdp は 100〜10000 の範囲（applyImpact でクランプ）。/1000 だと
     // 最大値でも 10 点にしかならず、achievement.dart の perfect_score
     // (healthScore >= 85) が数学的に到達不可能になっていたバグがあった。
-    final gdpScore = (gdp / 100).clamp(0, 100);
-    final employmentScore = ((100 - unemployment) / 100) * 100;
-    final satisfactionScore = satisfaction;
-    final stabilityScore = stability;
+    // num.clamp(int, int) は num を返すため .toDouble() を付けないと、
+    // gdp が範囲外（0未満や10000超）になった際に整数の 0/100 が
+    // そのまま返り、この getter の double 型の戻り値へ暗黙変換しようと
+    // して実行時に型エラーとなるバグがあった。
+    final gdpScore = (gdp / 100).clamp(0, 100).toDouble();
+    final employmentScore = ((100 - unemployment) / 100 * 100).clamp(0, 100).toDouble();
+    final satisfactionScore = satisfaction.clamp(0, 100).toDouble();
+    final stabilityScore = stability.clamp(0, 100).toDouble();
 
     return (gdpScore * 0.25 +
         employmentScore * 0.25 +

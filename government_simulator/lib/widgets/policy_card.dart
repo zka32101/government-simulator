@@ -44,6 +44,11 @@ class _PolicyCardState extends State<PolicyCard>
   }
 
   void _onPanEnd(DragEndDetails d) {
+    // 確定演出中（dismiss アニメーション中）に別のタッチが素早く終了すると、
+    // 古い _dx（±600）がしきい値を超えたまま再度 _commit が呼ばれ、
+    // onChoose が二重発火してしまうバグがあったため、_onPanUpdate と同様に
+    // ここでもガードする。
+    if (_dismissing) return;
     if (_dx.abs() > _threshold) {
       final choice = _dx < 0 ? _leftChoice : _rightChoice;
       if (choice != null) {

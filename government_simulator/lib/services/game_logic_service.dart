@@ -183,8 +183,15 @@ class GameLogicService {
 
     // GDP が低いと国力も低下
     final gdpTrend = newGdp / current.gdp;
-    final adjustedNationalPower =
-        newNationalPower * (0.9 + gdpTrend * 0.1).clamp(0.5, 1.5);
+    // newNationalPower は既に 0-100 にクランプ済みだが、GDP上昇時に
+    // 掛け合わせる倍率（最大1.5倍）でその上限を超えうる。ここで
+    // 再クランプしないと、範囲外の値が Decision.afterStatus として
+    // そのまま永続化されてしまっていた。
+    final adjustedNationalPower = _clamp(
+      newNationalPower * (0.9 + gdpTrend * 0.1).clamp(0.5, 1.5),
+      0,
+      100,
+    );
 
     // 派閥支持率を選択の方向性から導出して適用
     final factionDeltas = deriveFactionImpact(impact);

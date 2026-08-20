@@ -55,30 +55,39 @@ class _AppRootState extends ConsumerState<_AppRoot> {
   }
 
   Future<void> _initAuth() async {
-    final auth = ref.read(authServiceProvider);
-    var user = auth.currentUser;
-    user ??= await auth.signInAnonymously();
+    // 認証・プロフィール読込・セッション読込のいずれかで例外が発生しても
+    // （ネットワーク断、Firestore権限エラー、Firebase初期化が上流で
+    // 静かに失敗していた場合の後続エラー等）、以前は try/catch が無く
+    // 未処理の例外として握りつぶされ、_initialized が true にならないまま
+    // 「国家を準備中...」のロード画面で永久にフリーズしていた。
+    try {
+      final auth = ref.read(authServiceProvider);
+      var user = auth.currentUser;
+      user ??= await auth.signInAnonymously();
 
-    if (user != null) {
-      await ref.read(userProfileProvider.notifier).loadOrCreate();
-      // セッションがあれば自動ロード
-      final firestore = ref.read(firestoreServiceProvider);
-      final session = await firestore.getLatestSession(user.uid);
-      if (session != null && mounted) {
-        final decisions =
-            await firestore.getSessionDecisions(session.id);
-        ref.read(gameSessionProvider.notifier);
-        // state を直接ロードする代わりにフラグで分岐
-        if (mounted) {
-          setState(() {
-            _initialized = true;
-            _hasSession = true;
-          });
-          // Notifier に状態を注入（既存セッション）
-          ref.read(gameSessionProvider.notifier).loadExisting(session, decisions);
-          return;
+      if (user != null) {
+        await ref.read(userProfileProvider.notifier).loadOrCreate();
+        // セッションがあれば自動ロード
+        final firestore = ref.read(firestoreServiceProvider);
+        final session = await firestore.getLatestSession(user.uid);
+        if (session != null && mounted) {
+          final decisions = await firestore.getSessionDecisions(session.id);
+          if (mounted) {
+            setState(() {
+              _initialized = true;
+              _hasSession = true;
+            });
+            // Notifier に状態を注入（既存セッション）
+            ref
+                .read(gameSessionProvider.notifier)
+                .loadExisting(session, decisions);
+            return;
+          }
         }
       }
+    } catch (_) {
+      // 読込に失敗した場合も、オンボーディング画面から新規に始められる
+      // よう _initialized だけは必ず true にする（フリーズさせない）。
     }
 
     if (mounted) {
