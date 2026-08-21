@@ -3,6 +3,7 @@ import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'package:government_simulator/widgets/staggered_entrance.dart';
 
 /// 「歴史のif」チャレンジ：固定の初期ステータスを持つシナリオから選んで開始する。
 class ScenarioSelectScreen extends StatelessWidget {
@@ -24,9 +25,12 @@ class ScenarioSelectScreen extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final scenario = HistoricalScenario.all[index];
-          return _ScenarioCard(
-            scenario: scenario,
-            onTap: () => _confirmAndStart(context, scenario),
+          return StaggeredEntrance(
+            index: index,
+            child: _ScenarioCard(
+              scenario: scenario,
+              onTap: () => _confirmAndStart(context, scenario),
+            ),
           );
         },
       ),
