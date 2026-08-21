@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  # タグをpushできない環境（CIボットのpush権限がブランチのみに制限されて
+  # いる等）からでも、GitHub Actions API経由で手動ビルドできるようにする。
+  workflow_dispatch:
 
 # Least-privilege default: this workflow only needs to read the repo and
 # upload a build artifact, it never needs to write back to the repository.
