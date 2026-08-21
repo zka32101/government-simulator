@@ -3,6 +3,7 @@ import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/country_tier.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'package:government_simulator/widgets/staggered_entrance.dart';
 
 /// 国家ステージ選択：様々な「国の設定（環境）」をステージ形式で選び、
 /// 難易度を星の数で表現する開始画面。
@@ -25,9 +26,12 @@ class CountryStageSelectScreen extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final stage = CountryStage.all[index];
-          return _StageCard(
-            stage: stage,
-            onTap: () => _confirmAndStart(context, stage),
+          return StaggeredEntrance(
+            index: index,
+            child: _StageCard(
+              stage: stage,
+              onTap: () => _confirmAndStart(context, stage),
+            ),
           );
         },
       ),

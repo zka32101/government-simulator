@@ -8,16 +8,52 @@ import 'package:government_simulator/utils/constants.dart';
 /// ポップアップ通知（AchievementPopup）はその場限りで消えてしまうため、
 /// いつでも「あと何が残っているか」を見返せる場所を用意することで、
 /// 達成感・収集欲・次の目標設定を後押しする。
-class AchievementsScreen extends StatelessWidget {
+class AchievementsScreen extends StatefulWidget {
   final GameSession session;
 
   const AchievementsScreen({Key? key, required this.session})
       : super(key: key);
 
   @override
+  State<AchievementsScreen> createState() => _AchievementsScreenState();
+}
+
+class _AchievementsScreenState extends State<AchievementsScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    // 実績一覧を上から一括表示するのではなく、上から順に軽く時間差で
+    // フェード＋スライドインさせ、トロフィーの棚をひとつずつ見渡すような
+    // 感覚を演出する。
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _staggered(int index, int total) {
+    final start = (index / total * 0.6).clamp(0.0, 1.0);
+    final end = (start + 0.4).clamp(0.0, 1.0);
+    return CurvedAnimation(
+      parent: _ctrl,
+      curve: Interval(start, end, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final all = Achievements.all;
-    final unlockedIds = session.unlockedAchievements.toSet();
+    final unlockedIds = widget.session.unlockedAchievements.toSet();
     final unlockedCount = all.where((a) => unlockedIds.contains(a.id)).length;
     final isComplete = unlockedCount == all.length;
 
@@ -38,16 +74,27 @@ class AchievementsScreen extends StatelessWidget {
                 isComplete: isComplete,
               ),
               const SizedBox(height: AppConstants.paddingM),
-              ...all.map(
-                (a) => Padding(
+              ...List.generate(all.length, (i) {
+                final a = all[i];
+                final anim = _staggered(i, all.length);
+                return Padding(
                   padding:
                       const EdgeInsets.only(bottom: AppConstants.paddingS),
-                  child: _AchievementTile(
-                    achievement: a,
-                    unlocked: unlockedIds.contains(a.id),
+                  child: FadeTransition(
+                    opacity: anim,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.12),
+                        end: Offset.zero,
+                      ).animate(anim),
+                      child: _AchievementTile(
+                        achievement: a,
+                        unlocked: unlockedIds.contains(a.id),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: AppConstants.paddingM),
             ],
           ),
@@ -105,11 +152,20 @@ class _ProgressHeader extends StatelessWidget {
             const SizedBox(height: AppConstants.paddingS),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 10,
-                backgroundColor: color.withOpacity(0.15),
-                valueColor: AlwaysStoppedAnimation(color),
+              // 開いた瞬間に達成率へ向かってバーが伸びていくよう、
+              // 0 から progress へアニメーションさせる
+              // （以前は AlwaysStoppedAnimation で最初から満たされた
+              // 状態が瞬時に表示されるだけだった）。
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: progress),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, _) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 10,
+                  backgroundColor: color.withOpacity(0.15),
+                  valueColor: AlwaysStoppedAnimation(color),
+                ),
               ),
             ),
           ],
