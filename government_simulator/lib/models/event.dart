@@ -102,6 +102,13 @@ class Impact {
   final double inflationChange; // 変化率
   final double stabilityChange; // 絶対値
 
+  /// 対GDP公的債務比率への変化（パーセンテージポイント）。
+  /// 減税・インフラ投資・給付拡充などの財源を伴わない政策は正の値、
+  /// 増税・緊縮財政は負の値を想定。未指定の選択肢は 0（この選択自体は
+  /// 債務に直接影響しないが、applyImpact 側の自動ドリフト―利払い負担や
+  /// GDP成長による対GDP比の相対的改善―は変わらず適用される）。
+  final double publicDebtChange;
+
   // 遅延効果（月単位）
   final Map<int, ImpactDelay> delayedEffects;
 
@@ -115,6 +122,7 @@ class Impact {
     this.nationalPowerChange = 0.0,
     this.inflationChange = 0.0,
     this.stabilityChange = 0.0,
+    this.publicDebtChange = 0.0,
     this.delayedEffects = const {},
     this.criticalEventChance = 0.0,
   });
@@ -157,6 +165,7 @@ class Impact {
       'nationalPowerChange': nationalPowerChange,
       'inflationChange': inflationChange,
       'stabilityChange': stabilityChange,
+      'publicDebtChange': publicDebtChange,
       'delayedEffects': delayedEffects.map((k, v) => MapEntry(k.toString(), v.toMap())),
       'criticalEventChance': criticalEventChance,
     };
@@ -177,6 +186,7 @@ class Impact {
       nationalPowerChange: (map['nationalPowerChange'] ?? 0.0).toDouble(),
       inflationChange: (map['inflationChange'] ?? 0.0).toDouble(),
       stabilityChange: (map['stabilityChange'] ?? 0.0).toDouble(),
+      publicDebtChange: (map['publicDebtChange'] ?? 0.0).toDouble(),
       delayedEffects: delayedEffects,
       criticalEventChance: (map['criticalEventChance'] ?? 0.0).toDouble(),
     );
