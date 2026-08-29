@@ -206,6 +206,25 @@ class GameLogicService {
     final newCorruption =
         _clamp(current.corruption + corruptionDrift, 0, 100);
 
+    // 財政：対GDP公的債務比率の推移。以前は初期値のまま一切変化せず、
+    // 「現実世界でいうと」の財政スコアや財政破綻警告が実際のプレイ内容と
+    // 無関係な飾りになっていたため、実際に動くようにした。
+    //   ・impact.publicDebtChange … 選択肢による明示的な増減
+    //     （減税・給付拡充で財源を伴わないものは増加、増税・緊縮財政は減少）
+    //   ・利払い負担 … 既存の債務残高が大きいほど、その分だけ自然に増える
+    //   ・成長による相対的改善 … GDPが伸びれば対GDP比の分母が拡大し、
+    //     比率としては下がる（実際のマクロ経済と同じ効果）
+    final interestBurden = current.publicDebt * 0.0015;
+    final growthRelief = (gdpTrend - 1) * 15;
+    final newPublicDebt = _clamp(
+      current.publicDebt +
+          impact.publicDebtChange +
+          interestBurden -
+          growthRelief,
+      0,
+      300,
+    );
+
     return current.copyWith(
       gdp: newGdp,
       unemployment: newUnemployment,
@@ -215,6 +234,7 @@ class GameLogicService {
       stability: newStability,
       factions: newFactions,
       corruption: newCorruption,
+      publicDebt: newPublicDebt,
     );
   }
 
@@ -355,7 +375,11 @@ class GameLogicService {
   GameOverType checkGameOver(CountryStatus s) {
     if (s.satisfaction <= 0) return GameOverType.revolution;
     if (s.stability <= 0) return GameOverType.collapse;
-    if (s.gdp <= 120) return GameOverType.bankruptcy;
+    // 財政破綻は GDP の崩壊だけでなく、累積した債務そのものでも起こりうる。
+    // publicDebt が実際にプレイ内容に応じて動くようになったため
+    // （applyImpact 参照）、対GDP比300%満点中250%を国家財政が
+    // 立ち行かなくなる目安として追加した。
+    if (s.gdp <= 120 || s.publicDebt >= 250) return GameOverType.bankruptcy;
     if (s.factions.mostHostile.value <= 0 &&
         s.factions.mostHostile.key == Faction.military) {
       return GameOverType.coup;
@@ -506,11 +530,19 @@ class GameLogicService {
     final inflationTarget = 2.0;
     final newInflationRate = status.inflationRate * 0.8 + inflationTarget * 0.2;
 
+    // 年間の自然成長も、applyImpact と同じ理屈で対GDP債務比率を
+    // わずかに押し下げる（GDPという分母が拡大するため）。これが無いと、
+    // 年末に発生する自然成長分だけ debt/GDP 比の改善が正しく反映されない。
+    final gdpTrend = adjustedGdp / status.gdp;
+    final growthRelief = (gdpTrend - 1) * 15;
+    final newPublicDebt = _clamp(status.publicDebt - growthRelief, 0, 300);
+
     return status.copyWith(
       gdp: adjustedGdp,
       unemployment: newUnemployment,
       nationalPower: newNationalPower,
       inflationRate: newInflationRate,
+      publicDebt: newPublicDebt,
       year: status.year + 1,
       day: 1,
       lastUpdated: DateTime.now(),
