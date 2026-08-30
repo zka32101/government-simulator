@@ -220,7 +220,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: const Text('経済学ハンドブック'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                Color(VisualConstants.colorGold),
+                                Color(VisualConstants.colorWarning),
                             foregroundColor: Colors.black,
                           ),
                         ),
