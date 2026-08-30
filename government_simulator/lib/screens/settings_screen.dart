@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'package:government_simulator/screens/economics_handbook_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final UserProfile userProfile;
   final ValueChanged<UserProfile> onProfileChanged;
 
+  /// 「ゲームをリセット」確定後に呼ばれる。設定画面を閉じた後、
+  /// 呼び出し元（HomeScreen）が新しいセッションを作成して表示し直す。
+  final VoidCallback onReset;
+
   const SettingsScreen({
     Key? key,
     required this.userProfile,
     required this.onProfileChanged,
+    required this.onReset,
   }) : super(key: key);
 
   @override
@@ -187,6 +193,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               const SizedBox(height: AppConstants.paddingL),
 
+              // 教育コンテンツ
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppConstants.paddingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '📚 学習リソース',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppConstants.paddingM),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const EconomicsHandbookScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.school),
+                          label: const Text('経済学ハンドブック'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Color(VisualConstants.colorWarning),
+                            foregroundColor: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppConstants.paddingS),
+                      Text(
+                        '政策選択の経済学的根拠や実例を学べます。',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppConstants.paddingL),
+
               // リセットボタン
               ElevatedButton.icon(
                 onPressed: _showResetDialog,
@@ -214,18 +267,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showResetDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('ゲームをリセット？'),
         content: const Text('すべてのゲームセッションが削除されます。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('キャンセル'),
           ),
           TextButton(
             onPressed: () {
-              // TODO: リセット処理
-              Navigator.pop(context);
+              Navigator.pop(dialogContext); // 確認ダイアログを閉じる
+              // 新しいセッションの作成とホーム画面までの画面遷移(popUntil)は
+              // 呼び出し元（HomeScreen._onRestartGame）が担う。
+              widget.onReset();
             },
             child: const Text(
               'リセット',
