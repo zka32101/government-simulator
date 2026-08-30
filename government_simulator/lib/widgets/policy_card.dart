@@ -393,7 +393,7 @@ class _ChoiceExplanationCard extends StatelessWidget {
 
   const _ChoiceExplanationCard({
     required this.choice,
-    required this.explanation,
+    this.explanation,
   });
 
   @override
