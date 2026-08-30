@@ -355,7 +355,7 @@ class _HelpDialog extends StatelessWidget {
                     explanation: explanation,
                   ),
                 );
-              }),
+              }).toList(),
               const SizedBox(height: 20),
               // 閉じるボタン
               SizedBox(
