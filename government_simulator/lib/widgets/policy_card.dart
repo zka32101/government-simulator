@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/policy_explanation.dart';
 import 'package:government_simulator/utils/app_theme.dart';
-import 'package:government_simulator/widgets/policy_explanation_dialog.dart';
 
 /// Reigns 式のスワイプ政策カード。
 /// 左右スワイプで choices[0]/choices[1] を選択。3択以上は下部ボタン。
