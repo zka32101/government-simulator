@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/event.dart';
+import 'package:government_simulator/models/policy_explanation.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 
 /// Reigns 式のスワイプ政策カード。
@@ -109,13 +110,13 @@ class _PolicyCardState extends State<PolicyCard>
       opacity: _entranceFade,
       child: ScaleTransition(
         scale: _entranceScale,
-        child: _buildContent(leftActive, rightActive, rot, progress),
+        child: _buildContent(context, leftActive, rightActive, rot, progress),
       ),
     );
   }
 
   Widget _buildContent(
-      bool leftActive, bool rightActive, double rot, double progress) {
+      BuildContext context, bool leftActive, bool rightActive, double rot, double progress) {
     return Column(
       children: [
         // スワイプ方向のヒントラベル
@@ -162,6 +163,7 @@ class _PolicyCardState extends State<PolicyCard>
               ..rotateZ(rot),
             transformAlignment: Alignment.center,
             child: _CardFace(
+              context: context,
               event: widget.event,
               advisorEmoji: widget.advisorEmoji,
               tintLeft: leftActive ? progress : 0,
@@ -283,13 +285,201 @@ class _SwipeHint extends StatelessWidget {
   }
 }
 
+/// イベント対象の政策説明ダイアログ
+class _HelpDialog extends StatelessWidget {
+  final GameEvent event;
+
+  const _HelpDialog({required this.event});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppTheme.surface,
+      insetPadding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ヘッダー
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      event.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    color: AppTheme.textSecondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                event.description,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textPrimary,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 20),
+              // 各選択肢の説明
+              Text(
+                '利用可能な選択肢:',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.gold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...event.choices.map((choice) {
+                final explanation =
+                    PolicyExplanationDatabase.getExplanation(choice.id);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _ChoiceExplanationCard(
+                    choice: choice,
+                    explanation: explanation,
+                  ),
+                );
+              }).toList(),
+              const SizedBox(height: 20),
+              // 閉じるボタン
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.gold,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    '了解',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChoiceExplanationCard extends StatelessWidget {
+  final Choice choice;
+  final PolicyExplanation? explanation;
+
+  const _ChoiceExplanationCard({
+    required this.choice,
+    this.explanation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppTheme.gold.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            choice.text,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            choice.shortDescription,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppTheme.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+          if (explanation != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.gold.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '経済学的根拠:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.gold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    explanation!.economicTheory,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.gold,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              explanation!.keyTakeaway,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppTheme.textPrimary,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _CardFace extends StatelessWidget {
+  final BuildContext context;
   final GameEvent event;
   final String advisorEmoji;
   final double tintLeft;
   final double tintRight;
 
   const _CardFace({
+    required this.context,
     required this.event,
     required this.advisorEmoji,
     required this.tintLeft,
@@ -404,6 +594,31 @@ class _CardFace extends StatelessWidget {
                       fontSize: 14,
                       color: AppTheme.textPrimary,
                       height: 1.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // 📚 経済学ハンドブックへのアクセスボタン
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => _HelpDialog(event: event),
+                      );
+                    },
+                    icon: const Icon(Icons.info_outline, size: 16),
+                    label: const Text('詳細情報', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.gold,
+                      side: BorderSide(color: AppTheme.gold.withOpacity(0.5)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),

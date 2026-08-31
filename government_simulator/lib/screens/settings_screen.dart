@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/utils/constants.dart';
+import 'package:government_simulator/screens/economics_handbook_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final UserProfile userProfile;
@@ -184,6 +185,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: const Text('言語'),
                         trailing: const Text('日本語'),
                         dense: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: AppConstants.paddingL),
+
+              // 教育コンテンツ
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppConstants.paddingM),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '📚 学習リソース',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppConstants.paddingM),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const EconomicsHandbookScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.school),
+                          label: const Text('経済学ハンドブック'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Color(VisualConstants.colorWarning),
+                            foregroundColor: Colors.black,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppConstants.paddingS),
+                      Text(
+                        '政策選択の経済学的根拠や実例を学べます。',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(fontStyle: FontStyle.italic),
                       ),
                     ],
                   ),
