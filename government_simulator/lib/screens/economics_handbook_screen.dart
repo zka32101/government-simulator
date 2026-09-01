@@ -16,14 +16,13 @@ class EconomicsHandbookScreen extends StatefulWidget {
 class _EconomicsHandbookScreenState extends State<EconomicsHandbookScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      setState(() => _selectedTabIndex = _tabController.index);
+      setState(() {});
     });
   }
 
