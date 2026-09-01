@@ -91,13 +91,13 @@ class _IndicatorChartState extends State<IndicatorChart> {
                     verticalInterval: 1,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         strokeWidth: 1,
                       );
                     },
                     getDrawingVerticalLine: (value) {
                       return FlLine(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         strokeWidth: 1,
                       );
                     },
@@ -147,7 +147,7 @@ class _IndicatorChartState extends State<IndicatorChart> {
                   ),
                   borderData: FlBorderData(show: true),
                   lineBarsData: [
-                    LineBarData(
+                    LineChartBarData(
                       spots: spots,
                       isCurved: true,
                       color: widget.chartColor,
@@ -160,7 +160,7 @@ class _IndicatorChartState extends State<IndicatorChart> {
                             radius: isSelected ? 6 : 4,
                             color: isSelected
                                 ? widget.chartColor
-                                : widget.chartColor.withOpacity(0.7),
+                                : widget.chartColor.withValues(alpha: 0.7),
                             strokeWidth: isSelected ? 2 : 0,
                             strokeColor: widget.chartColor,
                           );
@@ -175,8 +175,7 @@ class _IndicatorChartState extends State<IndicatorChart> {
                     enabled: true,
                     handleBuiltInTouches: true,
                     touchTooltipData: LineTouchTooltipData(
-                      tooltipBgColor: (Colors.grey[800] ?? Colors.grey)
-                          .withValues(alpha: 0.8),
+                      tooltipBgColor: Colors.grey.withValues(alpha: 0.8),
                       tooltipRoundedRadius: 8,
                       getTooltipItems: (touchedSpots) {
                         return touchedSpots.map((spot) {
