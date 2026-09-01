@@ -16,6 +16,7 @@ class EconomicsHandbookScreen extends StatefulWidget {
 class _EconomicsHandbookScreenState extends State<EconomicsHandbookScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  EconomicCategory? _selectedCategory;
 
   @override
   void initState() {
@@ -97,10 +98,10 @@ class _EconomicsHandbookScreenState extends State<EconomicsHandbookScreen>
   }
 
   Widget _buildConceptsTab() {
-    final concepts =
+    final allConcepts =
         PolicyExplanationDatabase.getAllConcepts();
 
-    if (concepts.isEmpty) {
+    if (allConcepts.isEmpty) {
       return Center(
         child: Text(
           '概念データを読み込み中...',
@@ -109,13 +110,83 @@ class _EconomicsHandbookScreenState extends State<EconomicsHandbookScreen>
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: concepts.length,
-      itemBuilder: (context, index) {
-        final concept = concepts[index];
-        return _ConceptCard(concept: concept);
-      },
+    // Filter concepts by selected category
+    final filteredConcepts = _selectedCategory == null
+        ? allConcepts
+        : allConcepts
+            .where((c) => c.category == _selectedCategory)
+            .toList();
+
+    return Column(
+      children: [
+        // Category filter chips
+        Container(
+          color: AppTheme.surface,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Wrap(
+              spacing: 8,
+              children: [
+                // All categories chip
+                FilterChip(
+                  label: const Text('すべて'),
+                  selected: _selectedCategory == null,
+                  onSelected: (selected) {
+                    setState(() => _selectedCategory = null);
+                  },
+                  backgroundColor: AppTheme.surface,
+                  selectedColor: AppTheme.gold.withValues(alpha: 0.3),
+                  labelStyle: TextStyle(
+                    color: _selectedCategory == null
+                        ? AppTheme.gold
+                        : AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                // Category chips
+                ...EconomicCategory.values.map((category) {
+                  final isSelected = _selectedCategory == category;
+                  return FilterChip(
+                    label: Text(category.label),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        _selectedCategory = selected ? category : null;
+                      });
+                    },
+                    backgroundColor: AppTheme.surface,
+                    selectedColor: AppTheme.gold.withValues(alpha: 0.3),
+                    labelStyle: TextStyle(
+                      color:
+                          isSelected ? AppTheme.gold : AppTheme.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        ),
+        // Concepts list
+        Expanded(
+          child: filteredConcepts.isEmpty
+              ? Center(
+                  child: Text(
+                    'この カテゴリーに概念がありません',
+                    style: TextStyle(color: AppTheme.textSecondary),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filteredConcepts.length,
+                  itemBuilder: (context, index) {
+                    final concept = filteredConcepts[index];
+                    return _ConceptCard(concept: concept);
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
@@ -301,17 +372,46 @@ class _ConceptCardState extends State<_ConceptCard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Visual mnemonic
+                  Text(
+                    widget.concept.visualMnemonic,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          widget.concept.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
+                        // Name with category badge
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                widget.concept.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.textPrimary,
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.gold.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                widget.concept.category.label,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: AppTheme.gold,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -336,7 +436,7 @@ class _ConceptCardState extends State<_ConceptCard> {
           // 詳細
           if (_isExpanded)
             Container(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,6 +460,43 @@ class _ConceptCardState extends State<_ConceptCard> {
                       height: 1.6,
                     ),
                   ),
+                  if (widget.concept.keyEquations.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    _SectionTitle(title: '主要な公式・関係式'),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.grey.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.concept.keyEquations
+                            .map((eq) => Text(
+                                  '• $eq',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.textPrimary,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _SectionTitle(title: '歴史的背景'),
+                  Text(
+                    widget.concept.historicalContext,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textPrimary,
+                      height: 1.6,
+                    ),
+                  ),
                   if (widget.concept.relatedPolicies.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     _SectionTitle(title: '関連する政策'),
@@ -367,14 +504,14 @@ class _ConceptCardState extends State<_ConceptCard> {
                       spacing: 8,
                       children: widget.concept.relatedPolicies
                           .map((policy) => Chip(
-                            label: Text(policy),
-                            backgroundColor:
-                                AppTheme.gold.withOpacity(0.2),
-                            labelStyle: const TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.gold,
-                            ),
-                          ))
+                                label: Text(policy),
+                                backgroundColor:
+                                    AppTheme.gold.withValues(alpha: 0.2),
+                                labelStyle: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.gold,
+                                ),
+                              ))
                           .toList(),
                     ),
                   ],
