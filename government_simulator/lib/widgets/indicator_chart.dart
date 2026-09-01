@@ -104,10 +104,10 @@ class _IndicatorChartState extends State<IndicatorChart> {
                   ),
                   titlesData: FlTitlesData(
                     show: true,
-                    rightTitles: AxisTitles(
+                    rightTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
                     ),
-                    topTitles: AxisTitles(
+                    topTitles: const AxisTitles(
                       sideTitles: SideTitles(showTitles: false),
                     ),
                     leftTitles: AxisTitles(
@@ -175,7 +175,8 @@ class _IndicatorChartState extends State<IndicatorChart> {
                     enabled: true,
                     handleBuiltInTouches: true,
                     touchTooltipData: LineTouchTooltipData(
-                      tooltipBgColor: Colors.grey[800]?.withOpacity(0.8),
+                      tooltipBgColor: (Colors.grey[800] ?? Colors.grey)
+                          .withValues(alpha: 0.8),
                       tooltipRoundedRadius: 8,
                       getTooltipItems: (touchedSpots) {
                         return touchedSpots.map((spot) {
@@ -189,7 +190,7 @@ class _IndicatorChartState extends State<IndicatorChart> {
                         }).toList();
                       },
                     ),
-                    onTouchEvent: (event, response) {
+                    touchCallback: (event, response) {
                       setState(() {
                         if (response != null &&
                             response.lineBarSpots != null &&
