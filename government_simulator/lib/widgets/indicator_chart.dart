@@ -312,7 +312,7 @@ class _IndicatorChartState extends State<IndicatorChart> {
     final current = values.last;
     final previous = values.length > 1 ? values[values.length - 2] : current;
     final change = current - previous;
-    final changePercent = previous != 0 ? (change / previous * 100) : 0;
+    final changePercent = previous != 0 ? (change / previous * 100) : 0.0;
 
     final isPositive = change >= 0;
 
