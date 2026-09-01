@@ -22,6 +22,7 @@ import 'graph_screen.dart';
 import 'country_history_screen.dart';
 import 'achievements_screen.dart';
 import 'settings_screen.dart';
+import 'statistics_screen.dart';
 import 'year_end_screen.dart';
 import 'game_over_screen.dart';
 import 'ending_screen.dart';
@@ -396,6 +397,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => AchievementsScreen(session: session),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.trending_up,
+                          color: AppTheme.textSecondary),
+                      tooltip: '国家統計',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => StatisticsScreen(gameSession: session),
                         ),
                       ),
                     ),

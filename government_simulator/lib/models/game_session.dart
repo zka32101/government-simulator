@@ -1,4 +1,5 @@
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
 
 class GameSession {
@@ -24,6 +25,9 @@ class GameSession {
   // 二枚舌外交システム：まだ期限が来ていない公約
   final List<Promise> activePromises;
 
+  // 国家指標の履歴（UI/UX改善用）
+  final List<IndicatorSnapshot> indicatorHistory;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -40,6 +44,7 @@ class GameSession {
     this.unlockedAchievements = const [],
     this.hasSeenTutorial = false,
     this.activePromises = const [],
+    this.indicatorHistory = const [],
   });
 
   // プレイ時間（分）
@@ -83,6 +88,7 @@ class GameSession {
     List<String>? unlockedAchievements,
     bool? hasSeenTutorial,
     List<Promise>? activePromises,
+    List<IndicatorSnapshot>? indicatorHistory,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -100,6 +106,7 @@ class GameSession {
       unlockedAchievements: unlockedAchievements ?? this.unlockedAchievements,
       hasSeenTutorial: hasSeenTutorial ?? this.hasSeenTutorial,
       activePromises: activePromises ?? this.activePromises,
+      indicatorHistory: indicatorHistory ?? this.indicatorHistory,
     );
   }
 
@@ -120,6 +127,7 @@ class GameSession {
       'unlockedAchievements': unlockedAchievements,
       'hasSeenTutorial': hasSeenTutorial,
       'activePromises': activePromises.map((p) => p.toMap()).toList(),
+      'indicatorHistory': indicatorHistory.map((s) => s.toMap()).toList(),
     };
   }
 
@@ -156,6 +164,10 @@ class GameSession {
       hasSeenTutorial: map['hasSeenTutorial'] ?? false,
       activePromises: (map['activePromises'] as List?)
               ?.map((p) => Promise.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      indicatorHistory: (map['indicatorHistory'] as List?)
+              ?.map((s) => IndicatorSnapshot.fromMap(s as Map<String, dynamic>))
               .toList() ??
           const [],
     );
