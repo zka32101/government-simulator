@@ -5,6 +5,7 @@ import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/faction.dart';
+import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
@@ -188,12 +189,30 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     state = state.copyWith(isLoading: true);
 
     final previousSessionId = state.session?.id;
-    final session = _logic.createSessionFromScenario(
+    var session = _logic.createSessionFromScenario(
       userId: userId,
       countryName: countryName,
       scenario: scenario,
       previousSessionId: previousSessionId,
     );
+
+    // シナリオの初期状態をスナップショットとして記録
+    final initialSnapshot = IndicatorSnapshot(
+      year: session.status.year,
+      day: session.status.day,
+      gdp: session.status.gdp,
+      unemployment: session.status.unemployment,
+      satisfaction: session.status.satisfaction,
+      nationalPower: session.status.nationalPower,
+      inflationRate: session.status.inflationRate,
+      publicDebt: session.status.publicDebt,
+      stability: session.status.stability,
+    );
+
+    session = session.copyWith(
+      indicatorHistory: [initialSnapshot],
+    );
+
     await _firestore.createGameSession(session);
 
     state = GameSessionState(
@@ -213,12 +232,30 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     state = state.copyWith(isLoading: true);
 
     final previousSessionId = state.session?.id;
-    final session = _logic.createSessionFromStage(
+    var session = _logic.createSessionFromStage(
       userId: userId,
       countryName: countryName,
       stage: stage,
       previousSessionId: previousSessionId,
     );
+
+    // ステージの初期状態をスナップショットとして記録
+    final initialSnapshot = IndicatorSnapshot(
+      year: session.status.year,
+      day: session.status.day,
+      gdp: session.status.gdp,
+      unemployment: session.status.unemployment,
+      satisfaction: session.status.satisfaction,
+      nationalPower: session.status.nationalPower,
+      inflationRate: session.status.inflationRate,
+      publicDebt: session.status.publicDebt,
+      stability: session.status.stability,
+    );
+
+    session = session.copyWith(
+      indicatorHistory: [initialSnapshot],
+    );
+
     await _firestore.createGameSession(session);
 
     state = GameSessionState(
@@ -372,12 +409,30 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String difficulty,
     String? previousSessionId,
   }) async {
-    final newSession = _logic.createNewSession(
+    var newSession = _logic.createNewSession(
       userId: userId,
       countryName: countryName,
       difficulty: difficulty,
       previousSessionId: previousSessionId,
     );
+
+    // 初期状態の国家指標をスナップショットとして記録
+    final initialSnapshot = IndicatorSnapshot(
+      year: newSession.status.year,
+      day: newSession.status.day,
+      gdp: newSession.status.gdp,
+      unemployment: newSession.status.unemployment,
+      satisfaction: newSession.status.satisfaction,
+      nationalPower: newSession.status.nationalPower,
+      inflationRate: newSession.status.inflationRate,
+      publicDebt: newSession.status.publicDebt,
+      stability: newSession.status.stability,
+    );
+
+    newSession = newSession.copyWith(
+      indicatorHistory: [initialSnapshot],
+    );
+
     await _firestore.createGameSession(newSession);
     state = GameSessionState(
       session: newSession,
@@ -391,9 +446,27 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     if (session == null) return;
 
     final yearEndStatus = _logic.simulateYearPassed(session.status);
+
+    // 年末の国家指標をスナップショットとして記録（UI/UX改善用）
+    final snapshot = IndicatorSnapshot(
+      year: yearEndStatus.year,
+      day: yearEndStatus.day,
+      gdp: yearEndStatus.gdp,
+      unemployment: yearEndStatus.unemployment,
+      satisfaction: yearEndStatus.satisfaction,
+      nationalPower: yearEndStatus.nationalPower,
+      inflationRate: yearEndStatus.inflationRate,
+      publicDebt: yearEndStatus.publicDebt,
+      stability: yearEndStatus.stability,
+    );
+
+    final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
+      ..add(snapshot);
+
     final updatedSession = session.copyWith(
       status: yearEndStatus,
       lastPlayedAt: DateTime.now(),
+      indicatorHistory: updatedHistory,
     );
     await _firestore.updateGameSession(updatedSession);
     state = state.copyWith(session: updatedSession);
