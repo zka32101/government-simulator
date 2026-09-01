@@ -36,7 +36,7 @@ class _EconomicsHandbookScreenState extends State<EconomicsHandbookScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.bg,
       appBar: AppBar(
         title: const Text('📚 経済学ハンドブック'),
         backgroundColor: AppTheme.surface,
