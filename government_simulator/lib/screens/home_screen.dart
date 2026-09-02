@@ -11,6 +11,7 @@ import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/widgets/policy_card.dart';
+import 'package:government_simulator/widgets/policy_preview_dialog.dart';
 import 'package:government_simulator/widgets/status_dashboard.dart';
 import 'package:government_simulator/widgets/faction_bar.dart';
 import 'package:government_simulator/widgets/cabinet_panel.dart';
@@ -90,6 +91,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       final beforeStatus = session.status;
       _previousStatus = beforeStatus;
+
+      // 政策プレビューダイアログを表示して、ユーザーに確認させる
+      if (!mounted) return;
+      final preview = _gameLogic.createPolicyPreview(
+        choiceId: choice.id,
+        choiceText: choice.text,
+        currentStatus: beforeStatus,
+        impact: choice.impact,
+      );
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => PolicyPreviewDialog(
+          preview: preview,
+          onCommit: () => Navigator.pop(ctx, true),
+          onCancel: () => Navigator.pop(ctx, false),
+        ),
+      );
+
+      if (confirmed != true || !mounted) {
+        _processingChoice = false;
+        return;
+      }
 
       final newStatus = _gameLogic.applyImpact(beforeStatus, choice.impact);
       final narrative =
