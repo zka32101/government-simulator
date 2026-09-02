@@ -852,36 +852,16 @@ class GameLogicService {
 
   /// 大臣職の日本語名を取得
   String _getMinisterRoleJapanese(MinisterRole role) {
-    const roleMap = {
-      MinisterRole.finance: '財務大臣',
-      MinisterRole.economic: '経済大臣',
-      MinisterRole.defense: '防衛大臣',
-      MinisterRole.welfare: '厚生大臣',
-      MinisterRole.infrastructure: '国土交通大臣',
-    };
-    return roleMap[role] ?? role.name;
+    return role.label;
   }
 
   /// 大臣職の絵文字を取得
   String _getMinisterRoleEmoji(MinisterRole role) {
-    const emojiMap = {
-      MinisterRole.finance: '💼',
-      MinisterRole.economic: '📊',
-      MinisterRole.defense: '🎖️',
-      MinisterRole.welfare: '🏥',
-      MinisterRole.infrastructure: '🏗️',
-    };
-    return emojiMap[role] ?? '👔';
+    return role.emoji;
   }
 
   /// 派閥の日本語名を取得
-  String _getFactionJapanese(FactionName factionName) {
-    const nameMap = {
-      FactionName.military: '軍部',
-      FactionName.business: '財界',
-      FactionName.labor: '労働組合',
-      FactionName.citizens: '市民',
-    };
-    return nameMap[factionName] ?? factionName.name;
+  String _getFactionJapanese(Faction faction) {
+    return faction.label;
   }
 }
