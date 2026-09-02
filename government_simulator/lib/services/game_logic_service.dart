@@ -717,7 +717,7 @@ class GameLogicService {
 
     for (final role in ministerImpacts.keys) {
       final delta = ministerImpacts[role] ?? 0.0;
-      final currentLoyalty = cabinet.getLoyalty(role);
+      final currentLoyalty = cabinet.of(role);
       final projectedLoyalty = _clamp(currentLoyalty + delta, 0, 100);
 
       deltas[role.name] = MinisterLoyaltyDelta(
@@ -745,19 +745,16 @@ class GameLogicService {
     // 簡略版：指標の変化から派閥の好みを推測
     final factions = afterStatus.factions;
 
-    for (final faction in factions) {
-      final beforeSupport = beforeStatus.factions
-          .where((f) => f.name == faction.name)
-          .firstOrNull
-          ?.support ??
-          50;
+    for (final faction in Faction.values) {
+      final beforeSupport = beforeStatus.factions.of(faction);
+      final afterSupport = factions.of(faction);
 
-      deltas[faction.name.name] = FactionDelta(
-        factionName: faction.name.name,
-        factionJapanese: _getFactionJapanese(faction.name),
+      deltas[faction.name] = FactionDelta(
+        factionName: faction.name,
+        factionJapanese: _getFactionJapanese(faction),
         currentSupport: beforeSupport,
-        projectedSupport: faction.support,
-        delta: faction.support - beforeSupport,
+        projectedSupport: afterSupport,
+        delta: afterSupport - beforeSupport,
       );
     }
 
