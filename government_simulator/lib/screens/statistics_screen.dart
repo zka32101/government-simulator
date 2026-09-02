@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/widgets/indicator_chart.dart';
+import 'package:government_simulator/widgets/budget_breakdown_chart.dart';
 import 'package:government_simulator/utils/constants.dart';
 
 /// 国家統計情報を可視化するスクリーン。
@@ -27,7 +28,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -48,6 +49,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
             Tab(text: '経済指標'),
             Tab(text: '社会指標'),
             Tab(text: '国力'),
+            Tab(text: '💰 予算配分'),
           ],
         ),
       ),
@@ -58,6 +60,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
             _buildEconomicTab(),
             _buildSocialTab(),
             _buildPowerTab(),
+            _buildBudgetTab(),
           ],
         ),
       ),
@@ -348,6 +351,18 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  /// 予算配分タブ
+  Widget _buildBudgetTab() {
+    final budget = widget.gameSession.status.budget;
+
+    return BudgetBreakdownChart(
+      budget: budget,
+      onSectorTap: (sector) {
+        // セクタータップ時の処理（現在は何もしない）
+      },
     );
   }
 }
