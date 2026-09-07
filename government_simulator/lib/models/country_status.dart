@@ -1,3 +1,4 @@
+import 'package:government_simulator/models/budget_allocation.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 
@@ -20,6 +21,9 @@ class CountryStatus {
   final Cabinet cabinet; // 内閣（大臣忠誠度）
   final double corruption; // 0-100 汚職度。高いほど内閣の忠誠が蝕まれる
 
+  // 政府予算配分（セクター別）
+  final BudgetAllocation budget;
+
   // 引退→新しい国家で再起する際、直前のセッションを辿れるようにする。
   final String? previousSessionId;
   final bool isNewGame;
@@ -40,6 +44,7 @@ class CountryStatus {
     FactionSupport? factions,
     Cabinet? cabinet,
     this.corruption = 0.0,
+    BudgetAllocation? budget,
     this.previousSessionId,
     this.isNewGame = true,
   })  : factions = factions ?? const FactionSupport({
@@ -57,7 +62,8 @@ class CountryStatus {
           MinisterRole.interior: 60,
           MinisterRole.foreign: 60,
           MinisterRole.environment: 60,
-        });
+        }),
+        budget = budget ?? BudgetAllocation.initial(gdp: 1000.0);
 
   // 国家危機レベルを計算（ゲーム性向上用）
   CrisisLevel get crisisLevel {
@@ -115,6 +121,7 @@ class CountryStatus {
     FactionSupport? factions,
     Cabinet? cabinet,
     double? corruption,
+    BudgetAllocation? budget,
     String? previousSessionId,
     bool? isNewGame,
   }) {
@@ -134,6 +141,7 @@ class CountryStatus {
       factions: factions ?? this.factions,
       cabinet: cabinet ?? this.cabinet,
       corruption: corruption ?? this.corruption,
+      budget: budget ?? this.budget,
       previousSessionId: previousSessionId ?? this.previousSessionId,
       isNewGame: isNewGame ?? this.isNewGame,
     );
@@ -156,14 +164,16 @@ class CountryStatus {
       'factions': factions.toMap(),
       'cabinet': cabinet.toMap(),
       'corruption': corruption,
+      'budget': budget.toMap(),
       'previousSessionId': previousSessionId,
       'isNewGame': isNewGame,
     };
   }
 
   factory CountryStatus.fromMap(Map<String, dynamic> map) {
+    final gdp = (map['gdp'] ?? 1000).toDouble();
     return CountryStatus(
-      gdp: (map['gdp'] ?? 1000).toDouble(),
+      gdp: gdp,
       unemployment: (map['unemployment'] ?? 5).toDouble(),
       satisfaction: (map['satisfaction'] ?? 50).toDouble(),
       nationalPower: (map['nationalPower'] ?? 50).toDouble(),
@@ -181,6 +191,9 @@ class CountryStatus {
           map['factions'] as Map<String, dynamic>?),
       cabinet: Cabinet.fromMap(map['cabinet'] as Map<String, dynamic>?),
       corruption: (map['corruption'] ?? 0.0).toDouble(),
+      budget: map['budget'] != null
+          ? BudgetAllocation.fromMap(map['budget'] as Map<String, dynamic>)
+          : BudgetAllocation.initial(gdp: gdp),
       previousSessionId: map['previousSessionId'],
       isNewGame: map['isNewGame'] ?? true,
     );
