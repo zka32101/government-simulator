@@ -8,6 +8,7 @@ import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/policy_preview.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -574,5 +575,290 @@ class GameLogicService {
   // ヘルパー：値をクランプ
   double _clamp(double value, double min, double max) {
     return value.clamp(min, max).toDouble();
+  }
+
+  /// 政策選択の影響をプレビュー（選択前に表示）
+  ///
+  /// ユーザーが選択肢を選んだが、まだコミットする前に、
+  /// その選択によって国家がどう変わるかを予測して表示する。
+  PolicyPreview createPolicyPreview({
+    required String choiceId,
+    required String choiceText,
+    required CountryStatus currentStatus,
+    required Impact impact,
+  }) {
+    // 影響を適用した後の状態を計算
+    final projectedStatus = applyImpact(currentStatus, impact);
+
+    // 各指標のデルタを計算
+    final indicatorDeltas = <String, IndicatorDelta>{
+      'gdp': _createIndicatorDelta(
+        key: 'gdp',
+        label: '国内総生産',
+        before: currentStatus.gdp,
+        after: projectedStatus.gdp,
+      ),
+      'unemployment': _createIndicatorDelta(
+        key: 'unemployment',
+        label: '失業率',
+        before: currentStatus.unemployment,
+        after: projectedStatus.unemployment,
+      ),
+      'satisfaction': _createIndicatorDelta(
+        key: 'satisfaction',
+        label: '国民満足度',
+        before: currentStatus.satisfaction,
+        after: projectedStatus.satisfaction,
+      ),
+      'nationalPower': _createIndicatorDelta(
+        key: 'nationalPower',
+        label: '国力',
+        before: currentStatus.nationalPower,
+        after: projectedStatus.nationalPower,
+      ),
+      'inflationRate': _createIndicatorDelta(
+        key: 'inflationRate',
+        label: 'インフレ率',
+        before: currentStatus.inflationRate,
+        after: projectedStatus.inflationRate,
+      ),
+      'publicDebt': _createIndicatorDelta(
+        key: 'publicDebt',
+        label: '公的債務',
+        before: currentStatus.publicDebt,
+        after: projectedStatus.publicDebt,
+      ),
+      'stability': _createIndicatorDelta(
+        key: 'stability',
+        label: '治安・安定性',
+        before: currentStatus.stability,
+        after: projectedStatus.stability,
+      ),
+    };
+
+    // 大臣忠誠度の変化を計算
+    final ministerDeltas = _calculateMinisterLoyaltyDeltas(
+      impact: impact,
+      newStatus: projectedStatus,
+    );
+
+    // 派閥支持率の変化を計算
+    final factionDeltas = _calculateFactionDeltas(
+      impact: impact,
+      beforeStatus: currentStatus,
+      afterStatus: projectedStatus,
+    );
+
+    // リスク要因を特定
+    final riskFactors = _identifyRiskFactors(
+      impact: impact,
+      projectedStatus: projectedStatus,
+      ministerLoyaltyDeltas: ministerDeltas,
+      factionDeltas: factionDeltas,
+    );
+
+    return PolicyPreview(
+      choiceId: choiceId,
+      choiceText: choiceText,
+      beforeStatus: currentStatus,
+      projectedStatus: projectedStatus,
+      appliedImpact: impact,
+      indicatorDeltas: indicatorDeltas,
+      ministerLoyaltyDeltas: ministerDeltas,
+      factionDeltas: factionDeltas,
+      riskFactors: riskFactors,
+    );
+  }
+
+  /// 指標のデルタを計算
+  IndicatorDelta _createIndicatorDelta({
+    required String key,
+    required String label,
+    required double before,
+    required double after,
+  }) {
+    final delta = after - before;
+    final deltaPercent = before != 0 ? (delta / before * 100) : 0.0;
+
+    // トレンドを決定
+    final trend = delta > 0.1
+        ? IndicatorTrend.up
+        : delta < -0.1
+            ? IndicatorTrend.down
+            : IndicatorTrend.neutral;
+
+    return IndicatorDelta(
+      indicatorKey: key,
+      indicatorLabel: label,
+      currentValue: before,
+      projectedValue: after,
+      delta: delta,
+      deltaPercent: deltaPercent,
+      trend: trend,
+    );
+  }
+
+  /// 大臣忠誠度の変化を計算
+  Map<String, MinisterLoyaltyDelta> _calculateMinisterLoyaltyDeltas({
+    required Impact impact,
+    required CountryStatus newStatus,
+  }) {
+    final deltas = <String, MinisterLoyaltyDelta>{};
+
+    // 大臣忠誠度への影響を計算（簡略版）
+    // 注：実際の計算は Cabinet.applyDeltas で行われるため、ここでは推定値を使用
+    final ministerImpacts = deriveMinisterImpact(
+      impact,
+      corruption: newStatus.corruption,
+    );
+
+    // 現在の内閣の状態から大臣を取得
+    final cabinet = newStatus.cabinet;
+
+    for (final role in ministerImpacts.keys) {
+      final delta = ministerImpacts[role] ?? 0.0;
+      final currentLoyalty = cabinet.of(role);
+      final projectedLoyalty = _clamp(currentLoyalty + delta, 0, 100);
+
+      deltas[role.name] = MinisterLoyaltyDelta(
+        ministerRole: role.name,
+        roleJapanese: _getMinisterRoleJapanese(role),
+        roleEmoji: _getMinisterRoleEmoji(role),
+        currentLoyalty: currentLoyalty,
+        projectedLoyalty: projectedLoyalty,
+        delta: delta,
+      );
+    }
+
+    return deltas;
+  }
+
+  /// 派閥支持率の変化を計算
+  Map<String, FactionDelta> _calculateFactionDeltas({
+    required Impact impact,
+    required CountryStatus beforeStatus,
+    required CountryStatus afterStatus,
+  }) {
+    final deltas = <String, FactionDelta>{};
+
+    // 派閥支持率への影響を推定
+    // 簡略版：指標の変化から派閥の好みを推測
+    final factions = afterStatus.factions;
+
+    for (final faction in Faction.values) {
+      final beforeSupport = beforeStatus.factions.of(faction);
+      final afterSupport = factions.of(faction);
+
+      deltas[faction.name] = FactionDelta(
+        factionName: faction.name,
+        factionJapanese: _getFactionJapanese(faction),
+        currentSupport: beforeSupport,
+        projectedSupport: afterSupport,
+        delta: afterSupport - beforeSupport,
+      );
+    }
+
+    return deltas;
+  }
+
+  /// リスク要因を特定
+  List<RiskFactor> _identifyRiskFactors({
+    required Impact impact,
+    required CountryStatus projectedStatus,
+    required Map<String, MinisterLoyaltyDelta> ministerLoyaltyDeltas,
+    required Map<String, FactionDelta> factionDeltas,
+  }) {
+    final risks = <RiskFactor>[];
+
+    // 失業率が高すぎる
+    if (projectedStatus.unemployment > 25) {
+      risks.add(RiskFactor(
+        severity: projectedStatus.unemployment > 40
+            ? RiskSeverity.critical
+            : RiskSeverity.warning,
+        message:
+            '失業率が${projectedStatus.unemployment.toStringAsFixed(1)}%に達します',
+        affectedAspect: 'Unemployment',
+        advice: '失業保険の拡充や職業訓練プログラムの充実を検討してください',
+      ));
+    }
+
+    // 満足度が低い
+    if (projectedStatus.satisfaction < 20) {
+      risks.add(RiskFactor(
+        severity: RiskSeverity.critical,
+        message: '国民満足度が${projectedStatus.satisfaction.toStringAsFixed(1)}%まで低下します',
+        affectedAspect: 'Satisfaction',
+        advice: 'この選択は国民の不満を極度に高め、社会不安につながります',
+      ));
+    }
+
+    // 安定性が著しく低下
+    if (projectedStatus.stability < 20) {
+      risks.add(RiskFactor(
+        severity: RiskSeverity.critical,
+        message: '治安・安定性が${projectedStatus.stability.toStringAsFixed(1)}%に低下します',
+        affectedAspect: 'Stability',
+        advice: 'クーデターや暴動のリスクが高まります。慎重に判断してください',
+      ));
+    }
+
+    // 大臣の忠誠度が危険水準
+    for (final delta in ministerLoyaltyDeltas.values) {
+      if (delta.projectedLoyalty <= 0) {
+        risks.add(RiskFactor(
+          severity: RiskSeverity.critical,
+          message: '${delta.roleJapanese}が内閣を裏切る可能性があります',
+          affectedAspect: 'Minister Loyalty',
+          advice: 'この大臣の支持を失うと内閣の安定性が著しく低下します',
+        ));
+      } else if (delta.projectedLoyalty < 30) {
+        risks.add(RiskFactor(
+          severity: RiskSeverity.warning,
+          message: '${delta.roleJapanese}の忠誠度が${delta.projectedLoyalty.toStringAsFixed(0)}%に低下します',
+          affectedAspect: 'Minister Loyalty',
+          advice: '今後の政策で${delta.roleJapanese}の支持を回復する施策が必要です',
+        ));
+      }
+    }
+
+    // 派閥支持の崩壊
+    for (final delta in factionDeltas.values) {
+      if (delta.projectedSupport <= 0) {
+        risks.add(RiskFactor(
+          severity: RiskSeverity.critical,
+          message: '${delta.factionJapanese}の支持が完全に失われます',
+          affectedAspect: 'Faction Support',
+          advice: '${delta.factionJapanese}の反発により、政策実行が困難になるおそれがあります',
+        ));
+      }
+    }
+
+    // GDP急減
+    if (impact.gdpChange < -20) {
+      risks.add(RiskFactor(
+        severity: RiskSeverity.critical,
+        message: 'GDP が${(-impact.gdpChange).toStringAsFixed(1)}% 低下します',
+        affectedAspect: 'Economic',
+        advice: 'この選択は経済に深刻なダメージを与えます',
+      ));
+    }
+
+    return risks;
+  }
+
+  /// 大臣職の日本語名を取得
+  String _getMinisterRoleJapanese(MinisterRole role) {
+    return role.label;
+  }
+
+  /// 大臣職の絵文字を取得
+  String _getMinisterRoleEmoji(MinisterRole role) {
+    return role.emoji;
+  }
+
+  /// 派閥の日本語名を取得
+  String _getFactionJapanese(Faction faction) {
+    return faction.label;
   }
 }
