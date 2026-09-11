@@ -1244,11 +1244,11 @@ class GameLogicService {
     );
 
     // 調査結果に反映
-    final adjustedSupport = (basePoll.playerSupport + campaignImpact).clamp(0, 100);
+    final adjustedSupport = (basePoll.playerSupport + campaignImpact).clamp(0.0, 100.0).toDouble();
 
     // キャンペーンがある場合は誤差範囲が縮小（意見が固まる）
     final campaignInfluence = (activeCampaigns.length + counterCampaigns.length) * 0.5;
-    final adjustedMargin = (basePoll.marginOfError * (1 - campaignInfluence / 100)).clamp(1, 10);
+    final adjustedMargin = (basePoll.marginOfError * (1 - campaignInfluence / 100)).clamp(1.0, 10.0).toDouble();
 
     return Poll(
       id: _uuid.v4(),
