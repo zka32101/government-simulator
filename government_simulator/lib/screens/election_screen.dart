@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/election.dart';
-import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 
 /// 選挙結果画面：4年ごとの定期選挙の結果を表示
@@ -10,26 +9,16 @@ class ElectionScreen extends ConsumerStatefulWidget {
   final String countryName;
 
   const ElectionScreen({
-    Key? key,
+    super.key,
     required this.election,
     required this.countryName,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ElectionScreen> createState() => _ElectionScreenState();
 }
 
 class _ElectionScreenState extends ConsumerState<ElectionScreen> {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<Offset> _slideAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-    // アニメーション（後で実装）
-  }
-
   @override
   void dispose() {
     super.dispose();
@@ -45,7 +34,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
         title: const Text('大統領選挙'),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: AppTheme.gold,
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -70,7 +59,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
                   '${widget.election.year}年 ${widget.countryName}大統領選挙',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
+                        color: AppTheme.gold,
                       ),
                   textAlign: TextAlign.center,
                 ),
@@ -93,9 +82,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
                     children: [
                       // 大きなアイコン
                       Text(
-                        ElectionResultExt.values
-                            .firstWhere((e) => e.name == (election.won ? 'won' : 'lost'))
-                            .emoji,
+                        election.won ? '🎉' : '❌',
                         style: const TextStyle(fontSize: 64),
                       ),
                       const SizedBox(height: 16),
@@ -120,7 +107,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
                         '${election.percentageVotes.toStringAsFixed(1)}%',
                         style: Theme.of(context).textTheme.displaySmall?.copyWith(
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.gold,
                             ),
                       ),
                       const SizedBox(height: 16),
@@ -243,7 +230,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                color: AppTheme.primaryColor,
+                color: AppTheme.gold,
               ),
         ),
       ],
