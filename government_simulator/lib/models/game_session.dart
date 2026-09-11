@@ -4,6 +4,8 @@ import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/campaign.dart';
 
 class GameSession {
   final String id;
@@ -40,6 +42,15 @@ class GameSession {
   // 政治政党（支持率・忠誠度を追跡）
   final Map<String, PoliticalParty> politicalParties;
 
+  // 世論調査履歴（選挙トレンド追跡用）
+  final List<Poll> polls;
+
+  // 選挙キャンペーン
+  final List<Campaign> activeCampaigns;
+  final List<CounterCampaign> rivalCampaigns;
+  final double campaignBudget; // 利用可能な予算
+  final double spentBudget; // 既に使用した予算
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -60,6 +71,11 @@ class GameSession {
     this.elections = const [],
     this.rivalCandidates = const [],
     this.politicalParties = const {},
+    this.polls = const [],
+    this.activeCampaigns = const [],
+    this.rivalCampaigns = const [],
+    this.campaignBudget = 500.0, // 500万単位
+    this.spentBudget = 0.0,
   });
 
   // プレイ時間（分）
@@ -107,6 +123,11 @@ class GameSession {
     List<Election>? elections,
     List<RivalCandidate>? rivalCandidates,
     Map<String, PoliticalParty>? politicalParties,
+    List<Poll>? polls,
+    List<Campaign>? activeCampaigns,
+    List<CounterCampaign>? rivalCampaigns,
+    double? campaignBudget,
+    double? spentBudget,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -128,6 +149,11 @@ class GameSession {
       elections: elections ?? this.elections,
       rivalCandidates: rivalCandidates ?? this.rivalCandidates,
       politicalParties: politicalParties ?? this.politicalParties,
+      polls: polls ?? this.polls,
+      activeCampaigns: activeCampaigns ?? this.activeCampaigns,
+      rivalCampaigns: rivalCampaigns ?? this.rivalCampaigns,
+      campaignBudget: campaignBudget ?? this.campaignBudget,
+      spentBudget: spentBudget ?? this.spentBudget,
     );
   }
 
@@ -152,6 +178,11 @@ class GameSession {
       'elections': elections.map((e) => e.toMap()).toList(),
       'rivalCandidates': rivalCandidates.map((r) => r.toMap()).toList(),
       'politicalParties': politicalParties.map((k, v) => MapEntry(k, v.toMap())),
+      'polls': polls.map((p) => p.toMap()).toList(),
+      'activeCampaigns': activeCampaigns.map((c) => c.toMap()).toList(),
+      'rivalCampaigns': rivalCampaigns.map((c) => c.toMap()).toList(),
+      'campaignBudget': campaignBudget,
+      'spentBudget': spentBudget,
     };
   }
 
@@ -212,6 +243,20 @@ class GameSession {
                   ),
                 )
               : const {},
+      polls: (map['polls'] as List?)
+              ?.map((p) => Poll.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      activeCampaigns: (map['activeCampaigns'] as List?)
+              ?.map((c) => Campaign.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      rivalCampaigns: (map['rivalCampaigns'] as List?)
+              ?.map((c) => CounterCampaign.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      campaignBudget: (map['campaignBudget'] as num?)?.toDouble() ?? 500.0,
+      spentBudget: (map['spentBudget'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
