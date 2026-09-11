@@ -4,6 +4,7 @@ import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
 
 class GameSession {
   final String id;
@@ -40,6 +41,9 @@ class GameSession {
   // 政治政党（支持率・忠誠度を追跡）
   final Map<String, PoliticalParty> politicalParties;
 
+  // 世論調査履歴（選挙トレンド追跡用）
+  final List<Poll> polls;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -60,6 +64,7 @@ class GameSession {
     this.elections = const [],
     this.rivalCandidates = const [],
     this.politicalParties = const {},
+    this.polls = const [],
   });
 
   // プレイ時間（分）
@@ -107,6 +112,7 @@ class GameSession {
     List<Election>? elections,
     List<RivalCandidate>? rivalCandidates,
     Map<String, PoliticalParty>? politicalParties,
+    List<Poll>? polls,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -128,6 +134,7 @@ class GameSession {
       elections: elections ?? this.elections,
       rivalCandidates: rivalCandidates ?? this.rivalCandidates,
       politicalParties: politicalParties ?? this.politicalParties,
+      polls: polls ?? this.polls,
     );
   }
 
@@ -152,6 +159,7 @@ class GameSession {
       'elections': elections.map((e) => e.toMap()).toList(),
       'rivalCandidates': rivalCandidates.map((r) => r.toMap()).toList(),
       'politicalParties': politicalParties.map((k, v) => MapEntry(k, v.toMap())),
+      'polls': polls.map((p) => p.toMap()).toList(),
     };
   }
 
@@ -212,6 +220,10 @@ class GameSession {
                   ),
                 )
               : const {},
+      polls: (map['polls'] as List?)
+              ?.map((p) => Poll.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 }

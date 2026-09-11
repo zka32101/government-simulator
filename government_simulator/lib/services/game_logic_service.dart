@@ -12,6 +12,7 @@ import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/policy_preview.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -1046,5 +1047,69 @@ class GameLogicService {
     final finalPlayerSupport = (playerSupport * randomFactor).clamp(0.0, 1.0);
 
     return finalPlayerSupport * 100;
+  }
+
+  /// 世論調査を実施
+  /// 年間を通じて複数回実施可能
+  Poll conductPoll({
+    required String sessionId,
+    required int year,
+    required int week,
+    required double playerSatisfaction,
+    required double playerStability,
+    int sampleSize = 1000,
+  }) {
+    // プレイヤーの真の支持率を計算
+    final trueSupportRate = 0.3 + (playerSatisfaction / 100) * 0.5 + (playerStability / 100) * 0.1;
+
+    // サンプルサイズに基づいて誤差範囲を計算
+    // 大きなサンプルサイズほど誤差が小さい
+    final marginOfError = (50 / (sampleSize / 100).sqrt()).clamp(2, 10);
+
+    // ランダムなサンプリング誤差を追加
+    final samplingError = (_random.nextDouble() - 0.5) * marginOfError;
+    final measuredSupport = (trueSupportRate * 100 + samplingError).clamp(0, 100);
+
+    return Poll(
+      id: _uuid.v4(),
+      year: year,
+      week: week,
+      playerSupport: measuredSupport,
+      marginOfError: marginOfError,
+      sampleSize: sampleSize,
+      conductedAt: DateTime.now(),
+    );
+  }
+
+  /// 定期的な世論調査スケジュール
+  /// 選挙年の前年から定期的に実施
+  List<Poll> schedulePollsForElectionYear(
+    int upcomingElectionYear,
+    double playerSatisfaction,
+    double playerStability,
+  ) {
+    final polls = <Poll>[];
+    final pollingYear = upcomingElectionYear - 1;
+
+    // 年間4回（各四半期）実施
+    for (int quarter = 0; quarter < 4; quarter++) {
+      final week = (quarter * 13) + 1; // 週番号
+      final poll = conductPoll(
+        sessionId: '', // 本来はセッションIDが必要だが、ここではスケルトン
+        year: pollingYear,
+        week: week,
+        playerSatisfaction: playerSatisfaction,
+        playerStability: playerStability,
+        sampleSize: 1000 + (_random.nextInt(500)), // 1000-1500のランダムサンプル
+      );
+      polls.add(poll);
+    }
+
+    return polls;
+  }
+
+  /// 世論調査トレンドを分析
+  PollingTrend analyzePollingTrend(List<Poll> polls) {
+    return PollingTrend(polls);
   }
 }
