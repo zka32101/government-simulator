@@ -30,6 +30,7 @@ import 'game_over_screen.dart';
 import 'ending_screen.dart';
 import 'world_map_screen.dart';
 import 'weekly_poll_screen.dart';
+import 'campaign_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -398,6 +399,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const WeeklyPollScreen(),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.campaign,
+                          color: AppTheme.textSecondary),
+                      tooltip: 'キャンペーン',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => CampaignScreen(
+                            countryName: session.countryName,
+                          ),
                         ),
                       ),
                     ),

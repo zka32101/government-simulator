@@ -9,6 +9,10 @@ import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/policy_preview.dart';
+import 'package:government_simulator/models/campaign.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -860,5 +864,34 @@ class GameLogicService {
   /// 派閥の日本語名を取得
   String _getFactionJapanese(Faction faction) {
     return faction.label;
+  }
+
+  /// キャンペーンを開始する
+  Campaign launchCampaign({
+    required String sessionId,
+    required CampaignType type,
+    required int durationWeeks,
+    required int currentYear,
+    required int currentWeek,
+  }) {
+    final effectiveness = CampaignManager.calculateInitialEffectiveness(
+      type: type,
+      budgetSpent: CampaignManager.costByDifficulty['normal']![type]! * 1.5, // デフォルト予算
+      difficulty: 'normal',
+    );
+
+    final maxSupportBoost = CampaignManager.calculateMaxSupportBoost(type);
+
+    return Campaign(
+      id: _uuid.v4(),
+      name: '${type.label}キャンペーン',
+      type: type,
+      startWeek: currentWeek,
+      durationWeeks: durationWeeks,
+      startYear: currentYear,
+      effectiveness: effectiveness,
+      maxSupportBoost: maxSupportBoost,
+      launchedAt: DateTime.now(),
+    );
   }
 }

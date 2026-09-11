@@ -441,8 +441,23 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
     CampaignType type,
     int durationWeeks,
     double budgetSpent,
-  ) {
-    // ここでゲームロジックを呼び出してキャンペーンを開始
-    // 実装は game_provider.dart で行う
+  ) async {
+    try {
+      await ref.read(gameSessionProvider.notifier).launchCampaign(
+        type: type,
+        durationWeeks: durationWeeks,
+        budgetSpent: budgetSpent,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('キャンペーン開始に失敗しました: $e'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

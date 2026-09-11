@@ -588,21 +588,104 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
         ..add(snapshot);
 
-      final updatedSession = session.copyWith(
+      // 選挙チェック：4年ごとに実施
+      var finalSession = session.copyWith(
         status: yearEndStatus,
         lastPlayedAt: DateTime.now(),
         indicatorHistory: updatedHistory,
       );
-      await _firestore.updateGameSession(updatedSession);
-      state = state.copyWith(session: updatedSession);
+
+      // キャンペーンのクリーンアップ：完了したキャンペーンを削除
+      final activeCampaigns = session.activeCampaigns
+          .where((c) => !c.isCompleted(yearEndStatus.year, yearEndStatus.week))
+          .toList();
+
+      final rivalCampaigns = session.rivalCampaigns
+          .where((c) => !c.isCompleted(yearEndStatus.year, yearEndStatus.week))
+          .toList();
+
+      // 政治政党の状態を毎年更新
+      final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
+      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      final economicTrend = (yearEndStatus.gdp > 0) ? (gdpChange / yearEndStatus.gdp) * 100 : 0;
+      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+
+      _logic.updatePoliticalPartyStates(
+        updatedParties,
+        playerSatisfaction: yearEndStatus.satisfaction,
+        playerStability: yearEndStatus.stability,
+        economicTrend: economicTrend,
+        satisfactionChange: satisfactionChange,
+      );
+
+      // 選挙年の場合は予算を補充
+      double newCampaignBudget = session.campaignBudget;
+      double newSpentBudget = 0;
+      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+        // 選挙年：予算を リセット
+        newCampaignBudget = 500.0; // 500万単位
+        newSpentBudget = 0.0;
+      } else {
+        // 非選挙年の場合も予算を少し補充
+        newCampaignBudget = 250.0;
+        newSpentBudget = 0.0;
+      }
+
+      finalSession = finalSession.copyWith(
+        politicalParties: updatedParties,
+        activeCampaigns: activeCampaigns,
+        rivalCampaigns: rivalCampaigns,
+        campaignBudget: newCampaignBudget,
+        spentBudget: newSpentBudget,
+      );
+
+      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+        // 選挙年：ライバル候補者を初期化
+        final rivalCandidates = _logic.initializeRivalCandidatesForElection(
+          year: yearEndStatus.year,
+          playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
+          playerSocialPolicy: 0,
+          playerMilitaryPolicy: 0,
+        );
+
+        final electionResult = _logic.calculateElectionResult(
+          sessionId: session.id,
+          year: yearEndStatus.year,
+          satisfaction: yearEndStatus.satisfaction,
+          stability: yearEndStatus.stability,
+        );
+
+        final updatedElections = List<Election>.from(session.elections)
+          ..add(electionResult);
+
+        finalSession = finalSession.copyWith(
+          elections: updatedElections,
+          rivalCandidates: rivalCandidates,
+        );
+
+        // 落選時はゲームオーバー
+        if (!electionResult.won) {
+          // 選挙落選によるゲームオーバーフラグを設定
+          state = state.copyWith(
+            session: finalSession,
+            gameOverType: GameOverType.electionLoss,
+            isActive: false,
+          );
+          await _firestore.updateGameSession(finalSession);
+          return;
+        }
+      }
+
+      await _firestore.updateGameSession(finalSession);
+      state = state.copyWith(session: finalSession);
 
       // アナリティクス：年終了イベントを追跡
-      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
-      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      final satisfactionChangeAnalytics = yearEndStatus.satisfaction - session.status.satisfaction;
+      final gdpChangeAnalytics = yearEndStatus.gdp - session.status.gdp;
       unawaited(_analytics.trackYearEnd(
         year: yearEndStatus.year - 1, // 終了した年を記録
-        satisfactionChange: satisfactionChange,
-        gdpChange: gdpChange,
+        satisfactionChange: satisfactionChangeAnalytics,
+        gdpChange: gdpChangeAnalytics,
         decisionsInYear: session.status.decisionsCount,
       ));
     } catch (e) {
