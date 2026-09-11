@@ -1,4 +1,5 @@
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
 
@@ -28,6 +29,9 @@ class GameSession {
   // 国家指標の履歴（UI/UX改善用）
   final List<IndicatorSnapshot> indicatorHistory;
 
+  // 選挙履歴
+  final List<Election> elections;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -45,6 +49,7 @@ class GameSession {
     this.hasSeenTutorial = false,
     this.activePromises = const [],
     this.indicatorHistory = const [],
+    this.elections = const [],
   });
 
   // プレイ時間（分）
@@ -89,6 +94,7 @@ class GameSession {
     bool? hasSeenTutorial,
     List<Promise>? activePromises,
     List<IndicatorSnapshot>? indicatorHistory,
+    List<Election>? elections,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -107,6 +113,7 @@ class GameSession {
       hasSeenTutorial: hasSeenTutorial ?? this.hasSeenTutorial,
       activePromises: activePromises ?? this.activePromises,
       indicatorHistory: indicatorHistory ?? this.indicatorHistory,
+      elections: elections ?? this.elections,
     );
   }
 
@@ -128,6 +135,7 @@ class GameSession {
       'hasSeenTutorial': hasSeenTutorial,
       'activePromises': activePromises.map((p) => p.toMap()).toList(),
       'indicatorHistory': indicatorHistory.map((s) => s.toMap()).toList(),
+      'elections': elections.map((e) => e.toMap()).toList(),
     };
   }
 
@@ -168,6 +176,10 @@ class GameSession {
           const [],
       indicatorHistory: (map['indicatorHistory'] as List?)
               ?.map((s) => IndicatorSnapshot.fromMap(s as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      elections: (map['elections'] as List?)
+              ?.map((e) => Election.fromMap(e as Map<String, dynamic>))
               .toList() ??
           const [],
     );

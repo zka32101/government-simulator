@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/faction.dart';
@@ -860,5 +861,53 @@ class GameLogicService {
   /// 派閥の日本語名を取得
   String _getFactionJapanese(Faction faction) {
     return faction.label;
+  }
+
+  // =================== Election System ===================
+
+  /// 4年ごとの選挙が実施される必要があるかチェック
+  bool shouldHoldElection(int currentYear) {
+    return currentYear % 4 == 0 && currentYear > 1;
+  }
+
+  /// 選挙結果を計算
+  /// 国民満足度が高いほど再選の確率が上がり、低いと落選する
+  Election calculateElectionResult({
+    required String sessionId,
+    required int year,
+    required double satisfaction,
+    required double stability,
+  }) {
+    // 投票総数（全国民）
+    const totalVotes = 10000;
+
+    // 基礎投票率（60%）
+    final baseVotes = (totalVotes * 0.6).toInt();
+
+    // 満足度に基づいて投票率を調整（±20%）
+    final voteTurnout = baseVotes + ((satisfaction - 50) * 100).toInt();
+    final votesCast = voteTurnout.clamp(totalVotes * 0.4, totalVotes).toInt();
+
+    // 現職得票率の計算：満足度とは別に、安定度を考慮
+    // 満足度70%以上で基本的に再選可能、以下で危険
+    final baseSupportRate = 0.3 + (satisfaction / 100) * 0.5; // 30~80%
+    final stabilityBonus = (stability / 100) * 0.1; // 最大10%ボーナス
+    final supportRate = (baseSupportRate + stabilityBonus).clamp(0.2, 0.95);
+
+    // ランダムネスの追加（±5%）
+    final randomFactor = 0.95 + _random.nextDouble() * 0.1;
+    final finalSupportRate = (supportRate * randomFactor).clamp(0.0, 1.0);
+
+    final votesReceived = (votesCast * finalSupportRate).toInt();
+    final won = finalSupportRate >= 0.5;
+
+    return Election(
+      id: _uuid.v4(),
+      year: year,
+      votesCast: votesCast,
+      votesReceived: votesReceived,
+      won: won,
+      percentageVotes: (finalSupportRate * 100).clamp(0, 100),
+    );
   }
 }

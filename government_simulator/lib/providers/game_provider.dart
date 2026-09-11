@@ -6,6 +6,7 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/achievement.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/minister.dart';
@@ -584,13 +585,43 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
         ..add(snapshot);
 
-      final updatedSession = session.copyWith(
+      // 選挙チェック：4年ごとに実施
+      var finalSession = session.copyWith(
         status: yearEndStatus,
         lastPlayedAt: DateTime.now(),
         indicatorHistory: updatedHistory,
       );
-      await _firestore.updateGameSession(updatedSession);
-      state = state.copyWith(session: updatedSession);
+
+      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+        final electionResult = _logic.calculateElectionResult(
+          sessionId: session.id,
+          year: yearEndStatus.year,
+          satisfaction: yearEndStatus.satisfaction,
+          stability: yearEndStatus.stability,
+        );
+
+        final updatedElections = List<Election>.from(session.elections)
+          ..add(electionResult);
+
+        finalSession = finalSession.copyWith(
+          elections: updatedElections,
+        );
+
+        // 落選時はゲームオーバー
+        if (!electionResult.won) {
+          // 選挙落選によるゲームオーバーフラグを設定
+          state = state.copyWith(
+            session: finalSession,
+            gameOverType: GameOverType.electionLoss,
+            isActive: false,
+          );
+          await _firestore.updateGameSession(finalSession);
+          return;
+        }
+      }
+
+      await _firestore.updateGameSession(finalSession);
+      state = state.copyWith(session: finalSession);
 
       // アナリティクス：年終了イベントを追跡
       final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
