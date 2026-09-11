@@ -7,6 +7,7 @@ import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/providers/game_provider.dart';
+import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
@@ -64,6 +65,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _gameLogic = GameLogicService();
+    // Track screen view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(analyticsServiceProvider).trackScreenView('home_screen');
+      }
+    });
   }
 
   void _pickNextEvent(CountryStatus status) {

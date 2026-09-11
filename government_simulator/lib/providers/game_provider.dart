@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/decision.dart';
@@ -14,6 +16,7 @@ import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
+import 'package:government_simulator/services/analytics_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -106,6 +109,7 @@ final gameSessionProvider =
   return GameSessionNotifier(
     ref.watch(firestoreServiceProvider),
     ref.watch(gameLogicProvider),
+    AnalyticsService(),
   );
 });
 
@@ -135,6 +139,7 @@ class GameSessionState {
 class GameSessionNotifier extends StateNotifier<GameSessionState> {
   final FirestoreService _firestore;
   final GameLogicService _logic;
+  final AnalyticsService _analytics;
   final _uuid = const Uuid();
 
   // applyChoice の多重実行を防ぐガード。連打やダブルタップで同じ選択が
@@ -142,7 +147,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   // あったため、処理中は以降の呼び出しを無視する。
   bool _applyingChoice = false;
 
-  GameSessionNotifier(this._firestore, this._logic)
+  GameSessionNotifier(this._firestore, this._logic, this._analytics)
       : super(const GameSessionState());
 
   Future<void> loadOrCreate({
@@ -151,33 +156,51 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String difficulty,
     bool forceNew = false,
   }) async {
-    state = state.copyWith(isLoading: true);
+    try {
+      state = state.copyWith(isLoading: true);
 
-    GameSession? session;
-    List<Decision> decisions = [];
+      GameSession? session;
+      List<Decision> decisions = [];
 
-    if (!forceNew) {
-      session = await _firestore.getLatestSession(userId);
-      if (session != null) {
-        decisions = await _firestore.getSessionDecisions(session.id);
+      if (!forceNew) {
+        session = await _firestore.getLatestSession(userId);
+        if (session != null) {
+          decisions = await _firestore.getSessionDecisions(session.id);
+        }
       }
-    }
 
-    if (session == null) {
-      session = _logic.createNewSession(
-        userId: userId,
+      if (session == null) {
+        session = _logic.createNewSession(
+          userId: userId,
+          countryName: countryName,
+          difficulty: difficulty,
+          previousSessionId: state.session?.id,
+        );
+        await _firestore.createGameSession(session);
+      }
+
+      state = GameSessionState(
+        session: session,
+        decisions: decisions,
+        isLoading: false,
+      );
+
+      // Track game started event
+      await _analytics.trackGameStarted(
         countryName: countryName,
         difficulty: difficulty,
-        previousSessionId: state.session?.id,
+        scenarioId: 'standard',
       );
-      await _firestore.createGameSession(session);
+    } catch (e) {
+      // Error tracking for session loading
+      unawaited(_analytics.trackError(
+        errorCode: 'session_load_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.loadOrCreate',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
     }
-
-    state = GameSessionState(
-      session: session,
-      decisions: decisions,
-      isLoading: false,
-    );
   }
 
   /// 「歴史のif」チャレンジ：シナリオの固定初期ステータスで新規セッションを開始する。
@@ -186,40 +209,58 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String countryName,
     required HistoricalScenario scenario,
   }) async {
-    state = state.copyWith(isLoading: true);
+    try {
+      state = state.copyWith(isLoading: true);
 
-    final previousSessionId = state.session?.id;
-    var session = _logic.createSessionFromScenario(
-      userId: userId,
-      countryName: countryName,
-      scenario: scenario,
-      previousSessionId: previousSessionId,
-    );
+      final previousSessionId = state.session?.id;
+      var session = _logic.createSessionFromScenario(
+        userId: userId,
+        countryName: countryName,
+        scenario: scenario,
+        previousSessionId: previousSessionId,
+      );
 
-    // シナリオの初期状態をスナップショットとして記録
-    final initialSnapshot = IndicatorSnapshot(
-      year: session.status.year,
-      day: session.status.day,
-      gdp: session.status.gdp,
-      unemployment: session.status.unemployment,
-      satisfaction: session.status.satisfaction,
-      nationalPower: session.status.nationalPower,
-      inflationRate: session.status.inflationRate,
-      publicDebt: session.status.publicDebt,
-      stability: session.status.stability,
-    );
+      // シナリオの初期状態をスナップショットとして記録
+      final initialSnapshot = IndicatorSnapshot(
+        year: session.status.year,
+        day: session.status.day,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        satisfaction: session.status.satisfaction,
+        nationalPower: session.status.nationalPower,
+        inflationRate: session.status.inflationRate,
+        publicDebt: session.status.publicDebt,
+        stability: session.status.stability,
+      );
 
-    session = session.copyWith(
-      indicatorHistory: [initialSnapshot],
-    );
+      session = session.copyWith(
+        indicatorHistory: [initialSnapshot],
+      );
 
-    await _firestore.createGameSession(session);
+      await _firestore.createGameSession(session);
 
-    state = GameSessionState(
-      session: session,
-      decisions: const [],
-      isLoading: false,
-    );
+      state = GameSessionState(
+        session: session,
+        decisions: const [],
+        isLoading: false,
+      );
+
+      // アナリティクス：シナリオチャレンジ開始を追跡
+      unawaited(_analytics.trackGameStarted(
+        countryName: countryName,
+        difficulty: 'scenario',
+        scenarioId: scenario.id,
+      ));
+    } catch (e) {
+      // Error tracking for scenario load
+      unawaited(_analytics.trackError(
+        errorCode: 'scenario_load_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.loadOrCreateFromScenario',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
   }
 
   /// 「国家ステージ」チャレンジ：選ばれたステージの固定初期ステータスで
@@ -229,40 +270,58 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String countryName,
     required CountryStage stage,
   }) async {
-    state = state.copyWith(isLoading: true);
+    try {
+      state = state.copyWith(isLoading: true);
 
-    final previousSessionId = state.session?.id;
-    var session = _logic.createSessionFromStage(
-      userId: userId,
-      countryName: countryName,
-      stage: stage,
-      previousSessionId: previousSessionId,
-    );
+      final previousSessionId = state.session?.id;
+      var session = _logic.createSessionFromStage(
+        userId: userId,
+        countryName: countryName,
+        stage: stage,
+        previousSessionId: previousSessionId,
+      );
 
-    // ステージの初期状態をスナップショットとして記録
-    final initialSnapshot = IndicatorSnapshot(
-      year: session.status.year,
-      day: session.status.day,
-      gdp: session.status.gdp,
-      unemployment: session.status.unemployment,
-      satisfaction: session.status.satisfaction,
-      nationalPower: session.status.nationalPower,
-      inflationRate: session.status.inflationRate,
-      publicDebt: session.status.publicDebt,
-      stability: session.status.stability,
-    );
+      // ステージの初期状態をスナップショットとして記録
+      final initialSnapshot = IndicatorSnapshot(
+        year: session.status.year,
+        day: session.status.day,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        satisfaction: session.status.satisfaction,
+        nationalPower: session.status.nationalPower,
+        inflationRate: session.status.inflationRate,
+        publicDebt: session.status.publicDebt,
+        stability: session.status.stability,
+      );
 
-    session = session.copyWith(
-      indicatorHistory: [initialSnapshot],
-    );
+      session = session.copyWith(
+        indicatorHistory: [initialSnapshot],
+      );
 
-    await _firestore.createGameSession(session);
+      await _firestore.createGameSession(session);
 
-    state = GameSessionState(
-      session: session,
-      decisions: const [],
-      isLoading: false,
-    );
+      state = GameSessionState(
+        session: session,
+        decisions: const [],
+        isLoading: false,
+      );
+
+      // アナリティクス：国家ステージチャレンジ開始を追跡
+      unawaited(_analytics.trackGameStarted(
+        countryName: countryName,
+        difficulty: 'stage',
+        scenarioId: stage.id,
+      ));
+    } catch (e) {
+      // Error tracking for stage load
+      unawaited(_analytics.trackError(
+        errorCode: 'stage_load_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.loadOrCreateFromStage',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
   }
 
   /// チュートリアルの完了/スキップを記録する。
@@ -289,110 +348,153 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     if (_applyingChoice) return ChoiceResult.empty();
     _applyingChoice = true;
     try {
-      final session = state.session;
-      if (session == null) return ChoiceResult.empty();
-
-      // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
-      final baseStatus = session.status.copyWith(
-        day: session.status.day + 1,
-        decisionsCount: session.status.decisionsCount + 1,
-        lastUpdated: DateTime.now(),
-      );
-      var newStatus = _logic.applyImpact(baseStatus, impact);
-
-      // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
-      final ministerDeltas = _logic.deriveMinisterImpact(impact,
-          corruption: newStatus.corruption);
-      var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
-      final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
-      if (betrayedRole != null) {
-        newCabinet = newCabinet.markBetrayed(betrayedRole);
-        newStatus = newStatus.copyWith(
-          stability: (newStatus.stability - 15).clamp(0, 100),
-          satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
-        );
-      }
-      newStatus = newStatus.copyWith(cabinet: newCabinet);
-
-      // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
-      var activePromises = session.activePromises;
-      if (promiseTarget != null) {
-        activePromises = [
-          ...activePromises,
-          _logic.makePromise(promiseTarget, newStatus),
-        ];
-      }
-      final resolution = _logic.resolvePromises(activePromises, newStatus);
-      newStatus = newStatus.copyWith(factions: resolution.factions);
-      activePromises = resolution.remaining;
-
-      // インパクトスコア/成功判定は、内閣裏切り・公約破棄による追加の
-      // ステータス変動まで織り込んだ「最終的な」newStatus を基に算出する。
-      // 以前はこれらの効果が適用される前の中間状態から計算していたため、
-      // 裏切りが起きたターンでは「決定の結果」画面の評価やAI生成される
-      // 統治記録の文章が、実際の変化量と食い違うことがあった。
-      final impactScore =
-          _logic.calculateImpactScore(session.status, newStatus);
-      final isPositive = _logic.wasPositiveOutcome(impact, session.status);
-
-      final decision = Decision(
-        // セッションID+ミリ秒タイムスタンプでは、同一ミリ秒内に2回
-        // applyChoice が呼ばれた場合にIDが衝突し、Firestore上で片方の
-        // Decision が silently 上書きされて消えてしまっていたため、
-        // 他のモデル（セッション・公約等）と同様に UUID を用いる。
-        id: _uuid.v4(),
-        sessionId: session.id,
+      return await _applyChoiceInternal(
+        choiceId: choiceId,
+        impact: impact,
         eventId: eventId,
-        chosenChoiceId: choiceId,
-        decidedAt: DateTime.now(),
         narrative: narrative,
-        impactScore: impactScore,
-        appliedImpact: impact,
-        wasPositiveOutcome: isPositive,
-        beforeStatus: session.status,
-        afterStatus: newStatus,
+        promiseTarget: promiseTarget,
       );
-
-      var updatedSession = session.copyWith(
-        status: newStatus,
-        lastPlayedAt: DateTime.now(),
-        totalDecisions: session.totalDecisions + 1,
-        positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
-        negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
-        activePromises: activePromises,
-      );
-
-      // 実績判定
-      final newAchievements =
-          Achievements.checkNew(updatedSession, session.unlockedAchievements);
-      if (newAchievements.isNotEmpty) {
-        updatedSession = updatedSession.copyWith(
-          unlockedAchievements: [
-            ...session.unlockedAchievements,
-            ...newAchievements.map((a) => a.id),
-          ],
-        );
-      }
-
-      // ゲームオーバー判定
-      final gameOver = _logic.checkGameOver(newStatus);
-
-      await _firestore.batchUpdateSession(updatedSession, decision);
-
-      state = state.copyWith(
-        session: updatedSession,
-        decisions: [...state.decisions, decision],
-      );
-
-      return ChoiceResult(
-        newAchievements: newAchievements,
-        gameOver: gameOver,
-        betrayedMinister: betrayedRole,
-        promiseResolutions: resolution.resolutions,
-      );
+    } catch (e) {
+      // Error tracking for choice application
+      unawaited(_analytics.trackError(
+        errorCode: 'choice_apply_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.applyChoice',
+      ));
+      return ChoiceResult.empty();
     } finally {
       _applyingChoice = false;
     }
+  }
+
+  Future<ChoiceResult> _applyChoiceInternal({
+    required String choiceId,
+    required Impact impact,
+    required String eventId,
+    required String narrative,
+    Faction? promiseTarget,
+  }) async {
+    final session = state.session;
+    if (session == null) return ChoiceResult.empty();
+
+    // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
+    final baseStatus = session.status.copyWith(
+      day: session.status.day + 1,
+      decisionsCount: session.status.decisionsCount + 1,
+      lastUpdated: DateTime.now(),
+    );
+    var newStatus = _logic.applyImpact(baseStatus, impact);
+
+    // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
+    final ministerDeltas = _logic.deriveMinisterImpact(impact,
+        corruption: newStatus.corruption);
+    var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
+    final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
+    if (betrayedRole != null) {
+      newCabinet = newCabinet.markBetrayed(betrayedRole);
+      newStatus = newStatus.copyWith(
+        stability: (newStatus.stability - 15).clamp(0, 100),
+        satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
+      );
+    }
+    newStatus = newStatus.copyWith(cabinet: newCabinet);
+
+    // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
+    var activePromises = session.activePromises;
+    if (promiseTarget != null) {
+      activePromises = [
+        ...activePromises,
+        _logic.makePromise(promiseTarget, newStatus),
+      ];
+    }
+    final resolution = _logic.resolvePromises(activePromises, newStatus);
+    newStatus = newStatus.copyWith(factions: resolution.factions);
+    activePromises = resolution.remaining;
+
+    // インパクトスコア/成功判定は、内閣裏切り・公約破棄による追加の
+    // ステータス変動まで織り込んだ「最終的な」newStatus を基に算出する。
+    // 以前はこれらの効果が適用される前の中間状態から計算していたため、
+    // 裏切りが起きたターンでは「決定の結果」画面の評価やAI生成される
+    // 統治記録の文章が、実際の変化量と食い違うことがあった。
+    final impactScore =
+        _logic.calculateImpactScore(session.status, newStatus);
+    final isPositive = _logic.wasPositiveOutcome(impact, session.status);
+
+    final decision = Decision(
+      // セッションID+ミリ秒タイムスタンプでは、同一ミリ秒内に2回
+      // applyChoice が呼ばれた場合にIDが衝突し、Firestore上で片方の
+      // Decision が silently 上書きされて消えてしまっていたため、
+      // 他のモデル（セッション・公約等）と同様に UUID を用いる。
+      id: _uuid.v4(),
+      sessionId: session.id,
+      eventId: eventId,
+      chosenChoiceId: choiceId,
+      decidedAt: DateTime.now(),
+      narrative: narrative,
+      impactScore: impactScore,
+      appliedImpact: impact,
+      wasPositiveOutcome: isPositive,
+      beforeStatus: session.status,
+      afterStatus: newStatus,
+    );
+
+    var updatedSession = session.copyWith(
+      status: newStatus,
+      lastPlayedAt: DateTime.now(),
+      totalDecisions: session.totalDecisions + 1,
+      positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
+      negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
+      activePromises: activePromises,
+    );
+
+    // 実績判定
+    final newAchievements =
+        Achievements.checkNew(updatedSession, session.unlockedAchievements);
+    if (newAchievements.isNotEmpty) {
+      updatedSession = updatedSession.copyWith(
+        unlockedAchievements: [
+          ...session.unlockedAchievements,
+          ...newAchievements.map((a) => a.id),
+        ],
+      );
+    }
+
+    // ゲームオーバー判定
+    final gameOver = _logic.checkGameOver(newStatus);
+
+    await _firestore.batchUpdateSession(updatedSession, decision);
+
+    state = state.copyWith(
+      session: updatedSession,
+      decisions: [...state.decisions, decision],
+    );
+
+    // アナリティクス：ポリシー選択を追跡
+    unawaited(_analytics.trackPolicyChosen(
+      policyId: choiceId,
+      policyName: choiceId,
+      eventCategory: eventId,
+      impactScore: impactScore,
+      year: newStatus.year,
+      day: newStatus.day,
+    ));
+
+    // アナリティクス：実績解除を追跡
+    for (final achievement in newAchievements) {
+      unawaited(_analytics.trackAchievementUnlocked(
+        achievementId: achievement.id,
+        achievementName: achievement.title,
+        year: newStatus.year,
+      ));
+    }
+
+    return ChoiceResult(
+      newAchievements: newAchievements,
+      gameOver: gameOver,
+      betrayedMinister: betrayedRole,
+      promiseResolutions: resolution.resolutions,
+    );
   }
 
   void loadExisting(GameSession session, List<Decision> decisions) {
@@ -409,66 +511,104 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String difficulty,
     String? previousSessionId,
   }) async {
-    var newSession = _logic.createNewSession(
-      userId: userId,
-      countryName: countryName,
-      difficulty: difficulty,
-      previousSessionId: previousSessionId,
-    );
+    try {
+      var newSession = _logic.createNewSession(
+        userId: userId,
+        countryName: countryName,
+        difficulty: difficulty,
+        previousSessionId: previousSessionId,
+      );
 
-    // 初期状態の国家指標をスナップショットとして記録
-    final initialSnapshot = IndicatorSnapshot(
-      year: newSession.status.year,
-      day: newSession.status.day,
-      gdp: newSession.status.gdp,
-      unemployment: newSession.status.unemployment,
-      satisfaction: newSession.status.satisfaction,
-      nationalPower: newSession.status.nationalPower,
-      inflationRate: newSession.status.inflationRate,
-      publicDebt: newSession.status.publicDebt,
-      stability: newSession.status.stability,
-    );
+      // 初期状態の国家指標をスナップショットとして記録
+      final initialSnapshot = IndicatorSnapshot(
+        year: newSession.status.year,
+        day: newSession.status.day,
+        gdp: newSession.status.gdp,
+        unemployment: newSession.status.unemployment,
+        satisfaction: newSession.status.satisfaction,
+        nationalPower: newSession.status.nationalPower,
+        inflationRate: newSession.status.inflationRate,
+        publicDebt: newSession.status.publicDebt,
+        stability: newSession.status.stability,
+      );
 
-    newSession = newSession.copyWith(
-      indicatorHistory: [initialSnapshot],
-    );
+      newSession = newSession.copyWith(
+        indicatorHistory: [initialSnapshot],
+      );
 
-    await _firestore.createGameSession(newSession);
-    state = GameSessionState(
-      session: newSession,
-      decisions: [],
-      isLoading: false,
-    );
+      await _firestore.createGameSession(newSession);
+      state = GameSessionState(
+        session: newSession,
+        decisions: [],
+        isLoading: false,
+      );
+
+      // アナリティクス：新年ゲーム開始を追跡
+      unawaited(_analytics.trackGameStarted(
+        countryName: countryName,
+        difficulty: difficulty,
+        scenarioId: 'continuation',
+      ));
+    } catch (e) {
+      // Error tracking for new year start
+      unawaited(_analytics.trackError(
+        errorCode: 'new_year_start_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.startNewYear',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
   }
 
   Future<void> continueToNextYear() async {
-    final session = state.session;
-    if (session == null) return;
+    try {
+      final session = state.session;
+      if (session == null) return;
 
-    final yearEndStatus = _logic.simulateYearPassed(session.status);
+      final yearEndStatus = _logic.simulateYearPassed(session.status);
 
-    // 年末の国家指標をスナップショットとして記録（UI/UX改善用）
-    final snapshot = IndicatorSnapshot(
-      year: yearEndStatus.year,
-      day: yearEndStatus.day,
-      gdp: yearEndStatus.gdp,
-      unemployment: yearEndStatus.unemployment,
-      satisfaction: yearEndStatus.satisfaction,
-      nationalPower: yearEndStatus.nationalPower,
-      inflationRate: yearEndStatus.inflationRate,
-      publicDebt: yearEndStatus.publicDebt,
-      stability: yearEndStatus.stability,
-    );
+      // 年末の国家指標をスナップショットとして記録（UI/UX改善用）
+      final snapshot = IndicatorSnapshot(
+        year: yearEndStatus.year,
+        day: yearEndStatus.day,
+        gdp: yearEndStatus.gdp,
+        unemployment: yearEndStatus.unemployment,
+        satisfaction: yearEndStatus.satisfaction,
+        nationalPower: yearEndStatus.nationalPower,
+        inflationRate: yearEndStatus.inflationRate,
+        publicDebt: yearEndStatus.publicDebt,
+        stability: yearEndStatus.stability,
+      );
 
-    final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
-      ..add(snapshot);
+      final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
+        ..add(snapshot);
 
-    final updatedSession = session.copyWith(
-      status: yearEndStatus,
-      lastPlayedAt: DateTime.now(),
-      indicatorHistory: updatedHistory,
-    );
-    await _firestore.updateGameSession(updatedSession);
-    state = state.copyWith(session: updatedSession);
+      final updatedSession = session.copyWith(
+        status: yearEndStatus,
+        lastPlayedAt: DateTime.now(),
+        indicatorHistory: updatedHistory,
+      );
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：年終了イベントを追跡
+      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      unawaited(_analytics.trackYearEnd(
+        year: yearEndStatus.year - 1, // 終了した年を記録
+        satisfactionChange: satisfactionChange,
+        gdpChange: gdpChange,
+        decisionsInYear: session.status.decisionsCount,
+      ));
+    } catch (e) {
+      // Error tracking for year progression
+      unawaited(_analytics.trackError(
+        errorCode: 'year_continue_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.continueToNextYear',
+      ));
+      rethrow;
+    }
   }
 }

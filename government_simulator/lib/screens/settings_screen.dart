@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/user_profile.dart';
+import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/screens/economics_handbook_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   final UserProfile userProfile;
   final ValueChanged<UserProfile> onProfileChanged;
 
@@ -19,16 +21,22 @@ class SettingsScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late UserProfile _profile;
 
   @override
   void initState() {
     super.initState();
     _profile = widget.userProfile;
+    // Track screen view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(analyticsServiceProvider).trackScreenView('settings_screen');
+      }
+    });
   }
 
   @override
@@ -109,6 +117,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onChanged: (value) => setState(() {
                           _profile = _profile.copyWith(soundEnabled: value);
                           widget.onProfileChanged(_profile);
+                          // Track setting change
+                          ref.read(analyticsServiceProvider).trackUserSettings(
+                            settingKey: 'sound_enabled',
+                            settingValue: value.toString(),
+                          );
                         }),
                       ),
                       _SettingRow(
@@ -119,6 +132,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _profile =
                               _profile.copyWith(notificationsEnabled: value);
                           widget.onProfileChanged(_profile);
+                          // Track setting change
+                          ref.read(analyticsServiceProvider).trackUserSettings(
+                            settingKey: 'notifications_enabled',
+                            settingValue: value.toString(),
+                          );
                         }),
                       ),
                     ],
