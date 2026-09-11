@@ -4,9 +4,10 @@ import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/debate_choice.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/providers/game_provider.dart';
+import 'package:government_simulator/utils/animation_configs.dart';
 
 /// 討論会ラウンド画面
-/// プレイヤーがトーンと強調を選択してラウンドを進める
+/// プレイヤーがトーンと強調を選択してラウンドを進める（アニメーション付き）
 class DebateRoundScreen extends ConsumerStatefulWidget {
   final Debate debate;
   final int currentRoundIndex;
@@ -22,9 +23,38 @@ class DebateRoundScreen extends ConsumerStatefulWidget {
       _DebateRoundScreenState();
 }
 
-class _DebateRoundScreenState extends ConsumerState<DebateRoundScreen> {
+class _DebateRoundScreenState extends ConsumerState<DebateRoundScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Animation<double>> _staggeredAnimations;
+
   ArgumentTone? selectedTone;
   EmphasisType? selectedEmphasis;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    );
+
+    // 複数要素のスタガーアニメーション（4要素）
+    _staggeredAnimations =
+        StaggeredAnimations.buildStaggeredFadeAnimations(
+      _controller,
+      itemCount: 4,
+      staggerDelay: const Duration(milliseconds: 150),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,65 +70,113 @@ class _DebateRoundScreenState extends ConsumerState<DebateRoundScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 進行状況インジケーター
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: _RoundProgressIndicator(
-                currentRound: widget.currentRoundIndex + 1,
-                totalRounds: totalRounds,
+            // 進行状況インジケーター（フェード）
+            FadeTransition(
+              opacity: _staggeredAnimations[0],
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _RoundProgressIndicator(
+                  currentRound: widget.currentRoundIndex + 1,
+                  totalRounds: totalRounds,
+                ),
               ),
             ),
 
-            // 声明文表示
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _StatementDisplayCard(
-                playerStatement: round.playerStatement,
-                rivalStatement: round.rivalStatement,
-                opponentName: widget.debate.opponentName,
+            // 声明文表示（スライドアップ + フェード）
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.3),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: const Interval(0.1, 0.4, curve: Curves.easeOut),
+                ),
+              ),
+              child: FadeTransition(
+                opacity: _staggeredAnimations[0],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _StatementDisplayCard(
+                    playerStatement: round.playerStatement,
+                    rivalStatement: round.rivalStatement,
+                    opponentName: widget.debate.opponentName,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // トーン選択
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _ArgumentToneSelector(
-                selectedTone: selectedTone,
-                onToneSelected: (tone) {
-                  setState(() => selectedTone = tone);
-                },
+            // トーン選択（スタガー + スライド）
+            FadeTransition(
+              opacity: _staggeredAnimations[1],
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(-0.3, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _controller,
+                    curve: const Interval(0.2, 0.5, curve: Curves.easeOut),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _ArgumentToneSelector(
+                    selectedTone: selectedTone,
+                    onToneSelected: (tone) {
+                      setState(() => selectedTone = tone);
+                    },
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // 強調選択
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _EmphasisSelector(
-                selectedEmphasis: selectedEmphasis,
-                onEmphasisSelected: (emphasis) {
-                  setState(() => selectedEmphasis = emphasis);
-                },
+            // 強調選択（スタガー + スライド）
+            FadeTransition(
+              opacity: _staggeredAnimations[2],
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.3, 0.0),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _controller,
+                    curve: const Interval(0.35, 0.65, curve: Curves.easeOut),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _EmphasisSelector(
+                    selectedEmphasis: selectedEmphasis,
+                    onEmphasisSelected: (emphasis) {
+                      setState(() => selectedEmphasis = emphasis);
+                    },
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 32),
 
-            // ボタン
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: selectedTone != null && selectedEmphasis != null
-                      ? () => _submitRound(context, isLastRound)
-                      : null,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text(
-                    isLastRound ? '討論会を終了' : '次のラウンドへ',
-                    style: const TextStyle(fontSize: 16),
+            // ボタン（最後にフェード）
+            FadeTransition(
+              opacity: _staggeredAnimations[3],
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: selectedTone != null && selectedEmphasis != null
+                        ? () => _submitRound(context, isLastRound)
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: Text(
+                      isLastRound ? '討論会を終了' : '次のラウンドへ',
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
                 ),
               ),

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/providers/game_provider.dart';
+import 'package:government_simulator/utils/animation_configs.dart';
 
 /// 討論会サマリー画面
-/// 最終的な討論会結果と名声・キャンペーン効果を表示
+/// 最終的な討論会結果と名声・キャンペーン効果を表示（アニメーション付き）
 class DebateSummaryScreen extends ConsumerStatefulWidget {
   final Debate debate;
 
@@ -18,7 +19,36 @@ class DebateSummaryScreen extends ConsumerStatefulWidget {
       _DebateSummaryScreenState();
 }
 
-class _DebateSummaryScreenState extends ConsumerState<DebateSummaryScreen> {
+class _DebateSummaryScreenState extends ConsumerState<DebateSummaryScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _mainController;
+  late List<Animation<double>> _staggeredAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    _mainController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+
+    // 複数要素のスタガーアニメーション（5要素）
+    _staggeredAnimations =
+        StaggeredAnimations.buildStaggeredFadeAnimations(
+      _mainController,
+      itemCount: 5,
+      staggerDelay: const Duration(milliseconds: 150),
+    );
+
+    _mainController.forward();
+  }
+
+  @override
+  void dispose() {
+    _mainController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
@@ -45,65 +75,111 @@ class _DebateSummaryScreenState extends ConsumerState<DebateSummaryScreen> {
         body: SingleChildScrollView(
           child: Column(
             children: [
-              // 最終スコア
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: _FinalScoreDisplay(
-                  playerScore: playerScore,
-                  rivalScore: rivalScore,
-                  opponentName: widget.debate.opponentName,
+              // 最終スコア（スケールアップ + フェード）
+              FadeTransition(
+                opacity: _staggeredAnimations[0],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _FinalScoreDisplay(
+                    playerScore: playerScore,
+                    rivalScore: rivalScore,
+                    opponentName: widget.debate.opponentName,
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // 勝利タイプインジケーター
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _VictoryTypeIndicator(
-                  outcome: outcome,
-                  playerWon: playerWon,
+              // 勝利タイプインジケーター（スケール + フェード）
+              FadeTransition(
+                opacity: _staggeredAnimations[1],
+                child: ScaleTransition(
+                  scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+                    CurvedAnimation(
+                      parent: _mainController,
+                      curve: const Interval(0.15, 0.45,
+                          curve: Curves.easeOutBack),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _VictoryTypeIndicator(
+                      outcome: outcome,
+                      playerWon: playerWon,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // メディア見出し
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _MediaHeadlineWidget(
-                  outcome: outcome,
-                  playerWon: playerWon,
-                  opponentName: widget.debate.opponentName,
+              // メディア見出し（スライドアップ + フェード）
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.3),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _mainController,
+                    curve: const Interval(0.3, 0.6, curve: Curves.easeOut),
+                  ),
+                ),
+                child: FadeTransition(
+                  opacity: _staggeredAnimations[2],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _MediaHeadlineWidget(
+                      outcome: outcome,
+                      playerWon: playerWon,
+                      opponentName: widget.debate.opponentName,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // 効果パネル
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _EffectsPanel(
-                  outcome: outcome,
-                  playerReputation: session.session!.playerReputation,
+              // 効果パネル（スライドアップ + フェード）
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.2),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _mainController,
+                    curve: const Interval(0.45, 0.75, curve: Curves.easeOut),
+                  ),
+                ),
+                child: FadeTransition(
+                  opacity: _staggeredAnimations[3],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _EffectsPanel(
+                      outcome: outcome,
+                      playerReputation: session.session!.playerReputation,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 32),
 
-              // ゲーム続行ボタン
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'ゲームに戻る',
-                      style: TextStyle(fontSize: 16),
+              // ゲーム続行ボタン（最後にフェード）
+              FadeTransition(
+                opacity: _staggeredAnimations[4],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text(
+                        'ゲームに戻る',
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ),

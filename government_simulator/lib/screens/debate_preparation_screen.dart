@@ -4,9 +4,10 @@ import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/providers/game_provider.dart';
+import 'package:government_simulator/utils/animation_configs.dart';
 
 /// 討論会準備画面
-/// 対戦相手のプロフィール、トピックのプレビュー、戦略のヒントを表示
+/// 対戦相手のプロフィール、トピックのプレビュー、戦略のヒントを表示（アニメーション付き）
 class DebatePreparationScreen extends ConsumerStatefulWidget {
   final Debate debate;
 
@@ -20,8 +21,36 @@ class DebatePreparationScreen extends ConsumerStatefulWidget {
       _DebatePreparationScreenState();
 }
 
-class _DebatePreparationScreenState
-    extends ConsumerState<DebatePreparationScreen> {
+class _DebatePreparationScreenState extends ConsumerState<DebatePreparationScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Animation<double>> _staggeredAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1600),
+      vsync: this,
+    );
+
+    // 複数要素のスタガーアニメーション（5要素）
+    _staggeredAnimations =
+        StaggeredAnimations.buildStaggeredFadeAnimations(
+      _controller,
+      itemCount: 5,
+      staggerDelay: const Duration(milliseconds: 130),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(gameSessionProvider);
@@ -56,54 +85,98 @@ class _DebatePreparationScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 対戦相手プロフィールカード
-            _OpponentProfileCard(opponent: opponent),
+            // 対戦相手プロフィールカード（スケール + フェード）
+            ScaleTransition(
+              scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: const Interval(0.0, 0.3,
+                      curve: Curves.easeOutBack),
+                ),
+              ),
+              child: FadeTransition(
+                opacity: _staggeredAnimations[0],
+                child: _OpponentProfileCard(opponent: opponent),
+              ),
+            ),
             const SizedBox(height: 24),
 
-            // トピックプレビュー
-            _DebateTopicsPreview(debate: widget.debate),
+            // トピックプレビュー（スライドアップ + フェード）
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.3),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: const Interval(0.15, 0.45,
+                      curve: Curves.easeOut),
+                ),
+              ),
+              child: FadeTransition(
+                opacity: _staggeredAnimations[1],
+                child: _DebateTopicsPreview(debate: widget.debate),
+              ),
+            ),
             const SizedBox(height: 24),
 
-            // 戦略ヒント
-            _StrategyTipsWidget(
-              session: gameSession,
-              opponent: opponent,
+            // 戦略ヒント（スライドアップ + フェード）
+            SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.0, 0.2),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: const Interval(0.3, 0.6, curve: Curves.easeOut),
+                ),
+              ),
+              child: FadeTransition(
+                opacity: _staggeredAnimations[2],
+                child: _StrategyTipsWidget(
+                  session: gameSession,
+                  opponent: opponent,
+                ),
+              ),
             ),
             const SizedBox(height: 32),
 
-            // ボタン
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                    label: const Text('中止する'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black87,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+            // ボタン（最後にフェード）
+            FadeTransition(
+              opacity: _staggeredAnimations[4],
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close),
+                      label: const Text('中止する'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[300],
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(
-                        context,
-                        '/debate_round',
-                        arguments: widget.debate,
-                      );
-                    },
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text('討論会を開始'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/debate_round',
+                          arguments: widget.debate,
+                        );
+                      },
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('討論会を開始'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

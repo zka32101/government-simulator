@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/debate_choice.dart';
+import 'package:government_simulator/utils/animation_configs.dart';
 
 /// 討論会ラウンド結果画面
-/// ラウンドのスコア、コメンタリー、モメンタムを表示
-class DebateRoundResultScreen extends StatelessWidget {
+/// ラウンドのスコア、コメンタリー、モメンタムを表示（アニメーション付き）
+class DebateRoundResultScreen extends StatefulWidget {
   final Debate debate;
   final int currentRoundIndex;
   final ArgumentTone selectedTone;
@@ -21,8 +22,42 @@ class DebateRoundResultScreen extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<DebateRoundResultScreen> createState() => _DebateRoundResultScreenState();
+}
+
+class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Animation<double>> _staggeredAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    // 複数要素のスタガーアニメーション（5要素）
+    _staggeredAnimations =
+        StaggeredAnimations.buildStaggeredFadeAnimations(
+      _controller,
+      itemCount: 5,
+      staggerDelay: const Duration(milliseconds: 120),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final round = debate.rounds[currentRoundIndex];
+    final round = widget.debate.rounds[widget.currentRoundIndex];
 
     // スコア計算（簡略版：トーンと強調による補正）
     final playerScore = _calculatePlayerScore(round);
@@ -33,62 +68,107 @@ class DebateRoundResultScreen extends StatelessWidget {
       onWillPop: () async => false, // 戻るボタンを無効化
       child: Scaffold(
         appBar: AppBar(
-          title: Text('ラウンド ${currentRoundIndex + 1} 結果'),
+          title: Text('ラウンド ${widget.currentRoundIndex + 1} 結果'),
           centerTitle: true,
           automaticallyImplyLeading: false,
         ),
         body: SingleChildScrollView(
           child: Column(
             children: [
-              // スコア比較
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: _ScoreComparison(
-                  playerScore: playerScore,
-                  opponentScore: opponentScore,
-                  opponentName: debate.opponentName,
+              // スコア比較（スケール + フェード）
+              ScaleTransition(
+                scale: Tween<double>(begin: 0.8, end: 1.0).animate(
+                  CurvedAnimation(
+                    parent: _controller,
+                    curve: const Interval(0.0, 0.35,
+                        curve: Curves.easeOutBack),
+                  ),
+                ),
+                child: FadeTransition(
+                  opacity: _staggeredAnimations[0],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _ScoreComparison(
+                      playerScore: playerScore,
+                      opponentScore: opponentScore,
+                      opponentName: widget.debate.opponentName,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // ラウンドコメンタリー
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _RoundCommentary(
-                  playerScore: playerScore,
-                  opponentScore: opponentScore,
-                  selectedTone: selectedTone,
-                  selectedEmphasis: selectedEmphasis,
-                  topic: round.topic,
+              // ラウンドコメンタリー（スライドアップ + フェード）
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.3),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _controller,
+                    curve: const Interval(0.2, 0.5, curve: Curves.easeOut),
+                  ),
+                ),
+                child: FadeTransition(
+                  opacity: _staggeredAnimations[1],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _RoundCommentary(
+                      playerScore: playerScore,
+                      opponentScore: opponentScore,
+                      selectedTone: widget.selectedTone,
+                      selectedEmphasis: widget.selectedEmphasis,
+                      topic: round.topic,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 24),
 
-              // モメンタムインジケーター
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _MomentumIndicator(
-                  momentum: momentum,
+              // モメンタムインジケーター（スライドアップ + フェード）
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.0, 0.2),
+                  end: Offset.zero,
+                ).animate(
+                  CurvedAnimation(
+                    parent: _controller,
+                    curve: const Interval(0.35, 0.65, curve: Curves.easeOut),
+                  ),
+                ),
+                child: FadeTransition(
+                  opacity: _staggeredAnimations[2],
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _MomentumIndicator(
+                      momentum: momentum,
+                    ),
+                  ),
                 ),
               ),
 
               const SizedBox(height: 32),
 
-              // 次へボタン
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => _continueDebate(context),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: Text(
-                      isLastRound ? '討論会結果を表示' : '次のラウンドへ',
-                      style: const TextStyle(fontSize: 16),
+              // 次へボタン（最後にフェード）
+              FadeTransition(
+                opacity: _staggeredAnimations[4],
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _continueDebate(context),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: Text(
+                        widget.isLastRound
+                            ? '討論会結果を表示'
+                            : '次のラウンドへ',
+                        style: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ),
@@ -104,14 +184,14 @@ class DebateRoundResultScreen extends StatelessWidget {
     double score = 50.0; // ベーススコア
 
     // トーンのボーナス
-    score += selectedTone.getScoreModifier(
+    score += widget.selectedTone.getScoreModifier(
       isPlayerWinning: round.playerRoundScore > round.rivalRoundScore,
       isPlayerStrong: round.playerRoundScore > 60,
       isOpponentWeak: round.rivalRoundScore < 40,
     );
 
     // 強調のボーナス
-    score += selectedEmphasis.getScoreModifier(
+    score += widget.selectedEmphasis.getScoreModifier(
       isTopicMatch: true, // 実際の実装では政策マッチを確認
       isPlayerWeak: round.playerRoundScore < 40,
       isOpponentWeak: round.rivalRoundScore < 40,
@@ -133,19 +213,19 @@ class DebateRoundResultScreen extends StatelessWidget {
   }
 
   void _continueDebate(BuildContext context) {
-    if (isLastRound) {
+    if (widget.isLastRound) {
       Navigator.pushNamed(
         context,
         '/debate_summary',
-        arguments: debate,
+        arguments: widget.debate,
       );
     } else {
       Navigator.pushNamed(
         context,
         '/debate_round',
         arguments: {
-          'debate': debate,
-          'currentRoundIndex': currentRoundIndex + 1,
+          'debate': widget.debate,
+          'currentRoundIndex': widget.currentRoundIndex + 1,
         },
       );
     }
