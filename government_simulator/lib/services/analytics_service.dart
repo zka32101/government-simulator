@@ -147,7 +147,7 @@ class AnalyticsService {
 
   /// ユーザー識別情報を設定
   Future<void> setUserId(String userId) async {
-    await _analytics.setUserId(userId);
+    await _analytics.setUserId(id: userId);
   }
 
   /// ユーザープロパティを設定

@@ -119,7 +119,7 @@ class AuthenticationService {
   /// Appleでサインイン (iOS のみ)
   Future<User?> signInWithApple() async {
     try {
-      final credential = await SignInWithApple.getAppleIDCredential();
+      final credential = await SignInWithApple.getAppleIDCredential(scopes: []);
 
       // Firebase用のクレデンシャルを作成
       final oAuthCredential = OAuthProvider('apple.com').credential(
@@ -203,7 +203,7 @@ class AuthenticationService {
         throw AuthException('User is not anonymous');
       }
 
-      final credential = await SignInWithApple.getAppleIDCredential();
+      final credential = await SignInWithApple.getAppleIDCredential(scopes: []);
 
       final oAuthCredential = OAuthProvider('apple.com').credential(
         idToken: credential.identityToken,
