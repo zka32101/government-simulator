@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:government_simulator/services/authentication_service.dart' show AuthenticationService, AuthException;
+import 'package:government_simulator/services/analytics_service.dart';
 
 // =================== Service Provider ===================
 
@@ -229,13 +230,17 @@ class AuthState {
 /// Authentication state notifier for managing auth state and profile sync
 final authStateNotifierProvider =
     StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
-  return AuthStateNotifier(ref.watch(authenticationServiceProvider));
+  return AuthStateNotifier(
+    ref.watch(authenticationServiceProvider),
+    AnalyticsService(),
+  );
 });
 
 class AuthStateNotifier extends StateNotifier<AuthState> {
   final AuthenticationService _authService;
+  final AnalyticsService _analytics;
 
-  AuthStateNotifier(this._authService) : super(const AuthState()) {
+  AuthStateNotifier(this._authService, this._analytics) : super(const AuthState()) {
     _initializeAuthState();
   }
 
@@ -274,17 +279,35 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      if (user != null) {
+        await _analytics.setUserId(user.uid);
+        await _analytics.setUserAuthenticated(true);
+        await _analytics.trackScreenView('home_screen');
+      }
     } on AuthException catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: e.message,
       );
+      // Track login error
+      await _analytics.trackError(
+        errorCode: 'email_signin_failed',
+        errorMessage: e.message,
+        context: 'AuthStateNotifier.signInWithEmail',
+      );
     } catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: 'Sign in failed: $e',
+      );
+      // Track unexpected error
+      await _analytics.trackError(
+        errorCode: 'email_signin_exception',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signInWithEmail',
       );
     }
   }
@@ -305,17 +328,35 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      if (user != null) {
+        await _analytics.setUserId(user.uid);
+        await _analytics.setUserAuthenticated(true);
+        await _analytics.trackScreenView('home_screen');
+      }
     } on AuthException catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: e.message,
       );
+      // Track signup error
+      await _analytics.trackError(
+        errorCode: 'email_signup_failed',
+        errorMessage: e.message,
+        context: 'AuthStateNotifier.signUpWithEmail',
+      );
     } catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: 'Sign up failed: $e',
+      );
+      // Track unexpected error
+      await _analytics.trackError(
+        errorCode: 'email_signup_exception',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signUpWithEmail',
       );
     }
   }
@@ -330,17 +371,35 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      if (user != null) {
+        await _analytics.setUserId(user.uid);
+        await _analytics.setUserAuthenticated(true);
+        await _analytics.trackScreenView('home_screen');
+      }
     } on AuthException catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: e.message,
       );
+      // Track Google sign-in error
+      await _analytics.trackError(
+        errorCode: 'google_signin_failed',
+        errorMessage: e.message,
+        context: 'AuthStateNotifier.signInWithGoogle',
+      );
     } catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: 'Google sign in failed: $e',
+      );
+      // Track unexpected error
+      await _analytics.trackError(
+        errorCode: 'google_signin_exception',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signInWithGoogle',
       );
     }
   }
@@ -355,17 +414,35 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      if (user != null) {
+        await _analytics.setUserId(user.uid);
+        await _analytics.setUserAuthenticated(true);
+        await _analytics.trackScreenView('home_screen');
+      }
     } on AuthException catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: e.message,
       );
+      // Track Apple sign-in error
+      await _analytics.trackError(
+        errorCode: 'apple_signin_failed',
+        errorMessage: e.message,
+        context: 'AuthStateNotifier.signInWithApple',
+      );
     } catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: 'Apple sign in failed: $e',
+      );
+      // Track unexpected error
+      await _analytics.trackError(
+        errorCode: 'apple_signin_exception',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signInWithApple',
       );
     }
   }
@@ -380,17 +457,35 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      if (user != null) {
+        await _analytics.setUserId(user.uid);
+        await _analytics.setUserAuthenticated(false);
+        await _analytics.trackScreenView('home_screen');
+      }
     } on AuthException catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: e.message,
       );
+      // Track anonymous sign-in error
+      await _analytics.trackError(
+        errorCode: 'anonymous_signin_failed',
+        errorMessage: e.message,
+        context: 'AuthStateNotifier.signInAnonymously',
+      );
     } catch (e) {
       state = AuthState(
         user: null,
         isLoading: false,
         error: 'Anonymous sign in failed: $e',
+      );
+      // Track unexpected error
+      await _analytics.trackError(
+        errorCode: 'anonymous_signin_exception',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signInAnonymously',
       );
     }
   }
@@ -405,11 +500,19 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         isLoading: false,
         error: null,
       );
+      // Track analytics
+      await _analytics.setUserAuthenticated(false);
     } catch (e) {
       state = AuthState(
         user: state.user,
         isLoading: false,
         error: 'Sign out failed: $e',
+      );
+      // Track sign-out error
+      await _analytics.trackError(
+        errorCode: 'signout_failed',
+        errorMessage: e.toString(),
+        context: 'AuthStateNotifier.signOut',
       );
     }
   }

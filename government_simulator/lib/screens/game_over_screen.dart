@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/achievement.dart';
+import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 
-class GameOverScreen extends StatefulWidget {
+class GameOverScreen extends ConsumerStatefulWidget {
   final GameSession session;
   final GameOverType type;
   final VoidCallback onRestart;
@@ -16,10 +20,10 @@ class GameOverScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<GameOverScreen> createState() => _GameOverScreenState();
+  ConsumerState<GameOverScreen> createState() => _GameOverScreenState();
 }
 
-class _GameOverScreenState extends State<GameOverScreen>
+class _GameOverScreenState extends ConsumerState<GameOverScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
@@ -32,6 +36,28 @@ class _GameOverScreenState extends State<GameOverScreen>
       duration: const Duration(milliseconds: 900),
     )..forward();
     _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+
+    // Track screen view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(analyticsServiceProvider).trackScreenView('game_over_screen');
+      }
+    });
+
+    // Track game over event
+    unawaited(_trackGameOver());
+  }
+
+  Future<void> _trackGameOver() async {
+    final s = widget.session;
+    await ref.read(analyticsServiceProvider).trackGameOver(
+      gameOverType: widget.type.name,
+      year: s.status.year,
+      totalDecisions: s.totalDecisions,
+      finalHealthScore: s.status.stability,
+      finalSatisfaction: s.status.satisfaction,
+      finalGdp: s.status.gdp,
+    );
   }
 
   @override

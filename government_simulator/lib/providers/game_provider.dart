@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/decision.dart';
@@ -14,6 +16,7 @@ import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
+import 'package:government_simulator/services/analytics_service.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -106,6 +109,7 @@ final gameSessionProvider =
   return GameSessionNotifier(
     ref.watch(firestoreServiceProvider),
     ref.watch(gameLogicProvider),
+    AnalyticsService(),
   );
 });
 
@@ -135,6 +139,7 @@ class GameSessionState {
 class GameSessionNotifier extends StateNotifier<GameSessionState> {
   final FirestoreService _firestore;
   final GameLogicService _logic;
+  final AnalyticsService _analytics;
   final _uuid = const Uuid();
 
   // applyChoice の多重実行を防ぐガード。連打やダブルタップで同じ選択が
@@ -142,7 +147,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   // あったため、処理中は以降の呼び出しを無視する。
   bool _applyingChoice = false;
 
-  GameSessionNotifier(this._firestore, this._logic)
+  GameSessionNotifier(this._firestore, this._logic, this._analytics)
       : super(const GameSessionState());
 
   Future<void> loadOrCreate({
@@ -177,6 +182,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       session: session,
       decisions: decisions,
       isLoading: false,
+    );
+
+    // Track game started event
+    await _analytics.trackGameStarted(
+      countryName: countryName,
+      difficulty: difficulty,
+      scenarioId: 'standard',
     );
   }
 
@@ -220,6 +232,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       decisions: const [],
       isLoading: false,
     );
+
+    // アナリティクス：シナリオチャレンジ開始を追跡
+    unawaited(_analytics.trackGameStarted(
+      countryName: countryName,
+      difficulty: 'scenario',
+      scenarioId: scenario.id,
+    ));
   }
 
   /// 「国家ステージ」チャレンジ：選ばれたステージの固定初期ステータスで
@@ -263,6 +282,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       decisions: const [],
       isLoading: false,
     );
+
+    // アナリティクス：国家ステージチャレンジ開始を追跡
+    unawaited(_analytics.trackGameStarted(
+      countryName: countryName,
+      difficulty: 'stage',
+      scenarioId: stage.id,
+    ));
   }
 
   /// チュートリアルの完了/スキップを記録する。
@@ -384,6 +410,25 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         decisions: [...state.decisions, decision],
       );
 
+      // アナリティクス：ポリシー選択を追跡
+      unawaited(_analytics.trackPolicyChosen(
+        policyId: choiceId,
+        policyName: choiceId,
+        eventCategory: eventId,
+        impactScore: impactScore,
+        year: newStatus.year,
+        day: newStatus.day,
+      ));
+
+      // アナリティクス：実績解除を追跡
+      for (final achievement in newAchievements) {
+        unawaited(_analytics.trackAchievementUnlocked(
+          achievementId: achievement.id,
+          achievementName: achievement.name,
+          year: newStatus.year,
+        ));
+      }
+
       return ChoiceResult(
         newAchievements: newAchievements,
         gameOver: gameOver,
@@ -439,6 +484,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       decisions: [],
       isLoading: false,
     );
+
+    // アナリティクス：新年ゲーム開始を追跡
+    unawaited(_analytics.trackGameStarted(
+      countryName: countryName,
+      difficulty: difficulty,
+      scenarioId: 'continuation',
+    ));
   }
 
   Future<void> continueToNextYear() async {
@@ -470,5 +522,15 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     );
     await _firestore.updateGameSession(updatedSession);
     state = state.copyWith(session: updatedSession);
+
+    // アナリティクス：年終了イベントを追跡
+    final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+    final gdpChange = yearEndStatus.gdp - session.status.gdp;
+    unawaited(_analytics.trackYearEnd(
+      year: yearEndStatus.year - 1, // 終了した年を記録
+      satisfactionChange: satisfactionChange,
+      gdpChange: gdpChange,
+      decisionsInYear: session.status.decisionsCount,
+    ));
   }
 }
