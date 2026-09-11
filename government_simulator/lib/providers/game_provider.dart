@@ -13,6 +13,8 @@ import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -592,7 +594,33 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         indicatorHistory: updatedHistory,
       );
 
+      // 政治政党の状態を毎年更新
+      final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
+      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      final economicTrend = (yearEndStatus.gdp > 0) ? (gdpChange / yearEndStatus.gdp) * 100 : 0;
+      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+
+      _logic.updatePoliticalPartyStates(
+        updatedParties,
+        playerSatisfaction: yearEndStatus.satisfaction,
+        playerStability: yearEndStatus.stability,
+        economicTrend: economicTrend,
+        satisfactionChange: satisfactionChange,
+      );
+
+      finalSession = finalSession.copyWith(
+        politicalParties: updatedParties,
+      );
+
       if (_logic.shouldHoldElection(yearEndStatus.year)) {
+        // 選挙年：ライバル候補者を初期化
+        final rivalCandidates = _logic.initializeRivalCandidatesForElection(
+          year: yearEndStatus.year,
+          playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
+          playerSocialPolicy: 0,
+          playerMilitaryPolicy: 0,
+        );
+
         final electionResult = _logic.calculateElectionResult(
           sessionId: session.id,
           year: yearEndStatus.year,
@@ -605,6 +633,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
         finalSession = finalSession.copyWith(
           elections: updatedElections,
+          rivalCandidates: rivalCandidates,
         );
 
         // 落選時はゲームオーバー
