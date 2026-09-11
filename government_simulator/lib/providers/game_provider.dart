@@ -12,6 +12,10 @@ import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/campaign.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -607,6 +611,64 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'year_continue_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.continueToNextYear',
+      ));
+      rethrow;
+    }
+  }
+
+  /// キャンペーンを開始する
+  Future<void> launchCampaign({
+    required CampaignType type,
+    required int durationWeeks,
+    required double budgetSpent,
+  }) async {
+    try {
+      final session = state.session;
+      if (session == null) return;
+
+      // 予算チェック
+      final availableBudget = session.campaignBudget - session.spentBudget;
+      if (budgetSpent > availableBudget) {
+        throw Exception('予算不足です');
+      }
+
+      // キャンペーンを作成
+      final campaign = _logic.launchCampaign(
+        sessionId: session.id,
+        type: type,
+        durationWeeks: durationWeeks,
+        currentYear: session.status.year,
+        currentWeek: session.status.week,
+      );
+
+      // ゲームセッションを更新
+      final updatedCampaigns = List<Campaign>.from(session.activeCampaigns)
+        ..add(campaign);
+
+      final updatedSession = session.copyWith(
+        activeCampaigns: updatedCampaigns,
+        spentBudget: session.spentBudget + budgetSpent,
+        lastPlayedAt: DateTime.now(),
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：キャンペーン開始を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'campaign_launched',
+        parameters: {
+          'campaign_type': type.name,
+          'duration_weeks': durationWeeks,
+          'budget_spent': budgetSpent.toInt(),
+        },
+      ));
+    } catch (e) {
+      // Error tracking for campaign launch
+      unawaited(_analytics.trackError(
+        errorCode: 'campaign_launch_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.launchCampaign',
       ));
       rethrow;
     }
