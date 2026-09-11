@@ -203,12 +203,14 @@ class GameSession {
               .toList() ??
           const [],
       politicalParties: map['politicalParties'] != null
-              ? (map['politicalParties'] as Map<String, dynamic>)
-                  .map((k, v) => MapEntry(
-                        k as String,
-                        PoliticalParty.fromMap(v as Map<String, dynamic>),
-                      ))
-                  .cast<String, PoliticalParty>()
+              ? Map<String, PoliticalParty>.from(
+                  (map['politicalParties'] as Map<String, dynamic>).map(
+                    (k, v) => MapEntry(
+                      k as String,
+                      PoliticalParty.fromMap(v as Map<String, dynamic>),
+                    ),
+                  ),
+                )
               : const {},
     );
   }
