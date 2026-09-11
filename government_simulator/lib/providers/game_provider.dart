@@ -17,6 +17,8 @@ import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/election_result.dart';
+import 'package:government_simulator/models/international_relations.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -613,6 +615,84 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// 外交システムの週間更新を処理
+  /// 貿易収入/支出、制裁影響、戦争ダメージなどを適用
+  GameSession _updateDiplomaticState(GameSession session, CountryStatus status) {
+    var updatedSession = session;
+    var currentStatus = status;
+
+    // 貿易協定から年間収入を月単位で適用（概算）
+    final yearlyTradeIncome =
+        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
+          return sum + (deal.isActive ? deal.yearlyIncome : 0);
+        });
+    final yearlyTradeExpense =
+        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
+          return sum + (deal.isActive ? deal.yearlyExpense : 0);
+        });
+
+    // 月間ベースの貿易ネット（年間÷12）
+    final monthlyTradeNet = (yearlyTradeIncome - yearlyTradeExpense) / 12;
+
+    // 制裁による月間経済ダメージを計算
+    double totalSanctionImpact = 0;
+    for (final sanction in updatedSession.activeSanctions) {
+      if (sanction.plannedEndDate.isAfter(DateTime.now())) {
+        totalSanctionImpact += sanction.monthlyEconomicImpact;
+      }
+    }
+
+    // 戦争中の場合、軍事ダメージと経済ダメージを適用
+    double warDamage = 0;
+    if (updatedSession.warEnemyId != null && updatedSession.warStartDate != null) {
+      // 戦争での月間コスト（戦争中の毎月）
+      warDamage = 200000; // $200K/月の基本戦争コスト
+    }
+
+    // GDP の経済マイナスを計算
+    final totalMonthlyDamage = totalSanctionImpact + warDamage;
+    final gdpDamagePercent = (totalMonthlyDamage / (currentStatus.gdp * 1000000)) * 100;
+
+    // 満足度への影響（戦争と制裁）
+    double satisfactionImpact = 0;
+    if (updatedSession.warEnemyId != null) {
+      satisfactionImpact -= 1; // 毎月-1%の満足度低下
+    }
+    if (updatedSession.activeSanctions.isNotEmpty) {
+      satisfactionImpact -= 0.5;
+    }
+
+    // ステータスを更新（貿易収入と戦争/制裁ダメージを反映）
+    currentStatus = currentStatus.copyWith(
+      gdp: (currentStatus.gdp - (totalMonthlyDamage / 1000000)).clamp(0.1, double.infinity),
+      satisfaction:
+          (currentStatus.satisfaction + satisfactionImpact).clamp(0.0, 100.0),
+    );
+
+    updatedSession = updatedSession.copyWith(
+      status: currentStatus,
+      economicDamageFromWar: updatedSession.economicDamageFromWar + warDamage,
+      foreignDebt: updatedSession.foreignDebt + totalSanctionImpact,
+    );
+
+    // 国際スタンディングを計算
+    final nationsCount = updatedSession.nationRelationships.length;
+    if (nationsCount > 0) {
+      double totalStanding = 0;
+      for (final rel in updatedSession.nationRelationships.values) {
+        totalStanding += rel.standingScore;
+      }
+      final avgStanding = totalStanding / nationsCount;
+      final internationalStanding = ((avgStanding + 100) / 2).clamp(0.0, 100.0);
+
+      updatedSession = updatedSession.copyWith(
+        internationalStanding: internationalStanding,
+      );
+    }
+
+    return updatedSession;
+  }
+
   Future<void> continueToNextYear() async {
     try {
       final session = state.session;
@@ -620,53 +700,57 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
       final yearEndStatus = _logic.simulateYearPassed(session.status);
 
+      // 外交システムの状態を更新（貿易収入/支出、戦争ダメージ、制裁影響）
+      var sessionWithDiplomacy = _updateDiplomaticState(session, yearEndStatus);
+      var finalYearEndStatus = sessionWithDiplomacy.status;
+
       // 年末の国家指標をスナップショットとして記録（UI/UX改善用）
       final snapshot = IndicatorSnapshot(
-        year: yearEndStatus.year,
-        day: yearEndStatus.day,
-        gdp: yearEndStatus.gdp,
-        unemployment: yearEndStatus.unemployment,
-        satisfaction: yearEndStatus.satisfaction,
-        nationalPower: yearEndStatus.nationalPower,
-        inflationRate: yearEndStatus.inflationRate,
-        publicDebt: yearEndStatus.publicDebt,
-        stability: yearEndStatus.stability,
+        year: finalYearEndStatus.year,
+        day: finalYearEndStatus.day,
+        gdp: finalYearEndStatus.gdp,
+        unemployment: finalYearEndStatus.unemployment,
+        satisfaction: finalYearEndStatus.satisfaction,
+        nationalPower: finalYearEndStatus.nationalPower,
+        inflationRate: finalYearEndStatus.inflationRate,
+        publicDebt: finalYearEndStatus.publicDebt,
+        stability: finalYearEndStatus.stability,
       );
 
       final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
         ..add(snapshot);
 
       // 選挙チェック：4年ごとに実施
-      var finalSession = session.copyWith(
-        status: yearEndStatus,
+      var finalSession = sessionWithDiplomacy.copyWith(
+        status: finalYearEndStatus,
         lastPlayedAt: DateTime.now(),
         indicatorHistory: updatedHistory,
       );
 
       // キャンペーンのクリーンアップ：完了したキャンペーンを削除
       final activeCampaigns = session.activeCampaigns
-          .where((c) => !c.isCompleted(yearEndStatus.year, yearEndStatus.week))
+          .where((c) => !c.isCompleted(finalYearEndStatus.year, finalYearEndStatus.week))
           .toList();
 
       final rivalCampaigns = session.rivalCampaigns
-          .where((c) => !c.isCompleted(yearEndStatus.year, yearEndStatus.week))
+          .where((c) => !c.isCompleted(finalYearEndStatus.year, finalYearEndStatus.week))
           .toList();
 
       // スキャンダルのクリーンアップ：解決済みスキャンダルを削除
       final activeScandalsList = session.activeScandalsList
-          .where((s) => !s.isResolved(yearEndStatus.year, yearEndStatus.week))
+          .where((s) => !s.isResolved(finalYearEndStatus.year, finalYearEndStatus.week))
           .toList();
 
       // 政治政党の状態を毎年更新
       final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
-      final gdpChange = yearEndStatus.gdp - session.status.gdp;
-      final economicTrend = (yearEndStatus.gdp > 0) ? (gdpChange / yearEndStatus.gdp) * 100 : 0;
-      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+      final gdpChange = finalYearEndStatus.gdp - session.status.gdp;
+      final economicTrend = (finalYearEndStatus.gdp > 0) ? (gdpChange / finalYearEndStatus.gdp) * 100 : 0;
+      final satisfactionChange = finalYearEndStatus.satisfaction - session.status.satisfaction;
 
       _logic.updatePoliticalPartyStates(
         updatedParties,
-        playerSatisfaction: yearEndStatus.satisfaction,
-        playerStability: yearEndStatus.stability,
+        playerSatisfaction: finalYearEndStatus.satisfaction,
+        playerStability: finalYearEndStatus.stability,
         economicTrend: economicTrend,
         satisfactionChange: satisfactionChange,
       );
@@ -674,7 +758,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       // 選挙年の場合は予算を補充
       double newCampaignBudget = session.campaignBudget;
       double newSpentBudget = 0;
-      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+      if (_logic.shouldHoldElection(finalYearEndStatus.year)) {
         // 選挙年：予算を リセット
         newCampaignBudget = 500.0; // 500万単位
         newSpentBudget = 0.0;
@@ -705,10 +789,10 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         weeksSinceDebate: updatedWeeksSinceDebate,
       );
 
-      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+      if (_logic.shouldHoldElection(finalYearEndStatus.year)) {
         // 選挙年：ライバル候補者を初期化
         final rivalCandidates = _logic.initializeRivalCandidatesForElection(
-          year: yearEndStatus.year,
+          year: finalYearEndStatus.year,
           playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
           playerSocialPolicy: 0,
           playerMilitaryPolicy: 0,
@@ -720,13 +804,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           scheduledDebate = _logic.scheduleDebate(
             session: finalSession,
             opponent: rivalCandidates.first,
-            electionYear: yearEndStatus.year,
+            electionYear: finalYearEndStatus.year,
           );
         }
 
         final electionResult = _logic.calculateElectionResult(
           sessionId: session.id,
-          year: yearEndStatus.year,
+          year: finalYearEndStatus.year,
           session: finalSession,
           rivals: rivalCandidates,
           difficulty: session.difficulty,

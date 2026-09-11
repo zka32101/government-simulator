@@ -9,6 +9,7 @@ import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/election_result.dart';
+import 'package:government_simulator/models/international_relations.dart';
 
 class GameSession {
   final String id;
@@ -73,6 +74,20 @@ class GameSession {
   final bool gameEnded; // Whether game ended by election loss
   final GameEndReason? endReason; // Reason for game end
 
+  // 外交・国際関係システム
+  final Map<String, NationRelationship> nationRelationships; // 各国との関係
+  final List<DiplomaticEvent> activeInternationalEvents; // 現在のイベント
+  final List<DiplomaticEvent> historicalInternationalEvents; // 過去のイベント
+  final String? warEnemyId; // 戦争中の敵国ID（nullなら平時）
+  final DateTime? warStartDate; // 戦争開始日時
+  final double militaryLosses; // 累積軍事損失
+  final double economicDamageFromWar; // 戦争による経済ダメージ
+  final double internationalStanding; // 国際的スタンディング（0-100）
+  final List<DiplomaticSanction> activeSanctions; // 現在の制裁
+  final List<TradeAgreement> activeTradeDeals; // 現在の貿易協定
+  final double foreignDebt; // 外国からの借金
+  final double foreignCreditRating; // 国際信用格付け（0-100）
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -111,6 +126,18 @@ class GameSession {
     this.currentMandate,
     this.gameEnded = false,
     this.endReason,
+    this.nationRelationships = const {},
+    this.activeInternationalEvents = const [],
+    this.historicalInternationalEvents = const [],
+    this.warEnemyId,
+    this.warStartDate,
+    this.militaryLosses = 0.0,
+    this.economicDamageFromWar = 0.0,
+    this.internationalStanding = 50.0, // デフォルト中立
+    this.activeSanctions = const [],
+    this.activeTradeDeals = const [],
+    this.foreignDebt = 0.0,
+    this.foreignCreditRating = 80.0, // デフォルト信用度
   });
 
   // プレイ時間（分）
@@ -176,6 +203,18 @@ class GameSession {
     String? currentMandate,
     bool? gameEnded,
     GameEndReason? endReason,
+    Map<String, NationRelationship>? nationRelationships,
+    List<DiplomaticEvent>? activeInternationalEvents,
+    List<DiplomaticEvent>? historicalInternationalEvents,
+    String? warEnemyId,
+    DateTime? warStartDate,
+    double? militaryLosses,
+    double? economicDamageFromWar,
+    double? internationalStanding,
+    List<DiplomaticSanction>? activeSanctions,
+    List<TradeAgreement>? activeTradeDeals,
+    double? foreignDebt,
+    double? foreignCreditRating,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -216,6 +255,18 @@ class GameSession {
       currentMandate: currentMandate ?? this.currentMandate,
       gameEnded: gameEnded ?? this.gameEnded,
       endReason: endReason ?? this.endReason,
+      nationRelationships: nationRelationships ?? this.nationRelationships,
+      activeInternationalEvents: activeInternationalEvents ?? this.activeInternationalEvents,
+      historicalInternationalEvents: historicalInternationalEvents ?? this.historicalInternationalEvents,
+      warEnemyId: warEnemyId ?? this.warEnemyId,
+      warStartDate: warStartDate ?? this.warStartDate,
+      militaryLosses: militaryLosses ?? this.militaryLosses,
+      economicDamageFromWar: economicDamageFromWar ?? this.economicDamageFromWar,
+      internationalStanding: internationalStanding ?? this.internationalStanding,
+      activeSanctions: activeSanctions ?? this.activeSanctions,
+      activeTradeDeals: activeTradeDeals ?? this.activeTradeDeals,
+      foreignDebt: foreignDebt ?? this.foreignDebt,
+      foreignCreditRating: foreignCreditRating ?? this.foreignCreditRating,
     );
   }
 
@@ -258,6 +309,23 @@ class GameSession {
       'currentMandate': currentMandate,
       'gameEnded': gameEnded,
       'endReason': endReason?.name,
+      'nationRelationships': nationRelationships
+          .map((key, value) => MapEntry(key, value.toMap())),
+      'activeInternationalEvents': activeInternationalEvents
+          .map((e) => e.toMap())
+          .toList(),
+      'historicalInternationalEvents': historicalInternationalEvents
+          .map((e) => e.toMap())
+          .toList(),
+      'warEnemyId': warEnemyId,
+      'warStartDate': warStartDate?.toIso8601String(),
+      'militaryLosses': militaryLosses,
+      'economicDamageFromWar': economicDamageFromWar,
+      'internationalStanding': internationalStanding,
+      'activeSanctions': activeSanctions.map((s) => s.toMap()).toList(),
+      'activeTradeDeals': activeTradeDeals.map((t) => t.toMap()).toList(),
+      'foreignDebt': foreignDebt,
+      'foreignCreditRating': foreignCreditRating,
     };
   }
 
@@ -358,6 +426,45 @@ class GameSession {
       endReason: map['endReason'] != null
           ? GameEndReason.values.byName(map['endReason'] as String)
           : null,
+      nationRelationships: map['nationRelationships'] != null
+          ? Map<String, NationRelationship>.from(
+              (map['nationRelationships'] as Map<String, dynamic>).map(
+                (k, v) => MapEntry(
+                  k as String,
+                  NationRelationship.fromMap(v as Map<String, dynamic>),
+                ),
+              ),
+            )
+          : const {},
+      activeInternationalEvents: (map['activeInternationalEvents'] as List?)
+              ?.map((e) => DiplomaticEvent.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      historicalInternationalEvents:
+          (map['historicalInternationalEvents'] as List?)
+                  ?.map((e) => DiplomaticEvent.fromMap(e as Map<String, dynamic>))
+                  .toList() ??
+              const [],
+      warEnemyId: map['warEnemyId'] as String?,
+      warStartDate: map['warStartDate'] != null
+          ? DateTime.tryParse(map['warStartDate'] as String)
+          : null,
+      militaryLosses: (map['militaryLosses'] as num?)?.toDouble() ?? 0.0,
+      economicDamageFromWar:
+          (map['economicDamageFromWar'] as num?)?.toDouble() ?? 0.0,
+      internationalStanding:
+          (map['internationalStanding'] as num?)?.toDouble() ?? 50.0,
+      activeSanctions: (map['activeSanctions'] as List?)
+              ?.map((s) => DiplomaticSanction.fromMap(s as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      activeTradeDeals: (map['activeTradeDeals'] as List?)
+              ?.map((t) => TradeAgreement.fromMap(t as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      foreignDebt: (map['foreignDebt'] as num?)?.toDouble() ?? 0.0,
+      foreignCreditRating:
+          (map['foreignCreditRating'] as num?)?.toDouble() ?? 80.0,
     );
   }
 }
