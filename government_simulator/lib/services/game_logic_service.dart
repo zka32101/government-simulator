@@ -1064,11 +1064,11 @@ class GameLogicService {
 
     // サンプルサイズに基づいて誤差範囲を計算
     // 大きなサンプルサイズほど誤差が小さい
-    final marginOfError = (50 / (sampleSize / 100).sqrt()).clamp(2, 10);
+    final marginOfError = (50 / sqrt(sampleSize / 100)).clamp(2.0, 10.0);
 
     // ランダムなサンプリング誤差を追加
     final samplingError = (_random.nextDouble() - 0.5) * marginOfError;
-    final measuredSupport = (trueSupportRate * 100 + samplingError).clamp(0, 100);
+    final measuredSupport = (trueSupportRate * 100 + samplingError).clamp(0.0, 100.0).toDouble();
 
     return Poll(
       id: _uuid.v4(),
