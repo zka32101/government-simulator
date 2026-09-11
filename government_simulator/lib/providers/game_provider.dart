@@ -375,128 +375,126 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     required String narrative,
     Faction? promiseTarget,
   }) async {
-    try {
-      final session = state.session;
-      if (session == null) return ChoiceResult.empty();
+    final session = state.session;
+    if (session == null) return ChoiceResult.empty();
 
-      // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
-      final baseStatus = session.status.copyWith(
-        day: session.status.day + 1,
-        decisionsCount: session.status.decisionsCount + 1,
-        lastUpdated: DateTime.now(),
-      );
-      var newStatus = _logic.applyImpact(baseStatus, impact);
+    // dayを1日進める（年末は呼び出し側でcontinueToNextYear）
+    final baseStatus = session.status.copyWith(
+      day: session.status.day + 1,
+      decisionsCount: session.status.decisionsCount + 1,
+      lastUpdated: DateTime.now(),
+    );
+    var newStatus = _logic.applyImpact(baseStatus, impact);
 
-      // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
-      final ministerDeltas = _logic.deriveMinisterImpact(impact,
-          corruption: newStatus.corruption);
-      var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
-      final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
-      if (betrayedRole != null) {
-        newCabinet = newCabinet.markBetrayed(betrayedRole);
-        newStatus = newStatus.copyWith(
-          stability: (newStatus.stability - 15).clamp(0, 100),
-          satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
-        );
-      }
-      newStatus = newStatus.copyWith(cabinet: newCabinet);
-
-      // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
-      var activePromises = session.activePromises;
-      if (promiseTarget != null) {
-        activePromises = [
-          ...activePromises,
-          _logic.makePromise(promiseTarget, newStatus),
-        ];
-      }
-      final resolution = _logic.resolvePromises(activePromises, newStatus);
-      newStatus = newStatus.copyWith(factions: resolution.factions);
-      activePromises = resolution.remaining;
-
-      // インパクトスコア/成功判定は、内閣裏切り・公約破棄による追加の
-      // ステータス変動まで織り込んだ「最終的な」newStatus を基に算出する。
-      // 以前はこれらの効果が適用される前の中間状態から計算していたため、
-      // 裏切りが起きたターンでは「決定の結果」画面の評価やAI生成される
-      // 統治記録の文章が、実際の変化量と食い違うことがあった。
-      final impactScore =
-          _logic.calculateImpactScore(session.status, newStatus);
-      final isPositive = _logic.wasPositiveOutcome(impact, session.status);
-
-      final decision = Decision(
-        // セッションID+ミリ秒タイムスタンプでは、同一ミリ秒内に2回
-        // applyChoice が呼ばれた場合にIDが衝突し、Firestore上で片方の
-        // Decision が silently 上書きされて消えてしまっていたため、
-        // 他のモデル（セッション・公約等）と同様に UUID を用いる。
-        id: _uuid.v4(),
-        sessionId: session.id,
-        eventId: eventId,
-        chosenChoiceId: choiceId,
-        decidedAt: DateTime.now(),
-        narrative: narrative,
-        impactScore: impactScore,
-        appliedImpact: impact,
-        wasPositiveOutcome: isPositive,
-        beforeStatus: session.status,
-        afterStatus: newStatus,
-      );
-
-      var updatedSession = session.copyWith(
-        status: newStatus,
-        lastPlayedAt: DateTime.now(),
-        totalDecisions: session.totalDecisions + 1,
-        positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
-        negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
-        activePromises: activePromises,
-      );
-
-      // 実績判定
-      final newAchievements =
-          Achievements.checkNew(updatedSession, session.unlockedAchievements);
-      if (newAchievements.isNotEmpty) {
-        updatedSession = updatedSession.copyWith(
-          unlockedAchievements: [
-            ...session.unlockedAchievements,
-            ...newAchievements.map((a) => a.id),
-          ],
-        );
-      }
-
-      // ゲームオーバー判定
-      final gameOver = _logic.checkGameOver(newStatus);
-
-      await _firestore.batchUpdateSession(updatedSession, decision);
-
-      state = state.copyWith(
-        session: updatedSession,
-        decisions: [...state.decisions, decision],
-      );
-
-      // アナリティクス：ポリシー選択を追跡
-      unawaited(_analytics.trackPolicyChosen(
-        policyId: choiceId,
-        policyName: choiceId,
-        eventCategory: eventId,
-        impactScore: impactScore,
-        year: newStatus.year,
-        day: newStatus.day,
-      ));
-
-      // アナリティクス：実績解除を追跡
-      for (final achievement in newAchievements) {
-        unawaited(_analytics.trackAchievementUnlocked(
-          achievementId: achievement.id,
-          achievementName: achievement.name,
-          year: newStatus.year,
-        ));
-      }
-
-      return ChoiceResult(
-        newAchievements: newAchievements,
-        gameOver: gameOver,
-        betrayedMinister: betrayedRole,
-        promiseResolutions: resolution.resolutions,
+    // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
+    final ministerDeltas = _logic.deriveMinisterImpact(impact,
+        corruption: newStatus.corruption);
+    var newCabinet = newStatus.cabinet.applyDeltas(ministerDeltas);
+    final betrayedRole = _logic.checkMinisterBetrayal(newCabinet);
+    if (betrayedRole != null) {
+      newCabinet = newCabinet.markBetrayed(betrayedRole);
+      newStatus = newStatus.copyWith(
+        stability: (newStatus.stability - 15).clamp(0, 100),
+        satisfaction: (newStatus.satisfaction - 10).clamp(0, 100),
       );
     }
+    newStatus = newStatus.copyWith(cabinet: newCabinet);
+
+    // 二枚舌外交：新しい公約を記録し、期限が来た公約を判定する
+    var activePromises = session.activePromises;
+    if (promiseTarget != null) {
+      activePromises = [
+        ...activePromises,
+        _logic.makePromise(promiseTarget, newStatus),
+      ];
+    }
+    final resolution = _logic.resolvePromises(activePromises, newStatus);
+    newStatus = newStatus.copyWith(factions: resolution.factions);
+    activePromises = resolution.remaining;
+
+    // インパクトスコア/成功判定は、内閣裏切り・公約破棄による追加の
+    // ステータス変動まで織り込んだ「最終的な」newStatus を基に算出する。
+    // 以前はこれらの効果が適用される前の中間状態から計算していたため、
+    // 裏切りが起きたターンでは「決定の結果」画面の評価やAI生成される
+    // 統治記録の文章が、実際の変化量と食い違うことがあった。
+    final impactScore =
+        _logic.calculateImpactScore(session.status, newStatus);
+    final isPositive = _logic.wasPositiveOutcome(impact, session.status);
+
+    final decision = Decision(
+      // セッションID+ミリ秒タイムスタンプでは、同一ミリ秒内に2回
+      // applyChoice が呼ばれた場合にIDが衝突し、Firestore上で片方の
+      // Decision が silently 上書きされて消えてしまっていたため、
+      // 他のモデル（セッション・公約等）と同様に UUID を用いる。
+      id: _uuid.v4(),
+      sessionId: session.id,
+      eventId: eventId,
+      chosenChoiceId: choiceId,
+      decidedAt: DateTime.now(),
+      narrative: narrative,
+      impactScore: impactScore,
+      appliedImpact: impact,
+      wasPositiveOutcome: isPositive,
+      beforeStatus: session.status,
+      afterStatus: newStatus,
+    );
+
+    var updatedSession = session.copyWith(
+      status: newStatus,
+      lastPlayedAt: DateTime.now(),
+      totalDecisions: session.totalDecisions + 1,
+      positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
+      negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
+      activePromises: activePromises,
+    );
+
+    // 実績判定
+    final newAchievements =
+        Achievements.checkNew(updatedSession, session.unlockedAchievements);
+    if (newAchievements.isNotEmpty) {
+      updatedSession = updatedSession.copyWith(
+        unlockedAchievements: [
+          ...session.unlockedAchievements,
+          ...newAchievements.map((a) => a.id),
+        ],
+      );
+    }
+
+    // ゲームオーバー判定
+    final gameOver = _logic.checkGameOver(newStatus);
+
+    await _firestore.batchUpdateSession(updatedSession, decision);
+
+    state = state.copyWith(
+      session: updatedSession,
+      decisions: [...state.decisions, decision],
+    );
+
+    // アナリティクス：ポリシー選択を追跡
+    unawaited(_analytics.trackPolicyChosen(
+      policyId: choiceId,
+      policyName: choiceId,
+      eventCategory: eventId,
+      impactScore: impactScore,
+      year: newStatus.year,
+      day: newStatus.day,
+    ));
+
+    // アナリティクス：実績解除を追跡
+    for (final achievement in newAchievements) {
+      unawaited(_analytics.trackAchievementUnlocked(
+        achievementId: achievement.id,
+        achievementName: achievement.name,
+        year: newStatus.year,
+      ));
+    }
+
+    return ChoiceResult(
+      newAchievements: newAchievements,
+      gameOver: gameOver,
+      betrayedMinister: betrayedRole,
+      promiseResolutions: resolution.resolutions,
+    );
   }
 
   void loadExisting(GameSession session, List<Decision> decisions) {
