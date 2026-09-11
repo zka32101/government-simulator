@@ -63,51 +63,109 @@ setUserGameCompletions(count)        // Number of completed games
 
 ## Integration Points
 
-### 1. Authentication Flow (lib/providers/authentication_provider.dart)
+### Phase 3B.2: Authentication Flow (lib/providers/authentication_provider.dart)
+✓ **COMPLETE** - Updated AuthStateNotifier with full analytics integration
+
 ```dart
-// In AuthStateNotifier methods:
-ref.read(analyticsServiceProvider).setUserId(user.uid);
-ref.read(analyticsServiceProvider).setUserAuthenticated(true);
-ref.read(analyticsServiceProvider).setUserAuthenticated(false); // on signOut
+// AuthStateNotifier constructor
+AuthStateNotifier(this._authService, this._analytics) : super(const AuthState())
+
+// On successful sign-in/sign-up:
+await _analytics.setUserId(user.uid);
+await _analytics.setUserAuthenticated(true);
+await _analytics.trackScreenView('home_screen');
+
+// On authentication failure:
+await _analytics.trackError(
+  errorCode: 'email_signin_failed',
+  errorMessage: e.message,
+  context: 'AuthStateNotifier.signInWithEmail',
+);
+
+// On sign-out:
+await _analytics.setUserAuthenticated(false);
 ```
 
-### 2. Game Session (lib/providers/game_provider.dart)
+### Phase 3B.3: Game Session (lib/providers/game_provider.dart)
+✓ **COMPLETE** - Full analytics event tracking for game lifecycle
+
 ```dart
-// Track game start
-await ref.read(trackGameStartedProvider(request).future);
+// Game start events
+await _analytics.trackGameStarted(
+  countryName: countryName,
+  difficulty: difficulty,
+  scenarioId: scenarioId, // 'standard', 'scenario', 'stage', or 'continuation'
+);
 
-// Track policy decisions in _handleChoice
-await ref.read(trackPolicyChosenProvider(request).future);
+// Policy choice tracking
+unawaited(_analytics.trackPolicyChosen(
+  policyId: choiceId,
+  policyName: choiceId,
+  eventCategory: eventId,
+  impactScore: impactScore,
+  year: newStatus.year,
+  day: newStatus.day,
+));
 
-// Track year end in _onContinueYear
-await ref.read(trackYearEndProvider(request).future);
+// Achievement unlock tracking
+unawaited(_analytics.trackAchievementUnlocked(
+  achievementId: achievement.id,
+  achievementName: achievement.name,
+  year: newStatus.year,
+));
 
-// Track game over in _onRestartGame
-await ref.read(trackGameOverProvider(request).future);
+// Year end tracking
+unawaited(_analytics.trackYearEnd(
+  year: yearEndStatus.year - 1,
+  satisfactionChange: satisfactionChange,
+  gdpChange: gdpChange,
+  decisionsInYear: session.status.decisionsCount,
+));
 ```
 
-### 3. Home Screen (lib/screens/home_screen.dart)
+### Phase 3B.3: HomeScreen (lib/screens/home_screen.dart)
+✓ **COMPLETE** - Screen view tracking
+
 ```dart
-// Track screen view on build
+// In initState with WidgetsBinding callback:
 ref.read(analyticsServiceProvider).trackScreenView('home_screen');
-
-// Track policy choices
-ref.read(analyticsServiceProvider).trackPolicyChosen(...);
 ```
 
-### 4. Achievement System (lib/models/achievement.dart)
+### Phase 3B.3: SettingsScreen (lib/screens/settings_screen.dart)
+✓ **COMPLETE** - Converted to ConsumerStatefulWidget with tracking
+
 ```dart
-// When achievement unlocks
-await ref.read(trackAchievementUnlockedProvider(request).future);
+// Screen view tracking
+ref.read(analyticsServiceProvider).trackScreenView('settings_screen');
+
+// Settings change tracking
+ref.read(analyticsServiceProvider).trackUserSettings(
+  settingKey: 'sound_enabled',
+  settingValue: value.toString(),
+);
+
+ref.read(analyticsServiceProvider).trackUserSettings(
+  settingKey: 'notifications_enabled',
+  settingValue: value.toString(),
+);
 ```
 
-### 5. Settings Screen (lib/screens/settings_screen.dart)
-```dart
-// Track setting changes
-ref.read(analyticsServiceProvider).trackUserSettings('setting_key', 'new_value');
+### Phase 3B.3: GameOverScreen (lib/screens/game_over_screen.dart)
+✓ **COMPLETE** - Converted to ConsumerStatefulWidget with game over tracking
 
-// Track analytics enable/disable
-ref.read(analyticsServiceProvider).setAnalyticsEnabled(enabled);
+```dart
+// Screen view tracking
+ref.read(analyticsServiceProvider).trackScreenView('game_over_screen');
+
+// Game over event tracking
+await _analytics.trackGameOver(
+  gameOverType: widget.type.name,
+  year: s.status.year,
+  totalDecisions: s.totalDecisions,
+  finalHealthScore: s.status.stability,
+  finalSatisfaction: s.status.satisfaction,
+  finalGdp: s.status.gdp,
+);
 ```
 
 ## Firebase Console Configuration
@@ -150,20 +208,30 @@ In **Analytics** > **Custom Reports**, set up dashboards for:
 
 ### Phase 3B Timeline
 1. **3B1**: Analytics Service & Provider (✓ Complete)
-2. **3B2**: Authentication Integration (Next)
-   - Track sign-in/sign-up events
-   - Set user ID and authenticated property
+2. **3B2**: Authentication Integration (✓ Complete)
+   - ✓ Track sign-in/sign-up events with user ID setting
+   - ✓ Set user ID and authenticated property on auth success
+   - ✓ Track errors on auth failure (email_signin_failed, email_signup_failed, etc.)
+   - ✓ Integrated into AuthStateNotifier with full error handling
    
-3. **3B3**: Game Session Integration
-   - Track game start, policy choices, year end, game over
-   - Track achievement unlocks
+3. **3B3**: Game Session Integration (✓ Complete)
+   - ✓ Track game_started in loadOrCreate, loadOrCreateFromScenario, loadOrCreateFromStage, startNewYear
+   - ✓ Track policy_chosen with impact scores in applyChoice
+   - ✓ Track achievement_unlocked when achievements are earned
+   - ✓ Track year_end with satisfaction/GDP changes in continueToNextYear
+   - ✓ Track home_screen, settings_screen, game_over_screen views
+   - ✓ Track user_settings_changed for preference toggles
+   - ✓ Track game_over with final status indicators
+   - ✓ Implemented in GameSessionProvider, HomeScreen, SettingsScreen, GameOverScreen
    
-4. **3B4**: Error Handling Integration
-   - Integrate analytics error logging into exception handlers
+4. **3B4**: Error Handling Integration (In Progress)
+   - [ ] Integrate analytics error logging into exception handlers
+   - [ ] Add error tracking to firestore_service failures
+   - [ ] Add error tracking to game logic exceptions
    
-5. **3B5**: Dashboard & Analytics Report
-   - Create analytics dashboard documentation
-   - Guide for viewing user insights
+5. **3B5**: Dashboard & Analytics Report (Pending)
+   - [ ] Create analytics dashboard documentation
+   - [ ] Guide for viewing user insights
 
 ## Testing Analytics Locally
 
