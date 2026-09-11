@@ -7,6 +7,7 @@ import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/debate.dart';
 
 class GameSession {
   final String id;
@@ -57,6 +58,12 @@ class GameSession {
   final int playerReputation; // 0-100 (affects scandal intensity)
   final int mediaFavoring; // -50 to +50 (affects coverage)
 
+  // 討論会・システム
+  final List<Debate> debateHistory; // All debates in this session
+  final Debate? upcomingDebate; // Next scheduled debate
+  final double debateEffectsMultiplier; // Campaign effectiveness modifier post-debate
+  final int weeksSinceDebate; // For applying/removing debate effects
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -85,6 +92,10 @@ class GameSession {
     this.activeScandalsList = const [],
     this.playerReputation = 50,
     this.mediaFavoring = 0,
+    this.debateHistory = const [],
+    this.upcomingDebate,
+    this.debateEffectsMultiplier = 1.0,
+    this.weeksSinceDebate = 0,
   });
 
   // プレイ時間（分）
@@ -140,6 +151,10 @@ class GameSession {
     List<Scandal>? activeScandalsList,
     int? playerReputation,
     int? mediaFavoring,
+    List<Debate>? debateHistory,
+    Debate? upcomingDebate,
+    double? debateEffectsMultiplier,
+    int? weeksSinceDebate,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -169,6 +184,11 @@ class GameSession {
       activeScandalsList: activeScandalsList ?? this.activeScandalsList,
       playerReputation: playerReputation ?? this.playerReputation,
       mediaFavoring: mediaFavoring ?? this.mediaFavoring,
+      debateHistory: debateHistory ?? this.debateHistory,
+      upcomingDebate: upcomingDebate ?? this.upcomingDebate,
+      debateEffectsMultiplier:
+          debateEffectsMultiplier ?? this.debateEffectsMultiplier,
+      weeksSinceDebate: weeksSinceDebate ?? this.weeksSinceDebate,
     );
   }
 
@@ -201,6 +221,10 @@ class GameSession {
       'activeScandalsList': activeScandalsList.map((s) => s.toMap()).toList(),
       'playerReputation': playerReputation,
       'mediaFavoring': mediaFavoring,
+      'debateHistory': debateHistory.map((d) => d.toMap()).toList(),
+      'upcomingDebate': upcomingDebate?.toMap(),
+      'debateEffectsMultiplier': debateEffectsMultiplier,
+      'weeksSinceDebate': weeksSinceDebate,
     };
   }
 
@@ -281,6 +305,16 @@ class GameSession {
           const [],
       playerReputation: map['playerReputation'] ?? 50,
       mediaFavoring: map['mediaFavoring'] ?? 0,
+      debateHistory: (map['debateHistory'] as List?)
+              ?.map((d) => Debate.fromMap(d as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      upcomingDebate: map['upcomingDebate'] != null
+          ? Debate.fromMap(map['upcomingDebate'] as Map<String, dynamic>)
+          : null,
+      debateEffectsMultiplier:
+          (map['debateEffectsMultiplier'] as num?)?.toDouble() ?? 1.0,
+      weeksSinceDebate: map['weeksSinceDebate'] ?? 0,
     );
   }
 }

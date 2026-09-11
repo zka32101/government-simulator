@@ -683,6 +683,16 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         newSpentBudget = 0.0;
       }
 
+      // 討論会効果の減衰（4週間後に効果が切れる）
+      int updatedWeeksSinceDebate = finalSession.weeksSinceDebate + 1;
+      double debateEffectsMultiplier = 1.0;
+      if (updatedWeeksSinceDebate <= 4 && finalSession.upcomingDebate != null) {
+        debateEffectsMultiplier =
+            finalSession.upcomingDebate!.outcome?.campaignMultiplier ?? 1.0;
+      } else {
+        updatedWeeksSinceDebate = 0;
+      }
+
       finalSession = finalSession.copyWith(
         politicalParties: updatedParties,
         activeCampaigns: activeCampaigns,
@@ -690,6 +700,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         campaignBudget: newCampaignBudget,
         spentBudget: newSpentBudget,
         activeScandalsList: activeScandalsList,
+        debateEffectsMultiplier: debateEffectsMultiplier,
+        weeksSinceDebate: updatedWeeksSinceDebate,
       );
 
       if (_logic.shouldHoldElection(yearEndStatus.year)) {
@@ -700,6 +712,16 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           playerSocialPolicy: 0,
           playerMilitaryPolicy: 0,
         );
+
+        // 討論会をスケジュール設定（最初のライバルとの討論）
+        Debate? scheduledDebate;
+        if (rivalCandidates.isNotEmpty) {
+          scheduledDebate = _logic.scheduleDebate(
+            session: finalSession,
+            opponent: rivalCandidates.first,
+            electionYear: yearEndStatus.year,
+          );
+        }
 
         final electionResult = _logic.calculateElectionResult(
           sessionId: session.id,
@@ -714,6 +736,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         finalSession = finalSession.copyWith(
           elections: updatedElections,
           rivalCandidates: rivalCandidates,
+          upcomingDebate: scheduledDebate,
         );
 
         // 落選時はゲームオーバー

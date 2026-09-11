@@ -14,6 +14,7 @@ import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -1220,5 +1221,166 @@ class GameLogicService {
       activeScandalsList: updatedScandalsList,
       playerReputation: newReputation,
     );
+  }
+
+  /// 次の選挙のための討論会をスケジュール設定
+  Debate? scheduleDebate({
+    required GameSession session,
+    required RivalCandidate opponent,
+    required int electionYear,
+  }) {
+    // 既に討論会がスケジュールされていないか確認
+    if (session.upcomingDebate != null &&
+        session.upcomingDebate!.electionYear == electionYear) {
+      return null;
+    }
+
+    return Debate(
+      id: _uuid.v4(),
+      electionYear: electionYear,
+      rounds: [],
+      opponentId: opponent.id,
+      opponentName: opponent.name,
+      scheduledAt: DateTime.now(),
+      playerScore: 0.0,
+      rivalScore: 0.0,
+    );
+  }
+
+  /// 討論ラウンドのプレイヤーパフォーマンスを計算
+  double calculatePlayerRoundPerformance({
+    required GameSession session,
+    required DebateTopic topic,
+    required String difficulty,
+  }) {
+    // ベーススコア: 50
+    double score = 50.0;
+
+    // 政策マッチボーナス
+    final status = session.status;
+    final policyMatchBonus = _calculatePolicyMatchBonus(topic, status);
+    score += policyMatchBonus;
+
+    // 満足度：高いほど自信がある
+    final satisfactionBonus = (status.satisfaction / 100) * 15;
+    score += satisfactionBonus;
+
+    // 安定度：低いと緊張して悪くなる
+    final stabilityPenalty = (100 - status.stability) / 100 * 10;
+    score -= stabilityPenalty;
+
+    // 評判：高いほど説得力がある
+    final reputationBonus = (session.playerReputation / 100) * 10;
+    score += reputationBonus;
+
+    // スキャンダル：進行中のスキャンダルは信頼度を落とす
+    if (session.activeScandalsList.isNotEmpty) {
+      final activeScandalCount = session.activeScandalsList
+          .where((s) => s.involvedPersonId == null)
+          .length;
+      score -= activeScandalCount * 5;
+    }
+
+    // ランダム要素: パフォーマンスの変動 (±30)
+    final performanceVariation =
+        (_random.nextDouble() * 60) - 30;
+    score += performanceVariation;
+
+    return score.clamp(0.0, 100.0);
+  }
+
+  /// ライバルのラウンドパフォーマンスを計算
+  double calculateRivalRoundPerformance({
+    required RivalCandidate rival,
+    required DebateTopic topic,
+    required String difficulty,
+  }) {
+    // ベーススコア: 50
+    double score = 50.0;
+
+    // 難易度による調整
+    final difficultyMult = difficulty == 'hard'
+        ? 1.3
+        : difficulty == 'easy'
+            ? 0.7
+            : 1.0;
+
+    // ライバルの支持率が高いほど自信がある
+    final supportBonus = (rival.supportRating / 100) * 15;
+    score += supportBonus * difficultyMult;
+
+    // ライバルの政策一貫性
+    score += _random.nextDouble() * 20;
+
+    // ランダム要素
+    final performanceVariation =
+        (_random.nextDouble() * 60) - 30;
+    score += performanceVariation;
+
+    return score.clamp(0.0, 100.0);
+  }
+
+  /// 討論の勝者を決定
+  DebateOutcome determineDebateWinner({
+    required double playerScore,
+    required double rivalScore,
+  }) {
+    final difference = playerScore - rivalScore;
+
+    if (difference > 30) {
+      return DebateOutcome.dominantVictory;
+    } else if (difference > 15) {
+      return DebateOutcome.clearVictory;
+    } else if (difference > 5) {
+      return DebateOutcome.narrowVictory;
+    } else if (difference.abs() <= 5) {
+      return DebateOutcome.tie;
+    } else if (difference < -5) {
+      return DebateOutcome.narrowLoss;
+    } else if (difference < -15) {
+      return DebateOutcome.clearLoss;
+    } else {
+      return DebateOutcome.dominantLoss;
+    }
+  }
+
+  /// 討論結果から支持率変化を計算
+  double calculateDebateImpact({
+    required DebateOutcome outcome,
+  }) {
+    return outcome.supportChange;
+  }
+
+  /// トピックに基づいて政策マッチボーナスを計算
+  double _calculatePolicyMatchBonus(DebateTopic topic, CountryStatus status) {
+    switch (topic) {
+      case DebateTopic.economy:
+        // GDP成長政策を選択していれば+10
+        return (status.gdp > 1500) ? 10.0 : ((status.gdp > 1000) ? 5.0 : -5.0);
+
+      case DebateTopic.healthcare:
+        // 満足度が高ければ医療に投資している
+        return (status.satisfaction > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.security:
+        // 国力が高ければセキュリティに注力している
+        return (status.nationalPower > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.environment:
+        // 安定度が高ければ環境政策も充実
+        return (status.stability > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.infrastructure:
+        // GDP成長と安定度で判定
+        return ((status.gdp > 1000 && status.stability > 60)
+            ? 10.0
+            : (status.stability > 50)
+                ? 5.0
+                : -5.0);
+
+      case DebateTopic.education:
+        // 国力と国家人材を示唆する統計で判定
+        return (status.nationalPower > 60) ? 10.0 : -5.0;
+    }
   }
 }
