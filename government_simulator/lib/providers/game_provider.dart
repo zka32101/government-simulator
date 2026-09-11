@@ -16,6 +16,7 @@ import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -726,21 +727,28 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         final electionResult = _logic.calculateElectionResult(
           sessionId: session.id,
           year: yearEndStatus.year,
-          satisfaction: yearEndStatus.satisfaction,
-          stability: yearEndStatus.stability,
+          session: finalSession,
+          rivals: rivalCandidates,
+          difficulty: session.difficulty,
         );
 
-        final updatedElections = List<Election>.from(session.elections)
-          ..add(electionResult);
+        // 選挙スコアの累積平均を計算
+        final previousScore = session.cumulativeElectoralScore * session.successfulTerms;
+        final newCumulativeScore = (previousScore + electionResult.electoralScore) /
+            (session.successfulTerms + (electionResult.playerWon ? 1 : 0));
+
+        final newSuccessfulTerms = electionResult.playerWon ? session.successfulTerms + 1 : session.successfulTerms;
 
         finalSession = finalSession.copyWith(
-          elections: updatedElections,
+          lastElectionResult: electionResult,
+          successfulTerms: newSuccessfulTerms,
+          cumulativeElectoralScore: newCumulativeScore,
           rivalCandidates: rivalCandidates,
           upcomingDebate: scheduledDebate,
         );
 
         // 落選時はゲームオーバー
-        if (!electionResult.won) {
+        if (!electionResult.playerWon) {
           // 選挙落選によるゲームオーバーフラグを設定
           state = state.copyWith(
             session: finalSession,

@@ -15,6 +15,7 @@ import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/debate.dart';
+import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -1381,6 +1382,287 @@ class GameLogicService {
       case DebateTopic.education:
         // 国力と国家人材を示唆する統計で判定
         return (status.nationalPower > 60) ? 10.0 : -5.0;
+    }
+  }
+
+  /// プレイヤーの得票率を計算
+  double calculatePlayerVoteShare({
+    required GameSession session,
+    required CountryStatus status,
+    required List<Campaign> activeCampaigns,
+    required List<Scandal> activeScandalsList,
+    required Debate? debate,
+  }) {
+    // ベース支持率（満足度と安定度の平均）
+    double baseSupport =
+        ((status.satisfaction * 0.4) + (status.stability * 0.3) + (session.playerReputation * 0.3)) /
+            100 *
+            60;
+
+    // キャンペーン効果
+    double campaignBonus = 0.0;
+    for (final campaign in activeCampaigns) {
+      if (campaign.isActive) {
+        // 有効な状態のキャンペーンは +1 から +3% の効果
+        final effectiveness = (campaign.effectiveness ?? 0.5);
+        campaignBonus += 2.0 * effectiveness;
+      }
+    }
+    // キャンペーン効果にデバウンス乗数を適用
+    campaignBonus = campaignBonus * (1 + (session.debateEffectsMultiplier - 1) * 0.5);
+
+    // 討論会効果
+    double debateBonus = 0.0;
+    if (debate != null && debate.isCompleted) {
+      debateBonus = switch (debate.outcome!) {
+        DebateOutcome.dominantVictory => 10.0,
+        DebateOutcome.clearVictory => 6.0,
+        DebateOutcome.narrowVictory => 3.0,
+        DebateOutcome.tie => 0.5,
+        DebateOutcome.narrowLoss => -3.0,
+        DebateOutcome.clearLoss => -6.0,
+        DebateOutcome.dominantLoss => -10.0,
+      };
+    }
+
+    // スキャンダル影響
+    double scandalPenalty = 0.0;
+    for (final scandal in activeScandalsList) {
+      if (scandal.isActive) {
+        scandalPenalty += scandal.getWeeklyImpact();
+      }
+    }
+
+    // 最終的な得票率を計算し、0-100 にクランプ
+    double totalVoteShare = baseSupport + campaignBonus + debateBonus + scandalPenalty;
+    return totalVoteShare.clamp(0.0, 100.0);
+  }
+
+  /// ライバルの得票率を計算（AI難易度に応じた調整）
+  double calculateRivalVoteShare({
+    required RivalCandidate rival,
+    required double playerVoteShare,
+    required String difficulty,
+  }) {
+    // ライバルのベース支持率
+    double baseRivalSupport = rival.supportRating;
+
+    // 難易度による乗数（ハードなら敵が強い）
+    final difficultyMultiplier = switch (difficulty) {
+      'easy' => 0.8,
+      'normal' => 1.0,
+      'hard' => 1.2,
+      _ => 1.0,
+    };
+
+    // ライバルの支持率調整（プレイヤーの得票率に応じた市場シェア）
+    double adjustedRivalSupport = baseRivalSupport * difficultyMultiplier;
+
+    // 100未満の範囲に納める
+    return adjustedRivalSupport.clamp(0.0, 100.0);
+  }
+
+  /// 選挙結果を計算
+  ElectionResult calculateElectionResult({
+    required String sessionId,
+    required int year,
+    required GameSession session,
+    required List<RivalCandidate> rivals,
+    required String difficulty,
+  }) {
+    // プレイヤーの得票率を計算
+    final playerVote = calculatePlayerVoteShare(
+      session: session,
+      status: session.status,
+      activeCampaigns: session.activeCampaigns,
+      activeScandalsList: session.activeScandalsList,
+      debate: session.debateHistory.lastOrNull,
+    );
+
+    // ライバル候補者の得票率を計算
+    final rivalVotes = <String, double>{};
+    for (final rival in rivals) {
+      final rivalVote = calculateRivalVoteShare(
+        rival: rival,
+        playerVoteShare: playerVote,
+        difficulty: difficulty,
+      );
+      rivalVotes[rival.id] = rivalVote;
+    }
+
+    // 少数派候補の投票率を生成（3-5人、各2-8%）
+    final minorCandidateVotes = <String, double>{};
+    final minorCandidateCount = 3 + _random.nextInt(3);
+    double totalMinorVotes = 0.0;
+
+    for (int i = 0; i < minorCandidateCount; i++) {
+      final minorVote = 2.0 + (_random.nextInt(7) * 1.0);
+      minorCandidateVotes['minor_$i'] = minorVote;
+      totalMinorVotes += minorVote;
+    }
+
+    // 投票率を正規化（100%になるように調整）
+    final totalVotes = playerVote + rivalVotes.values.fold(0.0, (a, b) => a + b) + totalMinorVotes;
+    final scaleFactor = totalVotes > 0 ? 100.0 / totalVotes : 1.0;
+
+    final scaledPlayerVote = (playerVote * scaleFactor).clamp(0.0, 100.0);
+    final scaledRivalVotes = <String, double>{};
+    for (final entry in rivalVotes.entries) {
+      scaledRivalVotes[entry.key] = (entry.value * scaleFactor).clamp(0.0, 100.0);
+    }
+    final scaledMinorVotes = <String, double>{};
+    for (final entry in minorCandidateVotes.entries) {
+      scaledMinorVotes[entry.key] = (entry.value * scaleFactor).clamp(0.0, 100.0);
+    }
+
+    // 勝敗を決定
+    final maxRivalVote = scaledRivalVotes.values.isNotEmpty ? scaledRivalVotes.values.reduce((a, b) => a > b ? a : b) : 0.0;
+    final playerWon = scaledPlayerVote >= maxRivalVote && scaledPlayerVote >= 40;
+    final marginOfVictory = scaledPlayerVote - maxRivalVote;
+
+    // 勝利タイプを決定
+    final victoryType = _determineVictoryType(scaledPlayerVote, playerWon, marginOfVictory);
+
+    // 選挙パフォーマンススコアを計算
+    final electoralScore = calculateElectoralScore(
+      voteShare: scaledPlayerVote,
+      playerReputation: session.playerReputation,
+      debateOutcome: session.debateHistory.lastOrNull?.outcome,
+      campaignEfficiency: _calculateCampaignEfficiency(session),
+    );
+
+    // ナレーティブを生成
+    final narrativeText = _generateElectionNarrative(
+      voteShare: scaledPlayerVote,
+      victoryType: victoryType,
+      playerWon: playerWon,
+      marginOfVictory: marginOfVictory,
+      rivals: rivals,
+    );
+
+    return ElectionResult(
+      year: year,
+      playerVoteShare: scaledPlayerVote,
+      playerMarginOfVictory: marginOfVictory,
+      rivalVotes: scaledRivalVotes,
+      minorCandidateVotes: scaledMinorVotes,
+      playerWon: playerWon,
+      victoryType: victoryType,
+      electoralScore: electoralScore,
+      narrativeText: narrativeText,
+    );
+  }
+
+  /// 選挙パフォーマンススコアを計算（0-100）
+  double calculateElectoralScore({
+    required double voteShare,
+    required int playerReputation,
+    required DebateOutcome? debateOutcome,
+    required double campaignEfficiency,
+  }) {
+    // 得票率ベース（0-100の範囲から0-50を取得）
+    double baseScore = (voteShare / 100) * 50;
+
+    // 名声ボーナス（0-15）
+    double reputationBonus = (playerReputation / 100) * 15;
+
+    // 討論会ボーナス（0-20）
+    double debateBonus = 0.0;
+    if (debateOutcome != null) {
+      debateBonus = switch (debateOutcome) {
+        DebateOutcome.dominantVictory => 20.0,
+        DebateOutcome.clearVictory => 15.0,
+        DebateOutcome.narrowVictory => 10.0,
+        DebateOutcome.tie => 5.0,
+        DebateOutcome.narrowLoss => 0.0,
+        DebateOutcome.clearLoss => -5.0,
+        DebateOutcome.dominantLoss => -10.0,
+      };
+    }
+
+    // キャンペーン効率ボーナス（0-15）
+    double efficiencyBonus = (campaignEfficiency * 100).clamp(0.0, 100.0) / 100 * 15;
+
+    double totalScore = (baseScore + reputationBonus + debateBonus + efficiencyBonus).clamp(0.0, 100.0);
+    return totalScore;
+  }
+
+  /// キャンペーン効率を計算（支出と効果の比率）
+  double _calculateCampaignEfficiency(GameSession session) {
+    if (session.activeCampaigns.isEmpty) return 0.5;
+
+    double totalEffectiveness = 0.0;
+    for (final campaign in session.activeCampaigns) {
+      if (campaign.isActive) {
+        totalEffectiveness += campaign.effectiveness ?? 0.5;
+      }
+    }
+
+    final avgEffectiveness = totalEffectiveness / session.activeCampaigns.length;
+    return avgEffectiveness.clamp(0.0, 1.0);
+  }
+
+  /// 勝利タイプを決定
+  ElectionVictoryType _determineVictoryType(double playerVote, bool playerWon, double marginOfVictory) {
+    if (!playerWon) {
+      if (playerVote >= 45) {
+        return ElectionVictoryType.narrowLoss;
+      } else if (playerVote >= 35) {
+        return ElectionVictoryType.clearLoss;
+      } else {
+        return ElectionVictoryType.landslideDefeat;
+      }
+    }
+
+    // プレイヤーが勝った場合
+    if (playerVote >= 65) {
+      return ElectionVictoryType.dominantVictory;
+    } else if (playerVote >= 55) {
+      return ElectionVictoryType.clearVictory;
+    } else if (playerVote >= 50) {
+      return ElectionVictoryType.narrowVictory;
+    } else if (playerVote >= 40) {
+      return ElectionVictoryType.pluralityVictory;
+    }
+
+    return ElectionVictoryType.pluralityVictory;
+  }
+
+  /// 選挙ナレーティブを生成
+  String _generateElectionNarrative({
+    required double voteShare,
+    required ElectionVictoryType victoryType,
+    required bool playerWon,
+    required double marginOfVictory,
+    required List<RivalCandidate> rivals,
+  }) {
+    final mainRival = rivals.isNotEmpty ? rivals.first : null;
+
+    if (playerWon) {
+      if (victoryType == ElectionVictoryType.dominantVictory) {
+        return '圧倒的な勝利！${voteShare.toStringAsFixed(1)}%の得票率で、${mainRival?.name ?? "ライバル"}候補に大差をつけた。'
+            '国民は君の方針に強い支持を示した。';
+      } else if (victoryType == ElectionVictoryType.clearVictory) {
+        return '明確な勝利を収めた。${voteShare.toStringAsFixed(1)}%の支持で、${mainRival?.name ?? "ライバル"}候補を上回った。'
+            '次の任期での政策実行に向けて、国民の信任を得た。';
+      } else if (victoryType == ElectionVictoryType.narrowVictory) {
+        return '接戦を制した。${voteShare.toStringAsFixed(1)}%で50%を超え、辛くも勝利を手にした。'
+            '国民の声に耳を傾け、更なる成果を上げる必要がある。';
+      } else {
+        return '相対多数での勝利。${voteShare.toStringAsFixed(1)}%で最多得票を獲得したが、完全な過半数ではない。'
+            '政治的課題は多く、連携が求められる時代となった。';
+      }
+    } else {
+      if (victoryType == ElectionVictoryType.narrowLoss) {
+        return '僅差での敗北。${voteShare.toStringAsFixed(1)}%の支持を得たが、${mainRival?.name ?? "ライバル"}候補に及ばなかった。'
+            '再起を目指す次の機会に向けて、戦略を再考する必要がある。';
+      } else if (victoryType == ElectionVictoryType.clearLoss) {
+        return '明確な敗北。${voteShare.toStringAsFixed(1)}%の得票率は、${mainRival?.name ?? "ライバル"}候補の信任には届かなかった。'
+            '君の時代は終わり、新しい指導者の下で国は進む。';
+      } else {
+        return '圧倒的な敗北。わずか${voteShare.toStringAsFixed(1)}%の支持率で、国民は明確に君の方針を拒否した。'
+            '政治キャリアは終焉を迎えた。';
+      }
     }
   }
 }

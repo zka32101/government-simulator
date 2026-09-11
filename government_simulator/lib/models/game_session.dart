@@ -8,6 +8,7 @@ import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/debate.dart';
+import 'package:government_simulator/models/election_result.dart';
 
 class GameSession {
   final String id;
@@ -64,6 +65,14 @@ class GameSession {
   final double debateEffectsMultiplier; // Campaign effectiveness modifier post-debate
   final int weeksSinceDebate; // For applying/removing debate effects
 
+  // 選挙結果・システム
+  final ElectionResult? lastElectionResult;
+  final int successfulTerms; // Number of terms won
+  final double cumulativeElectoralScore; // Average across all elections
+  final String? currentMandate; // Policy mandate from election (e.g., "economic")
+  final bool gameEnded; // Whether game ended by election loss
+  final GameEndReason? endReason; // Reason for game end
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -96,6 +105,12 @@ class GameSession {
     this.upcomingDebate,
     this.debateEffectsMultiplier = 1.0,
     this.weeksSinceDebate = 0,
+    this.lastElectionResult,
+    this.successfulTerms = 0,
+    this.cumulativeElectoralScore = 0.0,
+    this.currentMandate,
+    this.gameEnded = false,
+    this.endReason,
   });
 
   // プレイ時間（分）
@@ -155,6 +170,12 @@ class GameSession {
     Debate? upcomingDebate,
     double? debateEffectsMultiplier,
     int? weeksSinceDebate,
+    ElectionResult? lastElectionResult,
+    int? successfulTerms,
+    double? cumulativeElectoralScore,
+    String? currentMandate,
+    bool? gameEnded,
+    GameEndReason? endReason,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -189,6 +210,12 @@ class GameSession {
       debateEffectsMultiplier:
           debateEffectsMultiplier ?? this.debateEffectsMultiplier,
       weeksSinceDebate: weeksSinceDebate ?? this.weeksSinceDebate,
+      lastElectionResult: lastElectionResult ?? this.lastElectionResult,
+      successfulTerms: successfulTerms ?? this.successfulTerms,
+      cumulativeElectoralScore: cumulativeElectoralScore ?? this.cumulativeElectoralScore,
+      currentMandate: currentMandate ?? this.currentMandate,
+      gameEnded: gameEnded ?? this.gameEnded,
+      endReason: endReason ?? this.endReason,
     );
   }
 
@@ -225,6 +252,12 @@ class GameSession {
       'upcomingDebate': upcomingDebate?.toMap(),
       'debateEffectsMultiplier': debateEffectsMultiplier,
       'weeksSinceDebate': weeksSinceDebate,
+      'lastElectionResult': lastElectionResult?.toMap(),
+      'successfulTerms': successfulTerms,
+      'cumulativeElectoralScore': cumulativeElectoralScore,
+      'currentMandate': currentMandate,
+      'gameEnded': gameEnded,
+      'endReason': endReason?.name,
     };
   }
 
@@ -315,8 +348,26 @@ class GameSession {
       debateEffectsMultiplier:
           (map['debateEffectsMultiplier'] as num?)?.toDouble() ?? 1.0,
       weeksSinceDebate: map['weeksSinceDebate'] ?? 0,
+      lastElectionResult: map['lastElectionResult'] != null
+          ? ElectionResult.fromMap(map['lastElectionResult'] as Map<String, dynamic>)
+          : null,
+      successfulTerms: map['successfulTerms'] ?? 0,
+      cumulativeElectoralScore: (map['cumulativeElectoralScore'] as num?)?.toDouble() ?? 0.0,
+      currentMandate: map['currentMandate'] as String?,
+      gameEnded: map['gameEnded'] ?? false,
+      endReason: map['endReason'] != null
+          ? GameEndReason.values.byName(map['endReason'] as String)
+          : null,
     );
   }
+}
+
+// Game end reason enum
+enum GameEndReason {
+  electionLoss,
+  economicCollapse,
+  politicalInstability,
+  playerRetirement,
 }
 
 // Difficulty enum

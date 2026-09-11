@@ -45,36 +45,36 @@ class Election {
   }
 }
 
-/// 選挙結果のタイプ
-enum ElectionResult {
+/// 選挙結果のシンプルな指標（勝敗のみ）
+enum SimpleElectionOutcome {
   won, // 再選成功
   lost, // 落選
 }
 
-extension ElectionResultExt on ElectionResult {
+extension SimpleElectionOutcomeExt on SimpleElectionOutcome {
   String get emoji {
     switch (this) {
-      case ElectionResult.won:
+      case SimpleElectionOutcome.won:
         return '🎉';
-      case ElectionResult.lost:
+      case SimpleElectionOutcome.lost:
         return '❌';
     }
   }
 
   String get title {
     switch (this) {
-      case ElectionResult.won:
+      case SimpleElectionOutcome.won:
         return '再選成功';
-      case ElectionResult.lost:
+      case SimpleElectionOutcome.lost:
         return '落選';
     }
   }
 
   String get message {
     switch (this) {
-      case ElectionResult.won:
+      case SimpleElectionOutcome.won:
         return 'あなたは国民の支持を得て、次期大統領として再選された。';
-      case ElectionResult.lost:
+      case SimpleElectionOutcome.lost:
         return '国民はあなたに失望し、別の候補者を選んだ。あなたの政権は終わりを迎えた。';
     }
   }
