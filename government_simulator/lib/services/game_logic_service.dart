@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/faction.dart';
@@ -9,6 +10,8 @@ import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/policy_preview.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -51,6 +54,13 @@ class GameLogicService {
       isNewGame: true,
     );
 
+    // 政治政党を初期化（プレイヤーの初期政策は中道的なバランス）
+    final politicalParties = initializePoliticalParties(
+      playerEconomicPolicy: 0,
+      playerSocialPolicy: 0,
+      playerMilitaryPolicy: 0,
+    );
+
     return GameSession(
       id: _uuid.v4(),
       userId: userId,
@@ -59,6 +69,7 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: difficulty,
+      politicalParties: politicalParties,
     );
   }
 
@@ -87,6 +98,13 @@ class GameLogicService {
       isNewGame: true,
     );
 
+    // 政治政党を初期化（プレイヤーの初期政策は中道的なバランス）
+    final politicalParties = initializePoliticalParties(
+      playerEconomicPolicy: 0,
+      playerSocialPolicy: 0,
+      playerMilitaryPolicy: 0,
+    );
+
     return GameSession(
       id: _uuid.v4(),
       userId: userId,
@@ -95,6 +113,7 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: 'normal',
+      politicalParties: politicalParties,
     );
   }
 
@@ -860,5 +879,172 @@ class GameLogicService {
   /// 派閥の日本語名を取得
   String _getFactionJapanese(Faction faction) {
     return faction.label;
+  }
+
+  // =================== Election System ===================
+
+  /// 4年ごとの選挙が実施される必要があるかチェック
+  bool shouldHoldElection(int currentYear) {
+    return currentYear % 4 == 0 && currentYear > 1;
+  }
+
+  /// 選挙結果を計算
+  /// 国民満足度が高いほど再選の確率が上がり、低いと落選する
+  Election calculateElectionResult({
+    required String sessionId,
+    required int year,
+    required double satisfaction,
+    required double stability,
+  }) {
+    // 投票総数（全国民）
+    const totalVotes = 10000;
+
+    // 基礎投票率（60%）
+    final baseVotes = (totalVotes * 0.6).toInt();
+
+    // 満足度に基づいて投票率を調整（±20%）
+    final voteTurnout = baseVotes + ((satisfaction - 50) * 100).toInt();
+    final votesCast = voteTurnout.clamp(totalVotes * 0.4, totalVotes).toInt();
+
+    // 現職得票率の計算：満足度とは別に、安定度を考慮
+    // 満足度70%以上で基本的に再選可能、以下で危険
+    final baseSupportRate = 0.3 + (satisfaction / 100) * 0.5; // 30~80%
+    final stabilityBonus = (stability / 100) * 0.1; // 最大10%ボーナス
+    final supportRate = (baseSupportRate + stabilityBonus).clamp(0.2, 0.95);
+
+    // ランダムネスの追加（±5%）
+    final randomFactor = 0.95 + _random.nextDouble() * 0.1;
+    final finalSupportRate = (supportRate * randomFactor).clamp(0.0, 1.0);
+
+    final votesReceived = (votesCast * finalSupportRate).toInt();
+    final won = finalSupportRate >= 0.5;
+
+    return Election(
+      id: _uuid.v4(),
+      year: year,
+      votesCast: votesCast,
+      votesReceived: votesReceived,
+      won: won,
+      percentageVotes: (finalSupportRate * 100).clamp(0, 100),
+    );
+  }
+
+  /// 選挙用のライバル候補者を初期化
+  /// 4年ごとの選挙時に新しい候補者を生成
+  List<RivalCandidate> initializeRivalCandidatesForElection({
+    required int year,
+    required double playerEconomicPolicy,
+    required double playerSocialPolicy,
+    required double playerMilitaryPolicy,
+  }) {
+    // デフォルトの候補者を取得
+    var candidates = RivalCandidates.createDefault();
+
+    // 各候補者の人気度をランダムに初期化
+    for (var candidate in candidates) {
+      candidate.popularity = 20.0 + _random.nextDouble() * 30.0; // 20-50%
+      candidate.momentum = -2.0 + _random.nextDouble() * 4.0; // -2 to +2
+    }
+
+    return candidates;
+  }
+
+  /// 政治政党を初期化
+  /// ゲーム開始時に全政党を設定
+  Map<String, PoliticalParty> initializePoliticalParties({
+    required double playerEconomicPolicy,
+    required double playerSocialPolicy,
+    required double playerMilitaryPolicy,
+  }) {
+    var parties = PoliticalParties.createDefault();
+
+    // プレイヤーの政策に基づいて各党の忠誠度を調整
+    for (var partyId in parties.keys) {
+      final party = parties[partyId]!;
+      final affinity = party.calculatePolicyAffinity(
+        playerEconomicPolicy,
+        playerSocialPolicy,
+        playerMilitaryPolicy,
+      );
+
+      // 与党と連立政党の忠誠度を政策相性に基づいて設定
+      if (partyId == 'party_ruling' || partyId == 'party_coalition') {
+        party.loyalty = affinity;
+      }
+    }
+
+    return parties;
+  }
+
+  /// ライバル候補者の支持率を更新
+  void updateRivalCandidatePopularity(
+    List<RivalCandidate> candidates, {
+    required double playerSatisfaction,
+    required double playerStability,
+    required bool campaignActive,
+  }) {
+    for (var candidate in candidates) {
+      candidate.updatePopularity(
+        playerSatisfaction,
+        playerStability,
+        campaignActive,
+      );
+    }
+  }
+
+  /// 政治政党の状態を更新
+  void updatePoliticalPartyStates(
+    Map<String, PoliticalParty> parties, {
+    required double playerSatisfaction,
+    required double playerStability,
+    required double economicTrend,
+    required double satisfactionChange,
+  }) {
+    for (var partyId in parties.keys) {
+      final party = parties[partyId]!;
+
+      // 与党と連立政党の場合は、プレイヤーの成績に基づいて忠誠度を更新
+      if (partyId == 'party_ruling' || partyId == 'party_coalition') {
+        party.updateLoyalty(
+          playerSatisfaction,
+          party.loyalty, // 政策相性スコア
+          playerStability,
+          0, // ライバル支持の初期値
+        );
+
+        // 支持率も更新
+        party.updateSupport(
+          economicTrend,
+          satisfactionChange,
+          0,
+        );
+      } else {
+        // 野党の支持率は経済トレンドと国民満足度で更新
+        party.updateSupport(
+          economicTrend,
+          satisfactionChange,
+          (100 - playerSatisfaction) / 10, // 満足度が低いほど野党支持が増える
+        );
+      }
+    }
+  }
+
+  /// 選挙時に複数のライバル候補者と対戦、勝率を計算
+  /// player側のサポートスコアを返す（0-100）
+  double calculateElectionWithRivals(
+    List<RivalCandidate> rivals, {
+    required double playerSatisfaction,
+    required double playerStability,
+  }) {
+    // プレイヤーの基本支持率
+    final baseSupportRate = 0.3 + (playerSatisfaction / 100) * 0.5;
+    final stabilityBonus = (playerStability / 100) * 0.1;
+    final playerSupport = (baseSupportRate + stabilityBonus).clamp(0.2, 0.95);
+
+    // ランダムネスの追加
+    final randomFactor = 0.95 + _random.nextDouble() * 0.1;
+    final finalPlayerSupport = (playerSupport * randomFactor).clamp(0.0, 1.0);
+
+    return finalPlayerSupport * 100;
   }
 }

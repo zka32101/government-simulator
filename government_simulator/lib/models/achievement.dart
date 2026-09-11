@@ -107,6 +107,7 @@ enum GameOverType {
   revolution, // 革命（市民蜂起・満足度0）
   collapse, // 国家崩壊（安定度0）
   bankruptcy, // 財政破綻（GDP暴落）
+  electionLoss, // 選挙落選
 }
 
 extension GameOverTypeExt on GameOverType {
@@ -120,6 +121,8 @@ extension GameOverTypeExt on GameOverType {
         return '🏚️';
       case GameOverType.bankruptcy:
         return '💸';
+      case GameOverType.electionLoss:
+        return '❌';
       case GameOverType.none:
         return '';
     }
@@ -135,6 +138,8 @@ extension GameOverTypeExt on GameOverType {
         return '国家崩壊';
       case GameOverType.bankruptcy:
         return '財政破綻';
+      case GameOverType.electionLoss:
+        return '選挙落選';
       case GameOverType.none:
         return '';
     }
@@ -154,6 +159,9 @@ extension GameOverTypeExt on GameOverType {
       case GameOverType.bankruptcy:
         return '国庫は底をつき、経済は壊滅した。'
             '国際社会からも見放され、政権は崩壊した。';
+      case GameOverType.electionLoss:
+        return '国民はあなたに失望し、選挙で別の候補者を選んだ。'
+            'あなたの政権は歴史の中に消えた。';
       case GameOverType.none:
         return '';
     }

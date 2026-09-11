@@ -6,12 +6,15 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/achievement.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -584,13 +587,70 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
         ..add(snapshot);
 
-      final updatedSession = session.copyWith(
+      // 選挙チェック：4年ごとに実施
+      var finalSession = session.copyWith(
         status: yearEndStatus,
         lastPlayedAt: DateTime.now(),
         indicatorHistory: updatedHistory,
       );
-      await _firestore.updateGameSession(updatedSession);
-      state = state.copyWith(session: updatedSession);
+
+      // 政治政党の状態を毎年更新
+      final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
+      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      final economicTrend = (yearEndStatus.gdp > 0) ? (gdpChange / yearEndStatus.gdp) * 100 : 0;
+      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+
+      _logic.updatePoliticalPartyStates(
+        updatedParties,
+        playerSatisfaction: yearEndStatus.satisfaction,
+        playerStability: yearEndStatus.stability,
+        economicTrend: economicTrend,
+        satisfactionChange: satisfactionChange,
+      );
+
+      finalSession = finalSession.copyWith(
+        politicalParties: updatedParties,
+      );
+
+      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+        // 選挙年：ライバル候補者を初期化
+        final rivalCandidates = _logic.initializeRivalCandidatesForElection(
+          year: yearEndStatus.year,
+          playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
+          playerSocialPolicy: 0,
+          playerMilitaryPolicy: 0,
+        );
+
+        final electionResult = _logic.calculateElectionResult(
+          sessionId: session.id,
+          year: yearEndStatus.year,
+          satisfaction: yearEndStatus.satisfaction,
+          stability: yearEndStatus.stability,
+        );
+
+        final updatedElections = List<Election>.from(session.elections)
+          ..add(electionResult);
+
+        finalSession = finalSession.copyWith(
+          elections: updatedElections,
+          rivalCandidates: rivalCandidates,
+        );
+
+        // 落選時はゲームオーバー
+        if (!electionResult.won) {
+          // 選挙落選によるゲームオーバーフラグを設定
+          state = state.copyWith(
+            session: finalSession,
+            gameOverType: GameOverType.electionLoss,
+            isActive: false,
+          );
+          await _firestore.updateGameSession(finalSession);
+          return;
+        }
+      }
+
+      await _firestore.updateGameSession(finalSession);
+      state = state.copyWith(session: finalSession);
 
       // アナリティクス：年終了イベントを追跡
       final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;

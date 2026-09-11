@@ -1,6 +1,9 @@
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
 
 class GameSession {
   final String id;
@@ -28,6 +31,15 @@ class GameSession {
   // 国家指標の履歴（UI/UX改善用）
   final List<IndicatorSnapshot> indicatorHistory;
 
+  // 選挙履歴
+  final List<Election> elections;
+
+  // ライバル候補者（4年ごとの選挙時に登場）
+  final List<RivalCandidate> rivalCandidates;
+
+  // 政治政党（支持率・忠誠度を追跡）
+  final Map<String, PoliticalParty> politicalParties;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -45,6 +57,9 @@ class GameSession {
     this.hasSeenTutorial = false,
     this.activePromises = const [],
     this.indicatorHistory = const [],
+    this.elections = const [],
+    this.rivalCandidates = const [],
+    this.politicalParties = const {},
   });
 
   // プレイ時間（分）
@@ -89,6 +104,9 @@ class GameSession {
     bool? hasSeenTutorial,
     List<Promise>? activePromises,
     List<IndicatorSnapshot>? indicatorHistory,
+    List<Election>? elections,
+    List<RivalCandidate>? rivalCandidates,
+    Map<String, PoliticalParty>? politicalParties,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -107,6 +125,9 @@ class GameSession {
       hasSeenTutorial: hasSeenTutorial ?? this.hasSeenTutorial,
       activePromises: activePromises ?? this.activePromises,
       indicatorHistory: indicatorHistory ?? this.indicatorHistory,
+      elections: elections ?? this.elections,
+      rivalCandidates: rivalCandidates ?? this.rivalCandidates,
+      politicalParties: politicalParties ?? this.politicalParties,
     );
   }
 
@@ -128,6 +149,9 @@ class GameSession {
       'hasSeenTutorial': hasSeenTutorial,
       'activePromises': activePromises.map((p) => p.toMap()).toList(),
       'indicatorHistory': indicatorHistory.map((s) => s.toMap()).toList(),
+      'elections': elections.map((e) => e.toMap()).toList(),
+      'rivalCandidates': rivalCandidates.map((r) => r.toMap()).toList(),
+      'politicalParties': politicalParties.map((k, v) => MapEntry(k, v.toMap())),
     };
   }
 
@@ -170,6 +194,24 @@ class GameSession {
               ?.map((s) => IndicatorSnapshot.fromMap(s as Map<String, dynamic>))
               .toList() ??
           const [],
+      elections: (map['elections'] as List?)
+              ?.map((e) => Election.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      rivalCandidates: (map['rivalCandidates'] as List?)
+              ?.map((r) => RivalCandidate.fromMap(r as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      politicalParties: map['politicalParties'] != null
+              ? Map<String, PoliticalParty>.from(
+                  (map['politicalParties'] as Map<String, dynamic>).map(
+                    (k, v) => MapEntry(
+                      k as String,
+                      PoliticalParty.fromMap(v as Map<String, dynamic>),
+                    ),
+                  ),
+                )
+              : const {},
     );
   }
 }
