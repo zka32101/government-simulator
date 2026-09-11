@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:government_simulator/services/authentication_service.dart';
-import 'package:government_simulator/models/user_profile.dart';
 
 // =================== Service Provider ===================
 

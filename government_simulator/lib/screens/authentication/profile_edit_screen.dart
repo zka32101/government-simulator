@@ -76,13 +76,6 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
       return;
     }
 
-    final notifier = ref.read(authStateNotifierProvider.notifier);
-    final request = UpdateProfileRequest(
-      displayName: _displayNameController.text.isEmpty
-          ? null
-          : _displayNameController.text,
-    );
-
     final authService = ref.read(authenticationServiceProvider);
     try {
       await authService.updateUserProfile(

@@ -48,12 +48,6 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
       return;
     }
 
-    final notifier = ref.read(authStateNotifierProvider.notifier);
-    final request = PasswordResetRequest(email);
-
-    // Note: In a real implementation, you would use:
-    // final result = await ref.read(sendPasswordResetProvider(request).future);
-    // For now, we'll call the service directly via the notifier concept
     try {
       final authService = ref.read(authenticationServiceProvider);
       await authService.sendPasswordResetEmail(email);
