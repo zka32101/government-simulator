@@ -13,6 +13,7 @@ import 'package:government_simulator/models/policy_preview.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -1111,5 +1112,153 @@ class GameLogicService {
   /// 世論調査トレンドを分析
   PollingTrend analyzePollingTrend(List<Poll> polls) {
     return PollingTrend(polls);
+  }
+
+  /// キャンペーンを開始
+  /// 予算チェックと初期効果度の計算を行う
+  Campaign launchCampaign({
+    required String id,
+    required CampaignType type,
+    required int startWeek,
+    required int durationWeeks,
+    required int year,
+    required double budgetSpent,
+    required String difficulty,
+  }) {
+    // 基本コストを取得
+    final baseCost = CampaignManager.costByDifficulty[difficulty]![type]!;
+
+    // 実際に支出した額でコスト調整
+    double actualCost = baseCost;
+    if (budgetSpent > 0) {
+      actualCost = budgetSpent;
+    }
+
+    // 初期効果度を計算
+    final effectiveness = CampaignManager.calculateInitialEffectiveness(
+      type: type,
+      budgetSpent: actualCost,
+      difficulty: difficulty,
+    );
+
+    // 最大支持率上昇を計算
+    final maxSupportBoost = CampaignManager.calculateMaxSupportBoost(type);
+
+    return Campaign(
+      id: id,
+      name: '${type.label} キャンペーン',
+      type: type,
+      startWeek: startWeek,
+      durationWeeks: durationWeeks,
+      startYear: year,
+      effectiveness: effectiveness,
+      maxSupportBoost: maxSupportBoost,
+      launchedAt: DateTime.now(),
+    );
+  }
+
+  /// 対立候補者のキャンペーン応答を生成
+  CounterCampaign? generateRivalCounterCampaign({
+    required Campaign playerCampaign,
+    required RivalCandidate rival,
+    required int currentWeek,
+    required String difficulty,
+  }) {
+    // プレイヤーのキャンペーン効果が大きい場合に反応
+    final playerImpact = playerCampaign.getWeeklyImpact(
+      playerCampaign.startYear,
+      currentWeek,
+    );
+
+    // 効果が5%以上の場合に反応確率が高い
+    final responseChance = (playerImpact / playerCampaign.maxSupportBoost * 100).clamp(0, 100);
+
+    if (_random.nextDouble() * 100 > responseChance) {
+      return null; // 応答しない
+    }
+
+    // 対立候補者が応答キャンペーンを開始（2-3週間後）
+    final delayWeeks = 2 + _random.nextInt(2);
+    final counterStartWeek = (currentWeek + delayWeeks).clamp(1, 52);
+    final counterDuration = (playerCampaign.durationWeeks * 0.7).toInt();
+
+    // 対立候補者の応答効果度は60-80%
+    final rivalEffectiveness = playerCampaign.effectiveness * 0.6 +
+        playerCampaign.effectiveness * 0.2 * _random.nextDouble();
+
+    return CounterCampaign(
+      id: _uuid.v4(),
+      name: '${rival.name}の対抗キャンペーン',
+      type: playerCampaign.type,
+      startWeek: counterStartWeek,
+      durationWeeks: counterDuration.clamp(1, 52),
+      startYear: playerCampaign.startYear,
+      effectiveness: rivalEffectiveness.clamp(0, 100),
+      maxSupportBoost: playerCampaign.maxSupportBoost * 0.75,
+      launchedAt: DateTime.now(),
+      rivalId: rival.id,
+      isRetaliatory: true,
+    );
+  }
+
+  /// 各週のキャンペーン合計効果を計算
+  double calculateCampaignNetImpact({
+    required int year,
+    required int week,
+    required List<Campaign> activeCampaigns,
+    required List<CounterCampaign> counterCampaigns,
+  }) {
+    // プレイヤーのキャンペーン効果を合計
+    double playerImpact = 0;
+    for (final campaign in activeCampaigns) {
+      playerImpact += campaign.getWeeklyImpact(year, week);
+    }
+
+    // 対立候補者のキャンペーン効果を合計
+    double rivalImpact = 0;
+    for (final counter in counterCampaigns) {
+      rivalImpact += counter.getWeeklyImpact(year, week);
+    }
+
+    // 対立候補者のキャンペーンはプレイヤーの効果を30-50%削減
+    final reductionFactor = rivalImpact > 0 ? (rivalImpact / 15).clamp(0.3, 0.5) : 0;
+    final rivalReduction = playerImpact * reductionFactor;
+
+    return (playerImpact - rivalReduction).clamp(-playerImpact, playerImpact);
+  }
+
+  /// キャンペーン効果を反映した世論調査を実施
+  Poll conductPollWithCampaigns({
+    required Poll basePoll,
+    required int year,
+    required int week,
+    required List<Campaign> activeCampaigns,
+    required List<CounterCampaign> counterCampaigns,
+  }) {
+    // キャンペーンの合計効果を計算
+    final campaignImpact = calculateCampaignNetImpact(
+      year: year,
+      week: week,
+      activeCampaigns: activeCampaigns,
+      counterCampaigns: counterCampaigns,
+    );
+
+    // 調査結果に反映
+    final adjustedSupport = (basePoll.playerSupport + campaignImpact).clamp(0, 100);
+
+    // キャンペーンがある場合は誤差範囲が縮小（意見が固まる）
+    final campaignInfluence = (activeCampaigns.length + counterCampaigns.length) * 0.5;
+    final adjustedMargin = (basePoll.marginOfError * (1 - campaignInfluence / 100)).clamp(1, 10);
+
+    return Poll(
+      id: _uuid.v4(),
+      year: year,
+      week: week,
+      playerSupport: adjustedSupport,
+      marginOfError: adjustedMargin,
+      sampleSize: basePoll.sampleSize,
+      conductedAt: DateTime.now(),
+      rivalSupport: basePoll.rivalSupport,
+    );
   }
 }
