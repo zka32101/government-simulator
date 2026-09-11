@@ -448,11 +448,11 @@ class PolicyExplanationDatabase {
           '負の外部性：工場からの汚染による健康被害、CO2排出による気候変動\n'
           '外部性があると市場メカニズムだけでは最適な資源配分が達成されず、政府介入が必要。',
       realWorldExample: '喫煙による受動喫煙被害（負）、蜜蜂の受粉による農業への利益（正）',
-      relatedPolicies: 'カーボン・プライシング、環境税',
+      relatedPolicies: ['カーボン・プライシング', '環境税'],
       category: EconomicCategory.environmental,
       visualMnemonic: '☁️',
       keyEquations: ['社会的限界費用 > 私的限界費用（負の外部性の場合）'],
-      historhistorical Context: 'ロナルド・コースが「コースの定理」で外部性問題への対処法を分析。',
+      historicalContext: 'ロナルド・コースが「コースの定理」で外部性問題への対処法を分析。',
     ),
     'カーボン・プライシング': EconomicConcept(
       name: 'カーボン・プライシング（Carbon Pricing）',

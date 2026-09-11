@@ -484,7 +484,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     for (final achievement in newAchievements) {
       unawaited(_analytics.trackAchievementUnlocked(
         achievementId: achievement.id,
-        achievementName: achievement.name,
+        achievementName: achievement.title,
         year: newStatus.year,
       ));
     }
