@@ -10,6 +10,7 @@ import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';
+import 'package:government_simulator/models/crisis.dart';
 
 class GameSession {
   final String id;
@@ -88,6 +89,20 @@ class GameSession {
   final double foreignDebt; // 外国からの借金
   final double foreignCreditRating; // 国際信用格付け（0-100）
 
+  // 危機管理・承認度システム
+  final double nationalApproval; // 国民承認度（0-100）
+  final List<Crisis> activeCrises; // 現在発生中の危機
+  final List<Crisis> historicalCrises; // 過去の危機履歴
+  final DateTime? lastCrisisTime; // 最後の危機発生時刻
+  final int crisisCount; // 現在の任期中の危機数
+  final double economicSatisfaction; // 経済満足度（0-100）
+  final double socialSatisfaction; // 社会満足度（0-100）
+  final double securitySatisfaction; // 安全保障満足度（0-100）
+  final double healthcareSatisfaction; // 医療・教育満足度（0-100）
+  final bool coupAttemptInProgress; // クーデター進行中か
+  final DateTime? coupAttemptTime; // クーデター開始時刻
+  final int daysUntilCoup; // クーデターまでの日数カウント
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -138,6 +153,18 @@ class GameSession {
     this.activeTradeDeals = const [],
     this.foreignDebt = 0.0,
     this.foreignCreditRating = 80.0, // デフォルト信用度
+    this.nationalApproval = 50.0, // デフォルト中立
+    this.activeCrises = const [],
+    this.historicalCrises = const [],
+    this.lastCrisisTime,
+    this.crisisCount = 0,
+    this.economicSatisfaction = 50.0,
+    this.socialSatisfaction = 50.0,
+    this.securitySatisfaction = 50.0,
+    this.healthcareSatisfaction = 50.0,
+    this.coupAttemptInProgress = false,
+    this.coupAttemptTime,
+    this.daysUntilCoup = 0,
   });
 
   // プレイ時間（分）
@@ -215,6 +242,18 @@ class GameSession {
     List<TradeAgreement>? activeTradeDeals,
     double? foreignDebt,
     double? foreignCreditRating,
+    double? nationalApproval,
+    List<Crisis>? activeCrises,
+    List<Crisis>? historicalCrises,
+    DateTime? lastCrisisTime,
+    int? crisisCount,
+    double? economicSatisfaction,
+    double? socialSatisfaction,
+    double? securitySatisfaction,
+    double? healthcareSatisfaction,
+    bool? coupAttemptInProgress,
+    DateTime? coupAttemptTime,
+    int? daysUntilCoup,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -267,6 +306,18 @@ class GameSession {
       activeTradeDeals: activeTradeDeals ?? this.activeTradeDeals,
       foreignDebt: foreignDebt ?? this.foreignDebt,
       foreignCreditRating: foreignCreditRating ?? this.foreignCreditRating,
+      nationalApproval: nationalApproval ?? this.nationalApproval,
+      activeCrises: activeCrises ?? this.activeCrises,
+      historicalCrises: historicalCrises ?? this.historicalCrises,
+      lastCrisisTime: lastCrisisTime ?? this.lastCrisisTime,
+      crisisCount: crisisCount ?? this.crisisCount,
+      economicSatisfaction: economicSatisfaction ?? this.economicSatisfaction,
+      socialSatisfaction: socialSatisfaction ?? this.socialSatisfaction,
+      securitySatisfaction: securitySatisfaction ?? this.securitySatisfaction,
+      healthcareSatisfaction: healthcareSatisfaction ?? this.healthcareSatisfaction,
+      coupAttemptInProgress: coupAttemptInProgress ?? this.coupAttemptInProgress,
+      coupAttemptTime: coupAttemptTime ?? this.coupAttemptTime,
+      daysUntilCoup: daysUntilCoup ?? this.daysUntilCoup,
     );
   }
 
@@ -326,6 +377,18 @@ class GameSession {
       'activeTradeDeals': activeTradeDeals.map((t) => t.toMap()).toList(),
       'foreignDebt': foreignDebt,
       'foreignCreditRating': foreignCreditRating,
+      'nationalApproval': nationalApproval,
+      'activeCrises': activeCrises.map((c) => c.toMap()).toList(),
+      'historicalCrises': historicalCrises.map((c) => c.toMap()).toList(),
+      'lastCrisisTime': lastCrisisTime?.toIso8601String(),
+      'crisisCount': crisisCount,
+      'economicSatisfaction': economicSatisfaction,
+      'socialSatisfaction': socialSatisfaction,
+      'securitySatisfaction': securitySatisfaction,
+      'healthcareSatisfaction': healthcareSatisfaction,
+      'coupAttemptInProgress': coupAttemptInProgress,
+      'coupAttemptTime': coupAttemptTime?.toIso8601String(),
+      'daysUntilCoup': daysUntilCoup,
     };
   }
 
@@ -465,6 +528,32 @@ class GameSession {
       foreignDebt: (map['foreignDebt'] as num?)?.toDouble() ?? 0.0,
       foreignCreditRating:
           (map['foreignCreditRating'] as num?)?.toDouble() ?? 80.0,
+      nationalApproval: (map['nationalApproval'] as num?)?.toDouble() ?? 50.0,
+      activeCrises: (map['activeCrises'] as List?)
+              ?.map((c) => Crisis.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      historicalCrises: (map['historicalCrises'] as List?)
+              ?.map((c) => Crisis.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      lastCrisisTime: map['lastCrisisTime'] != null
+          ? DateTime.tryParse(map['lastCrisisTime'] as String)
+          : null,
+      crisisCount: map['crisisCount'] ?? 0,
+      economicSatisfaction:
+          (map['economicSatisfaction'] as num?)?.toDouble() ?? 50.0,
+      socialSatisfaction:
+          (map['socialSatisfaction'] as num?)?.toDouble() ?? 50.0,
+      securitySatisfaction:
+          (map['securitySatisfaction'] as num?)?.toDouble() ?? 50.0,
+      healthcareSatisfaction:
+          (map['healthcareSatisfaction'] as num?)?.toDouble() ?? 50.0,
+      coupAttemptInProgress: map['coupAttemptInProgress'] ?? false,
+      coupAttemptTime: map['coupAttemptTime'] != null
+          ? DateTime.tryParse(map['coupAttemptTime'] as String)
+          : null,
+      daysUntilCoup: map['daysUntilCoup'] ?? 0,
     );
   }
 }
