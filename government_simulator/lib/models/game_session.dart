@@ -1,6 +1,12 @@
 import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/promise.dart';
+import 'package:government_simulator/models/rival_candidate.dart';
+import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/campaign.dart';
+import 'package:government_simulator/models/scandal.dart';
 
 class GameSession {
   final String id;
@@ -28,6 +34,29 @@ class GameSession {
   // 国家指標の履歴（UI/UX改善用）
   final List<IndicatorSnapshot> indicatorHistory;
 
+  // 選挙履歴
+  final List<Election> elections;
+
+  // ライバル候補者（4年ごとの選挙時に登場）
+  final List<RivalCandidate> rivalCandidates;
+
+  // 政治政党（支持率・忠誠度を追跡）
+  final Map<String, PoliticalParty> politicalParties;
+
+  // 世論調査履歴（選挙トレンド追跡用）
+  final List<Poll> polls;
+
+  // 選挙キャンペーン
+  final List<Campaign> activeCampaigns;
+  final List<CounterCampaign> rivalCampaigns;
+  final double campaignBudget; // 利用可能な予算
+  final double spentBudget; // 既に使用した予算
+
+  // スキャンダル・システム
+  final List<Scandal> activeScandalsList;
+  final int playerReputation; // 0-100 (affects scandal intensity)
+  final int mediaFavoring; // -50 to +50 (affects coverage)
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -45,6 +74,17 @@ class GameSession {
     this.hasSeenTutorial = false,
     this.activePromises = const [],
     this.indicatorHistory = const [],
+    this.elections = const [],
+    this.rivalCandidates = const [],
+    this.politicalParties = const {},
+    this.polls = const [],
+    this.activeCampaigns = const [],
+    this.rivalCampaigns = const [],
+    this.campaignBudget = 500.0, // 500万単位
+    this.spentBudget = 0.0,
+    this.activeScandalsList = const [],
+    this.playerReputation = 50,
+    this.mediaFavoring = 0,
   });
 
   // プレイ時間（分）
@@ -89,6 +129,17 @@ class GameSession {
     bool? hasSeenTutorial,
     List<Promise>? activePromises,
     List<IndicatorSnapshot>? indicatorHistory,
+    List<Election>? elections,
+    List<RivalCandidate>? rivalCandidates,
+    Map<String, PoliticalParty>? politicalParties,
+    List<Poll>? polls,
+    List<Campaign>? activeCampaigns,
+    List<CounterCampaign>? rivalCampaigns,
+    double? campaignBudget,
+    double? spentBudget,
+    List<Scandal>? activeScandalsList,
+    int? playerReputation,
+    int? mediaFavoring,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -107,6 +158,17 @@ class GameSession {
       hasSeenTutorial: hasSeenTutorial ?? this.hasSeenTutorial,
       activePromises: activePromises ?? this.activePromises,
       indicatorHistory: indicatorHistory ?? this.indicatorHistory,
+      elections: elections ?? this.elections,
+      rivalCandidates: rivalCandidates ?? this.rivalCandidates,
+      politicalParties: politicalParties ?? this.politicalParties,
+      polls: polls ?? this.polls,
+      activeCampaigns: activeCampaigns ?? this.activeCampaigns,
+      rivalCampaigns: rivalCampaigns ?? this.rivalCampaigns,
+      campaignBudget: campaignBudget ?? this.campaignBudget,
+      spentBudget: spentBudget ?? this.spentBudget,
+      activeScandalsList: activeScandalsList ?? this.activeScandalsList,
+      playerReputation: playerReputation ?? this.playerReputation,
+      mediaFavoring: mediaFavoring ?? this.mediaFavoring,
     );
   }
 
@@ -128,6 +190,17 @@ class GameSession {
       'hasSeenTutorial': hasSeenTutorial,
       'activePromises': activePromises.map((p) => p.toMap()).toList(),
       'indicatorHistory': indicatorHistory.map((s) => s.toMap()).toList(),
+      'elections': elections.map((e) => e.toMap()).toList(),
+      'rivalCandidates': rivalCandidates.map((r) => r.toMap()).toList(),
+      'politicalParties': politicalParties.map((k, v) => MapEntry(k, v.toMap())),
+      'polls': polls.map((p) => p.toMap()).toList(),
+      'activeCampaigns': activeCampaigns.map((c) => c.toMap()).toList(),
+      'rivalCampaigns': rivalCampaigns.map((c) => c.toMap()).toList(),
+      'campaignBudget': campaignBudget,
+      'spentBudget': spentBudget,
+      'activeScandalsList': activeScandalsList.map((s) => s.toMap()).toList(),
+      'playerReputation': playerReputation,
+      'mediaFavoring': mediaFavoring,
     };
   }
 
@@ -170,6 +243,44 @@ class GameSession {
               ?.map((s) => IndicatorSnapshot.fromMap(s as Map<String, dynamic>))
               .toList() ??
           const [],
+      elections: (map['elections'] as List?)
+              ?.map((e) => Election.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      rivalCandidates: (map['rivalCandidates'] as List?)
+              ?.map((r) => RivalCandidate.fromMap(r as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      politicalParties: map['politicalParties'] != null
+              ? Map<String, PoliticalParty>.from(
+                  (map['politicalParties'] as Map<String, dynamic>).map(
+                    (k, v) => MapEntry(
+                      k as String,
+                      PoliticalParty.fromMap(v as Map<String, dynamic>),
+                    ),
+                  ),
+                )
+              : const {},
+      polls: (map['polls'] as List?)
+              ?.map((p) => Poll.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      activeCampaigns: (map['activeCampaigns'] as List?)
+              ?.map((c) => Campaign.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      rivalCampaigns: (map['rivalCampaigns'] as List?)
+              ?.map((c) => CounterCampaign.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      campaignBudget: (map['campaignBudget'] as num?)?.toDouble() ?? 500.0,
+      spentBudget: (map['spentBudget'] as num?)?.toDouble() ?? 0.0,
+      activeScandalsList: (map['activeScandalsList'] as List?)
+              ?.map((s) => Scandal.fromMap(s as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      playerReputation: map['playerReputation'] ?? 50,
+      mediaFavoring: map['mediaFavoring'] ?? 0,
     );
   }
 }

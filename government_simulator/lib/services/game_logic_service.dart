@@ -13,6 +13,7 @@ import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -1059,6 +1060,165 @@ class GameLogicService {
       sampleSize: basePoll.sampleSize,
       conductedAt: DateTime.now(),
       rivalSupport: basePoll.rivalSupport,
+    );
+  }
+
+  /// スキャンダルを生成・トリガー
+  /// 確率に基づいてスキャンダルを発生させる
+  Scandal? generateRandomScandal({
+    required int currentYear,
+    required int currentWeek,
+    required double playerSupport,
+    required String difficulty,
+    required int playerReputation,
+    required int activecampaignCount,
+  }) {
+    // スキャンダル発生確率を計算
+    final probability = ScandalManager.calculateScandalProbability(
+      playerSupport: playerSupport,
+      activecampaignCount: activecampaignCount,
+      difficulty: difficulty,
+      playerReputation: playerReputation,
+    );
+
+    // 確率判定
+    if (_random.nextDouble() > probability) {
+      return null;
+    }
+
+    // スキャンダルタイプをランダムに選択
+    final types = ScandalType.values;
+    final type = types[_random.nextInt(types.length)];
+
+    // スキャンダルタイトルを取得
+    final title = ScandalManager.getScandalTitle(type);
+
+    // 基本影響度 (5-15%)
+    final baseImpact = type.baseImpact + (_random.nextDouble() * 5 - 2.5);
+
+    return Scandal(
+      id: _uuid.v4(),
+      title: title,
+      type: type,
+      discoveredAt: DateTime.now(),
+      startWeek: currentWeek,
+      startYear: currentYear,
+      baseImpact: baseImpact.clamp(5.0, 15.0),
+      initialIntensity: 100.0,
+      involvedPersonId: null, // プレイヤーのスキャンダル
+    );
+  }
+
+  /// ライバルスキャンダルの生成
+  Scandal? generateRivalScandal({
+    required RivalCandidate rival,
+    required int currentYear,
+    required int currentWeek,
+  }) {
+    // ライバルスキャンダルの発生確率: 5-10%
+    if (_random.nextDouble() > 0.075) {
+      return null;
+    }
+
+    final types = ScandalType.values;
+    final type = types[_random.nextInt(types.length)];
+    final title = ScandalManager.getScandalTitle(type);
+    final baseImpact = type.baseImpact + (_random.nextDouble() * 3 - 1.5);
+
+    return Scandal(
+      id: _uuid.v4(),
+      title: title,
+      type: type,
+      discoveredAt: DateTime.now(),
+      startWeek: currentWeek,
+      startYear: currentYear,
+      baseImpact: baseImpact.clamp(5.0, 15.0),
+      initialIntensity: 100.0,
+      involvedPersonId: rival.id,
+    );
+  }
+
+  /// スキャンダルの支持率への影響を計算
+  double calculateScandalNetImpact({
+    required List<Scandal> activeScandalsList,
+    required int year,
+    required int week,
+    required int playerReputation,
+    required int mediaFavoring,
+  }) {
+    if (activeScandalsList.isEmpty) return 0.0;
+
+    double totalImpact = 0.0;
+
+    for (final scandal in activeScandalsList) {
+      // プレイヤーのスキャンダルのみ（involvedPersonId == null）影響を計算
+      if (scandal.involvedPersonId == null) {
+        var impact = scandal.getWeeklyImpact(year, week);
+
+        // メディア報道乗数を適用
+        final mediaCoverageMultiplier =
+            ScandalManager.calculateMediaCoverageMultiplier(
+          playerReputation: playerReputation,
+          mediaFavoring: mediaFavoring,
+        );
+        impact *= mediaCoverageMultiplier;
+
+        totalImpact -= impact; // 支持率低下はマイナス
+      }
+    }
+
+    return totalImpact.clamp(-30.0, 0.0);
+  }
+
+  /// スキャンダルへのプレイヤー応答を処理
+  GameSession respondToScandal({
+    required GameSession session,
+    required Scandal scandal,
+    required ScandalResponse response,
+  }) {
+    // スキャンダルを応答済みに更新
+    final respondedScandal = Scandal(
+      id: scandal.id,
+      title: scandal.title,
+      type: scandal.type,
+      discoveredAt: scandal.discoveredAt,
+      startWeek: scandal.startWeek,
+      startYear: scandal.startYear,
+      baseImpact: scandal.baseImpact,
+      initialIntensity: scandal.initialIntensity,
+      involvedPersonId: scandal.involvedPersonId,
+      playerResponse: response,
+      respondedAt: DateTime.now(),
+    );
+
+    // スキャンダルリストを更新
+    final updatedScandalsList = session.activeScandalsList
+        .map((s) => s.id == scandal.id ? respondedScandal : s)
+        .toList();
+
+    // 応答に応じて評判を調整
+    int reputationChange = 0;
+    switch (response) {
+      case ScandalResponse.deny:
+        reputationChange = -5; // 否定は信頼低下
+        break;
+      case ScandalResponse.apologize:
+        reputationChange = -10; // 謝罪は長期的信頼低下
+        break;
+      case ScandalResponse.counterattack:
+        reputationChange = -3; // 反論は少し低下
+        break;
+      case ScandalResponse.ignore:
+        reputationChange = 0; // 無視は影響なし
+        break;
+    }
+
+    final newReputation =
+        (session.playerReputation + reputationChange).clamp(0, 100);
+
+    return session.copyWith(
+      activeScandalsList: updatedScandalsList,
+      playerReputation: newReputation,
     );
   }
 }

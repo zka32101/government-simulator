@@ -397,6 +397,44 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     );
     newStatus = sessionWithCampaignEffects.status;
 
+    // スキャンダル処理
+    var sessionWithScandalEffects = sessionWithCampaignEffects;
+
+    // スキャンダル発生判定
+    final newScandal = _logic.generateRandomScandal(
+      currentYear: newStatus.year,
+      currentWeek: newStatus.week,
+      playerSupport: newStatus.satisfaction,
+      difficulty: session.difficulty,
+      playerReputation: sessionWithCampaignEffects.playerReputation,
+      activecampaignCount: sessionWithCampaignEffects.activeCampaigns.length,
+    );
+
+    if (newScandal != null) {
+      final updatedScandalsList = [...sessionWithCampaignEffects.activeScandalsList, newScandal];
+      sessionWithScandalEffects = sessionWithCampaignEffects.copyWith(
+        activeScandalsList: updatedScandalsList,
+      );
+    }
+
+    // スキャンダルの支持率への影響を計算・適用
+    final scandalImpact = _logic.calculateScandalNetImpact(
+      activeScandalsList: sessionWithScandalEffects.activeScandalsList,
+      year: newStatus.year,
+      week: newStatus.week,
+      playerReputation: sessionWithScandalEffects.playerReputation,
+      mediaFavoring: sessionWithScandalEffects.mediaFavoring,
+    );
+
+    if (scandalImpact != 0.0) {
+      newStatus = newStatus.copyWith(
+        satisfaction: (newStatus.satisfaction + scandalImpact).clamp(0, 100),
+      );
+      sessionWithScandalEffects = sessionWithScandalEffects.copyWith(
+        status: newStatus,
+      );
+    }
+
     // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
     final ministerDeltas = _logic.deriveMinisterImpact(impact,
         corruption: newStatus.corruption);
@@ -457,6 +495,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
       negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
       activePromises: activePromises,
+      activeScandalsList: sessionWithScandalEffects.activeScandalsList,
+      playerReputation: sessionWithScandalEffects.playerReputation,
     );
 
     // 実績判定
@@ -611,6 +651,11 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           .where((c) => !c.isCompleted(yearEndStatus.year, yearEndStatus.week))
           .toList();
 
+      // スキャンダルのクリーンアップ：解決済みスキャンダルを削除
+      final activeScandalsList = session.activeScandalsList
+          .where((s) => !s.isResolved(yearEndStatus.year, yearEndStatus.week))
+          .toList();
+
       // 政治政党の状態を毎年更新
       final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
       final gdpChange = yearEndStatus.gdp - session.status.gdp;
@@ -644,6 +689,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         rivalCampaigns: rivalCampaigns,
         campaignBudget: newCampaignBudget,
         spentBudget: newSpentBudget,
+        activeScandalsList: activeScandalsList,
       );
 
       if (_logic.shouldHoldElection(yearEndStatus.year)) {
