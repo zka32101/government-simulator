@@ -390,6 +390,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     );
     var newStatus = _logic.applyImpact(baseStatus, impact);
 
+    // キャンペーン効果を適用
+    var sessionWithCampaignEffects = session.copyWith(status: newStatus);
+    sessionWithCampaignEffects = _logic.applyDailyCampaignEffects(
+      session: sessionWithCampaignEffects,
+    );
+    newStatus = sessionWithCampaignEffects.status;
+
     // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
     final ministerDeltas = _logic.deriveMinisterImpact(impact,
         corruption: newStatus.corruption);

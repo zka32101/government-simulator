@@ -894,4 +894,171 @@ class GameLogicService {
       launchedAt: DateTime.now(),
     );
   }
+
+  /// キャンペーンの純粋な支持率への影響を計算
+  /// プレイヤーキャンペーンとカウンターキャンペーンの効果を合計
+  double calculateCampaignNetImpact({
+    required int year,
+    required int week,
+    required List<Campaign> activeCampaigns,
+    required List<CounterCampaign> counterCampaigns,
+  }) {
+    // プレイヤーキャンペーンの総効果
+    double playerImpact = 0.0;
+    for (final campaign in activeCampaigns) {
+      playerImpact += campaign.getWeeklyImpact(year, week);
+    }
+
+    // カウンターキャンペーンの総効果（負）
+    double counterImpact = 0.0;
+    for (final campaign in counterCampaigns) {
+      counterImpact += campaign.getWeeklyImpact(year, week);
+    }
+
+    // カウンターキャンペーンはプレイヤー効果を30-50%削減
+    final counterReduction = playerImpact * (0.3 + _random.nextDouble() * 0.2);
+
+    return (playerImpact - counterReduction - counterImpact).clamp(-15.0, 15.0);
+  }
+
+  /// ライバル候補者がプレイヤーキャンペーンに対抗キャンペーンで応答するかを判定
+  /// プレイヤーキャンペーンが5%以上の効果を持つ場合に応答確率がある
+  CounterCampaign? generateRivalCounterCampaign({
+    required Campaign playerCampaign,
+    required RivalCandidate rival,
+    required int currentYear,
+    required int currentWeek,
+    required String difficulty,
+  }) {
+    // プレイヤーキャンペーンの最大効果が5%未満なら応答しない
+    if (playerCampaign.maxSupportBoost < 5.0) {
+      return null;
+    }
+
+    // ライバルがこのキャンペーンに応答する確率（60-80%）
+    final responseStrength = 0.6 + _random.nextDouble() * 0.2;
+
+    // 応答の遅延：2-3週間後に開始
+    final delayWeeks = 2 + _random.nextInt(2);
+    final responseStartWeek = (currentWeek + delayWeeks - 1) % 52 + 1;
+
+    // ライバルキャンペーンの効果度（プレイヤー効果の60-80%）
+    final rivalEffectiveness = playerCampaign.effectiveness * responseStrength;
+
+    // ライバルキャンペーンの最大支持率上昇（プレイヤー効果の60-80%）
+    final rivalMaxBoost = playerCampaign.maxSupportBoost * responseStrength;
+
+    return CounterCampaign(
+      id: _uuid.v4(),
+      name: '${playerCampaign.type.label}対抗キャンペーン',
+      type: playerCampaign.type,
+      startWeek: responseStartWeek,
+      durationWeeks: playerCampaign.durationWeeks,
+      startYear: currentYear,
+      effectiveness: rivalEffectiveness.clamp(0, 100),
+      maxSupportBoost: rivalMaxBoost,
+      launchedAt: DateTime.now(),
+      rivalId: rival.id,
+      isRetaliatory: true,
+    );
+  }
+
+  /// 日次でキャンペーン効果をセッションに適用
+  /// 支持率の変化とライバル応答をトリガー
+  GameSession applyDailyCampaignEffects({
+    required GameSession session,
+  }) {
+    var updatedSession = session;
+    final year = session.status.year;
+    final week = session.status.week;
+
+    // キャンペーンの純粋な支持率への影響を計算
+    final campaignNetImpact = calculateCampaignNetImpact(
+      year: year,
+      week: week,
+      activeCampaigns: session.activeCampaigns,
+      counterCampaigns: session.rivalCampaigns,
+    );
+
+    // 支持率に影響を適用（満足度として）
+    var newStatus = session.status;
+    if (campaignNetImpact.abs() > 0.1) {
+      newStatus = newStatus.copyWith(
+        satisfaction: (newStatus.satisfaction + campaignNetImpact).clamp(0, 100).toDouble(),
+      );
+      updatedSession = updatedSession.copyWith(status: newStatus);
+    }
+
+    // ライバル応答をトリガー：有効なキャンペーンに対して
+    final newRivalCampaigns = List<CounterCampaign>.from(session.rivalCampaigns);
+
+    for (final campaign in session.activeCampaigns) {
+      // このキャンペーンに対する応答がまだ存在するか確認
+      final hasExistingResponse = newRivalCampaigns.any(
+        (rc) => rc.type == campaign.type && rc.isRetaliatory
+      );
+
+      if (!hasExistingResponse && campaign.maxSupportBoost >= 5.0) {
+        // ライバル候補者から応答を生成
+        for (final rival in session.rivalCandidates) {
+          final counterCampaign = generateRivalCounterCampaign(
+            playerCampaign: campaign,
+            rival: rival,
+            currentYear: year,
+            currentWeek: week,
+            difficulty: session.difficulty,
+          );
+
+          if (counterCampaign != null) {
+            newRivalCampaigns.add(counterCampaign);
+            // 最初のライバルのみ応答
+            break;
+          }
+        }
+      }
+    }
+
+    if (newRivalCampaigns.length != session.rivalCampaigns.length) {
+      updatedSession = updatedSession.copyWith(
+        rivalCampaigns: newRivalCampaigns,
+      );
+    }
+
+    return updatedSession;
+  }
+
+  /// キャンペーン効果を反映したポール調査を実施
+  Poll conductPollWithCampaigns({
+    required Poll basePoll,
+    required int year,
+    required int week,
+    required List<Campaign> activeCampaigns,
+    required List<CounterCampaign> counterCampaigns,
+  }) {
+    // キャンペーンの純粋な支持率への影響を計算
+    final campaignImpact = calculateCampaignNetImpact(
+      year: year,
+      week: week,
+      activeCampaigns: activeCampaigns,
+      counterCampaigns: counterCampaigns,
+    );
+
+    // キャンペーン調整済みの支持率
+    final adjustedSupport = (basePoll.playerSupport + campaignImpact).clamp(0.0, 100.0).toDouble();
+
+    // キャンペーンが活発な場合は誤差範囲を縮小（意見がより固まっている）
+    final campaignInfluence = (activeCampaigns.length + counterCampaigns.length) * 0.5;
+    final adjustedMargin = (basePoll.marginOfError * (1 - campaignInfluence / 100)).clamp(1.0, 10.0).toDouble();
+
+    return Poll(
+      id: _uuid.v4(),
+      year: year,
+      week: week,
+      playerSupport: adjustedSupport,
+      marginOfError: adjustedMargin,
+      sampleSize: basePoll.sampleSize,
+      conductedAt: DateTime.now(),
+      rivalSupport: basePoll.rivalSupport,
+    );
+  }
 }
