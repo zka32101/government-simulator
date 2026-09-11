@@ -224,10 +224,13 @@ In **Analytics** > **Custom Reports**, set up dashboards for:
    - ✓ Track game_over with final status indicators
    - ✓ Implemented in GameSessionProvider, HomeScreen, SettingsScreen, GameOverScreen
    
-4. **3B4**: Error Handling Integration (In Progress)
-   - [ ] Integrate analytics error logging into exception handlers
-   - [ ] Add error tracking to firestore_service failures
-   - [ ] Add error tracking to game logic exceptions
+4. **3B4**: Error Handling Integration (✓ Complete)
+   - ✓ Integrate analytics error logging into all GameSessionNotifier methods
+   - ✓ Add error tracking to Firestore operation failures with proper error codes
+   - ✓ Add error tracking to game logic initialization exceptions
+   - ✓ Implement proper error boundaries with try-catch-rethrow patterns
+   - ✓ All error tracking uses unawaited() to prevent UI blocking
+   - ✓ Loading states properly reset on error to prevent UI lockups
    
 5. **3B5**: Dashboard & Analytics Report (Pending)
    - [ ] Create analytics dashboard documentation
@@ -272,19 +275,74 @@ await analytics.trackPolicyChosen(
 
 ## Error Handling
 
+### Phase 3B.4: Error Tracking Integration
+✓ **COMPLETE** - Comprehensive error tracking in GameSessionNotifier
+
+**Error Tracking Strategy:**
+- All GameSessionNotifier methods wrapped in try-catch-rethrow blocks
+- Errors logged with context information using `trackError()`
+- All error tracking uses `unawaited()` to prevent UI blocking
+- Loading states reset on error to prevent UI lockups
+- Errors re-thrown after tracking to allow caller handling
+
+**Error Codes and Contexts:**
+```dart
+// Session operations
+'session_load_failed' → GameSessionNotifier.loadOrCreate
+'scenario_load_failed' → GameSessionNotifier.loadOrCreateFromScenario
+'stage_load_failed' → GameSessionNotifier.loadOrCreateFromStage
+'new_year_start_failed' → GameSessionNotifier.startNewYear
+
+// Game progression
+'choice_apply_failed' → GameSessionNotifier.applyChoice
+'year_continue_failed' → GameSessionNotifier.continueToNextYear
+```
+
+**Example Implementation:**
+```dart
+Future<void> loadOrCreate({...}) async {
+  try {
+    state = state.copyWith(isLoading: true);
+    // ... session loading logic
+  } catch (e) {
+    unawaited(_analytics.trackError(
+      errorCode: 'session_load_failed',
+      errorMessage: e.toString(),
+      context: 'GameSessionNotifier.loadOrCreate',
+    ));
+    state = state.copyWith(isLoading: false);
+    rethrow;
+  }
+}
+```
+
 ### Analytics Service Resilience
 - All analytics calls are non-blocking (async/Future)
-- Failures don't crash the game (wrapped in try-catch at UI layer)
+- Failures don't crash the game (wrapped in try-catch at provider layer)
 - Games continue even if analytics is disabled
-- Optional logging with `AnalyticsException` handling (future enhancement)
+- Error events provide diagnostic information for debugging
 
-### Error Logging
-When errors occur:
+### Error Logging Examples
 ```dart
-ref.read(analyticsServiceProvider).trackError(
-  errorCode: 'invalid_policy_choice',
-  errorMessage: 'Policy validation failed',
-  context: 'HomeScreen._handleChoice',
+// Session load error
+await _analytics.trackError(
+  errorCode: 'session_load_failed',
+  errorMessage: e.toString(),
+  context: 'GameSessionNotifier.loadOrCreate',
+);
+
+// Policy choice error
+await _analytics.trackError(
+  errorCode: 'choice_apply_failed',
+  errorMessage: e.toString(),
+  context: 'GameSessionNotifier.applyChoice',
+);
+
+// Year progression error
+await _analytics.trackError(
+  errorCode: 'year_continue_failed',
+  errorMessage: e.toString(),
+  context: 'GameSessionNotifier.continueToNextYear',
 );
 ```
 
