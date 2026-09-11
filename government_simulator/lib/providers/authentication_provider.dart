@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:riverpod/riverpod.dart';
 import 'package:government_simulator/services/authentication_service.dart' show AuthenticationService, AuthException;
 
 // =================== Service Provider ===================
