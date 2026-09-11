@@ -119,12 +119,7 @@ class AuthenticationService {
   /// Appleでサインイン (iOS のみ)
   Future<User?> signInWithApple() async {
     try {
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDSignInScopes.email,
-          AppleIDSignInScopes.fullName,
-        ],
-      );
+      final credential = await SignInWithApple.getAppleIDCredential();
 
       // Firebase用のクレデンシャルを作成
       final oAuthCredential = OAuthProvider('apple.com').credential(
@@ -136,10 +131,7 @@ class AuthenticationService {
       final userCredential = await _auth.signInWithCredential(oAuthCredential);
       return userCredential.user;
     } on SignInWithAppleException catch (e) {
-      if (e.code == SignInWithAppleErrorCode.notSupported) {
-        throw AuthException('Apple Sign-In is not supported on this device');
-      }
-      throw AuthException('Apple sign-in failed: ${e.message}');
+      throw AuthException('Apple sign-in failed: $e');
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
@@ -211,12 +203,7 @@ class AuthenticationService {
         throw AuthException('User is not anonymous');
       }
 
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDSignInScopes.email,
-          AppleIDSignInScopes.fullName,
-        ],
-      );
+      final credential = await SignInWithApple.getAppleIDCredential();
 
       final oAuthCredential = OAuthProvider('apple.com').credential(
         idToken: credential.identityToken,
@@ -227,7 +214,7 @@ class AuthenticationService {
       final userCredential = await currentUser!.linkWithCredential(oAuthCredential);
       return userCredential.user;
     } on SignInWithAppleException catch (e) {
-      throw AuthException('Apple linking failed: ${e.message}');
+      throw AuthException('Apple linking failed: $e');
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {

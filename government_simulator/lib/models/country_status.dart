@@ -28,7 +28,7 @@ class CountryStatus {
   final String? previousSessionId;
   final bool isNewGame;
 
-  const CountryStatus({
+  CountryStatus({
     required this.gdp,
     required this.unemployment,
     required this.satisfaction,
@@ -47,12 +47,7 @@ class CountryStatus {
     BudgetAllocation? budget,
     this.previousSessionId,
     this.isNewGame = true,
-  })  : factions = factions ?? const FactionSupport({
-          Faction.military: 50,
-          Faction.business: 50,
-          Faction.labor: 50,
-          Faction.citizen: 50,
-        }),
+  })  : factions = factions ?? FactionSupport.initial(),
         // Cabinet.initial() と同じ初期値（大臣忠誠度60）。const コンストラクタの
         // 初期化子はコンパイル時定数のみ許されるため、Cabinet.initial() を
         // 呼ぶ代わりにここでもリテラルを複製している。
