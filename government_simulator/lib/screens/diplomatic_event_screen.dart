@@ -275,7 +275,7 @@ class _DiplomaticEventScreenState extends State<DiplomaticEventScreen>
       DiplomaticEventType.culturalExchange => Icons.theater_comedy,
       DiplomaticEventType.humanitarianAid => Icons.favorite,
       DiplomaticEventType.warDeclaration => Icons.military_tech,
-      DiplomaticEventType.peaceTreaty => Icons.peace,
+      DiplomaticEventType.peaceTreaty => Icons.balance,
     };
   }
 }
@@ -322,11 +322,11 @@ class _DiplomaticOptionCard extends StatelessWidget {
                     ),
                   ),
                   child: isSelected
-                      ? const Center(
+                      ? Center(
                           child: Container(
                             width: 12,
                             height: 12,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.blue,
                             ),
