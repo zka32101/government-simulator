@@ -538,7 +538,7 @@ class _MomentumIndicator extends StatelessWidget {
             minHeight: 12,
             backgroundColor: Colors.red[100],
             valueColor: AlwaysStoppedAnimation<Color>(
-              isPlayerAhead ? Colors.blue[400] : Colors.red[400],
+              isPlayerAhead ? (Colors.blue[400] ?? Colors.blue) : (Colors.red[400] ?? Colors.red),
             ),
           ),
         ),
