@@ -94,37 +94,37 @@ class NationRelationship {
   final String nationName;
 
   /// 関係スコア（-100 ～ +100）
-  double standingScore;
+  final double standingScore;
 
   /// 貿易量（0-100%）
-  double tradeVolume;
+  final double tradeVolume;
 
   /// 軍事同盟レベル（0-100%）
-  double militaryAllianceLevel;
+  final double militaryAllianceLevel;
 
   /// 文化的影響力（0-100%）
-  double culturalInfluence;
+  final double culturalInfluence;
 
   /// 当国に対して相手が負う恩義（0-100）
-  double favorOwedToMe;
+  final double favorOwedToMe;
 
   /// 当国が相手に負う恩義（0-100）
-  double favorIOweThem;
+  final double favorIOweThem;
 
   /// 経済的依存度（0-100%）
-  double economicDependency;
+  final double economicDependency;
 
   /// 最後の相互作用の日時
-  DateTime? lastInteraction;
+  final DateTime? lastInteraction;
 
   /// 戦争状態か
-  bool isAtWar;
+  final bool isAtWar;
 
   /// 同盟を結んでいるか
-  bool isAlly;
+  final bool isAlly;
 
   /// 最後の同盟変更日
-  DateTime? allianceChangeDate;
+  final DateTime? allianceChangeDate;
 
   const NationRelationship({
     required this.nationId,
@@ -300,7 +300,7 @@ class TradeAgreement {
   final List<String> affectedIndustries;
 
   /// アクティブか
-  bool isActive;
+  final bool isActive;
 
   const TradeAgreement({
     required this.partnerId,

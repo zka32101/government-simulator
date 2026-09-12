@@ -292,12 +292,31 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       final scenarioData =
           ScenarioService.createGameSessionDataFromScenario(gameScenario);
 
+      // 難易度に基づいた乗数を計算
+      final difficultyMultiplier = gameScenario.difficulty == 'hard'
+          ? 0.9
+          : gameScenario.difficulty == 'easy'
+              ? 1.1
+              : 1.0;
+
       // 基本GameSessionを作成
+      final initialStatus = CountryStatus(
+        gdp: gameScenario.gdp * difficultyMultiplier,
+        unemployment: 5.0 / (gameScenario.difficulty == 'easy' ? 1.2 : 1.0),
+        satisfaction: gameScenario.initialApproval * 100,
+        nationalPower: 50.0,
+        year: 1,
+        day: 1,
+        lastUpdated: DateTime.now(),
+        stability: 70.0,
+        isNewGame: true,
+      );
+
       final session = GameSession(
         id: _uuid.v4(),
         userId: userId,
         countryName: gameScenario.countryName,
-        status: CountryStatus.initial(),
+        status: initialStatus,
         createdAt: DateTime.now(),
         lastPlayedAt: DateTime.now(),
         difficulty: gameScenario.difficulty,
@@ -720,7 +739,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     // 制裁による月間経済ダメージを計算
     double totalSanctionImpact = 0;
     for (final sanction in updatedSession.activeSanctions) {
-      if (sanction.plannedEndDate.isAfter(DateTime.now())) {
+      if (sanction.plannedEndDate != null && sanction.plannedEndDate!.isAfter(DateTime.now())) {
         totalSanctionImpact += sanction.monthlyEconomicImpact;
       }
     }
@@ -830,18 +849,12 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       final economicTrend = (finalYearEndStatus.gdp > 0) ? (gdpChange / finalYearEndStatus.gdp) * 100 : 0;
       final satisfactionChange = finalYearEndStatus.satisfaction - session.status.satisfaction;
 
-      _logic.updatePoliticalPartyStates(
-        updatedParties,
-        playerSatisfaction: finalYearEndStatus.satisfaction,
-        playerStability: finalYearEndStatus.stability,
-        economicTrend: economicTrend,
-        satisfactionChange: satisfactionChange,
-      );
+      GameLogicService.updatePoliticalPartyStates(finalSession);
 
       // 選挙年の場合は予算を補充
       double newCampaignBudget = session.campaignBudget;
       double newSpentBudget = 0;
-      if (_logic.shouldHoldElection(finalYearEndStatus.year)) {
+      if (GameLogicService.shouldHoldElection(finalSession)) {
         // 選挙年：予算を リセット
         newCampaignBudget = 500.0; // 500万単位
         newSpentBudget = 0.0;
@@ -872,14 +885,9 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         weeksSinceDebate: updatedWeeksSinceDebate,
       );
 
-      if (_logic.shouldHoldElection(finalYearEndStatus.year)) {
+      if (GameLogicService.shouldHoldElection(finalSession)) {
         // 選挙年：ライバル候補者を初期化
-        final rivalCandidates = _logic.initializeRivalCandidatesForElection(
-          year: finalYearEndStatus.year,
-          playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
-          playerSocialPolicy: 0,
-          playerMilitaryPolicy: 0,
-        );
+        final rivalCandidates = GameLogicService.initializeRivalCandidatesForElection(finalSession);
 
         // 討論会をスケジュール設定（最初のライバルとの討論）
         Debate? scheduledDebate;

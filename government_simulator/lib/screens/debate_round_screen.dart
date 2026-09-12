@@ -190,13 +190,14 @@ class _DebateRoundScreenState extends ConsumerState<DebateRoundScreen>
 
   void _submitRound(BuildContext context, bool isLastRound) {
     // ここでラウンド結果画面へ遷移
+    if (selectedTone == null || selectedEmphasis == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => DebateRoundResultScreen(
           debate: widget.debate,
           currentRoundIndex: widget.currentRoundIndex,
-          selectedTone: selectedTone,
-          selectedEmphasis: selectedEmphasis,
+          selectedTone: selectedTone!,
+          selectedEmphasis: selectedEmphasis!,
           isLastRound: isLastRound,
         ),
       ),

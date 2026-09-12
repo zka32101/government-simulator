@@ -100,6 +100,9 @@ class CountryStatus {
   // 進行状況（0.0-1.0）
   double get yearProgress => (day - 1) / 6.0;
 
+  // 週（1-7）
+  int get week => day;
+
   CountryStatus copyWith({
     double? gdp,
     double? unemployment,
