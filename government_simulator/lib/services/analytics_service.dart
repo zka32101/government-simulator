@@ -199,4 +199,15 @@ class AnalyticsService {
 
   /// セッション ID を取得
   String get sessionId => _analytics.appInstanceId.toString();
+
+  /// Track a custom event
+  Future<void> trackEvent({
+    required String name,
+    Map<String, dynamic>? parameters,
+  }) async {
+    await _analytics.logEvent(
+      name: name,
+      parameters: parameters as Map<String, Object>?,
+    );
+  }
 }

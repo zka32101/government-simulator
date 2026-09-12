@@ -42,7 +42,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppTheme.primaryColor.withOpacity(0.1),
+              AppTheme.gold.withOpacity(0.1),
               Colors.transparent,
             ],
           ),
@@ -185,7 +185,7 @@ class _ElectionScreenState extends ConsumerState<ElectionScreen> {
                     icon: const Icon(Icons.arrow_forward),
                     label: const Text('統治を続行する'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
+                      backgroundColor: AppTheme.gold,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 32,

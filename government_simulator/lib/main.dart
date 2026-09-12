@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:government_simulator/config/firebase_options.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/utils/app_theme.dart';
@@ -98,7 +99,7 @@ class _AppRootState extends ConsumerState<_AppRoot> {
     }
   }
 
-  void _onOnboardingComplete(String countryName, String difficulty) async {
+  Future<void> _onOnboardingComplete(String countryName, String difficulty) async {
     final auth = ref.read(authServiceProvider);
     final userId = auth.userId ?? 'demo';
     await ref.read(gameSessionProvider.notifier).loadOrCreate(
@@ -133,6 +134,18 @@ class _AppRootState extends ConsumerState<_AppRoot> {
     if (mounted) setState(() => _hasSession = true);
   }
 
+  Future<void> _onGameScenarioStart(
+      String playerName, GameScenario scenario) async {
+    final auth = ref.read(authServiceProvider);
+    final userId = auth.userId ?? 'demo';
+    await ref.read(gameSessionProvider.notifier).loadOrCreateFromGameScenario(
+          userId: userId,
+          playerName: playerName,
+          gameScenario: scenario,
+        );
+    if (mounted) setState(() => _hasSession = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_initialized) {
@@ -155,6 +168,7 @@ class _AppRootState extends ConsumerState<_AppRoot> {
         onStart: _onOnboardingComplete,
         onStartScenario: _onScenarioStart,
         onStartStage: _onStageStart,
+        onStartGameScenario: _onGameScenarioStart,
       );
     }
 

@@ -6,20 +6,32 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/achievement.dart';
-import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/indicator_history.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
+import 'package:government_simulator/models/polling.dart';
+import 'package:government_simulator/models/election_result.dart';
+import 'package:government_simulator/models/international_relations.dart';
+import 'package:government_simulator/models/country_status.dart';
+import 'package:government_simulator/models/debate.dart';
+import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
+import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/services/approval_service.dart';
+import 'package:government_simulator/services/crisis_event_service.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
+import 'package:government_simulator/models/scenario.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -266,6 +278,100 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// シナリオパック：仮想国シナリオから新規セッションを開始する。
+  /// プレイヤーが選択したGameScenarioをゲーム初期化に使用。
+  Future<void> loadOrCreateFromGameScenario({
+    required String userId,
+    required String playerName,
+    required GameScenario gameScenario,
+  }) async {
+    try {
+      state = state.copyWith(isLoading: true);
+
+      // シナリオからゲーム初期化データを生成
+      final scenarioData =
+          ScenarioService.createGameSessionDataFromScenario(gameScenario);
+
+      // 難易度に基づいた乗数を計算
+      final difficultyMultiplier = gameScenario.difficulty == 'hard'
+          ? 0.9
+          : gameScenario.difficulty == 'easy'
+              ? 1.1
+              : 1.0;
+
+      // 基本GameSessionを作成
+      final initialStatus = CountryStatus(
+        gdp: gameScenario.gdp * difficultyMultiplier,
+        unemployment: 5.0 / (gameScenario.difficulty == 'easy' ? 1.2 : 1.0),
+        satisfaction: gameScenario.initialApproval * 100,
+        nationalPower: 50.0,
+        year: 1,
+        day: 1,
+        lastUpdated: DateTime.now(),
+        stability: 70.0,
+        isNewGame: true,
+      );
+
+      final session = GameSession(
+        id: _uuid.v4(),
+        userId: userId,
+        countryName: gameScenario.countryName,
+        status: initialStatus,
+        createdAt: DateTime.now(),
+        lastPlayedAt: DateTime.now(),
+        difficulty: gameScenario.difficulty,
+        // シナリオから初期値を設定
+        nationalApproval: gameScenario.initialApproval,
+        economicSatisfaction: gameScenario.economicSatisfaction,
+        socialSatisfaction: gameScenario.socialSatisfaction,
+        securitySatisfaction: gameScenario.securitySatisfaction,
+        healthcareSatisfaction: gameScenario.healthcareSatisfaction,
+        nationRelationships: scenarioData['nationRelationships'] as Map<String, NationRelationship>,
+      );
+
+      // シナリオの初期状態をスナップショットとして記録
+      final initialSnapshot = IndicatorSnapshot(
+        year: session.status.year,
+        day: session.status.day,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        satisfaction: session.status.satisfaction,
+        nationalPower: session.status.nationalPower,
+        inflationRate: session.status.inflationRate,
+        publicDebt: session.status.publicDebt,
+        stability: session.status.stability,
+      );
+
+      final sessionWithHistory = session.copyWith(
+        indicatorHistory: [initialSnapshot],
+      );
+
+      await _firestore.createGameSession(sessionWithHistory);
+
+      state = GameSessionState(
+        session: sessionWithHistory,
+        decisions: const [],
+        isLoading: false,
+      );
+
+      // アナリティクス：シナリオパック開始を追跡
+      unawaited(_analytics.trackGameStarted(
+        countryName: gameScenario.countryName,
+        difficulty: gameScenario.difficulty,
+        scenarioId: gameScenario.id,
+      ));
+    } catch (e) {
+      // Error tracking for game scenario load
+      unawaited(_analytics.trackError(
+        errorCode: 'game_scenario_load_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.loadOrCreateFromGameScenario',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
+  }
+
   /// 「国家ステージ」チャレンジ：選ばれたステージの固定初期ステータスで
   /// 新規セッションを開始する。
   Future<void> loadOrCreateFromStage({
@@ -389,6 +495,51 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     );
     var newStatus = _logic.applyImpact(baseStatus, impact);
 
+    // キャンペーン効果を適用
+    var sessionWithCampaignEffects = session.copyWith(status: newStatus);
+    sessionWithCampaignEffects = _logic.applyDailyCampaignEffects(
+      session: sessionWithCampaignEffects,
+    );
+    newStatus = sessionWithCampaignEffects.status;
+
+    // スキャンダル処理
+    var sessionWithScandalEffects = sessionWithCampaignEffects;
+
+    // スキャンダル発生判定
+    final newScandal = _logic.generateRandomScandal(
+      currentYear: newStatus.year,
+      currentWeek: newStatus.week,
+      playerSupport: newStatus.satisfaction,
+      difficulty: session.difficulty,
+      playerReputation: sessionWithCampaignEffects.playerReputation,
+      activecampaignCount: sessionWithCampaignEffects.activeCampaigns.length,
+    );
+
+    if (newScandal != null) {
+      final updatedScandalsList = [...sessionWithCampaignEffects.activeScandalsList, newScandal];
+      sessionWithScandalEffects = sessionWithCampaignEffects.copyWith(
+        activeScandalsList: updatedScandalsList,
+      );
+    }
+
+    // スキャンダルの支持率への影響を計算・適用
+    final scandalImpact = _logic.calculateScandalNetImpact(
+      activeScandalsList: sessionWithScandalEffects.activeScandalsList,
+      year: newStatus.year,
+      week: newStatus.week,
+      playerReputation: sessionWithScandalEffects.playerReputation,
+      mediaFavoring: sessionWithScandalEffects.mediaFavoring,
+    );
+
+    if (scandalImpact != 0.0) {
+      newStatus = newStatus.copyWith(
+        satisfaction: (newStatus.satisfaction + scandalImpact).clamp(0, 100),
+      );
+      sessionWithScandalEffects = sessionWithScandalEffects.copyWith(
+        status: newStatus,
+      );
+    }
+
     // 内閣：政策の影響と汚職度から大臣忠誠度を変動させ、裏切りを判定する
     final ministerDeltas = _logic.deriveMinisterImpact(impact,
         corruption: newStatus.corruption);
@@ -449,6 +600,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       positiveOutcomes: session.positiveOutcomes + (isPositive ? 1 : 0),
       negativeOutcomes: session.negativeOutcomes + (isPositive ? 0 : 1),
       activePromises: activePromises,
+      activeScandalsList: sessionWithScandalEffects.activeScandalsList,
+      playerReputation: sessionWithScandalEffects.playerReputation,
     );
 
     // 実績判定
@@ -564,6 +717,84 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// 外交システムの週間更新を処理
+  /// 貿易収入/支出、制裁影響、戦争ダメージなどを適用
+  GameSession _updateDiplomaticState(GameSession session, CountryStatus status) {
+    var updatedSession = session;
+    var currentStatus = status;
+
+    // 貿易協定から年間収入を月単位で適用（概算）
+    final yearlyTradeIncome =
+        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
+          return sum + (deal.isActive ? deal.yearlyIncome : 0);
+        });
+    final yearlyTradeExpense =
+        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
+          return sum + (deal.isActive ? deal.yearlyExpense : 0);
+        });
+
+    // 月間ベースの貿易ネット（年間÷12）
+    final monthlyTradeNet = (yearlyTradeIncome - yearlyTradeExpense) / 12;
+
+    // 制裁による月間経済ダメージを計算
+    double totalSanctionImpact = 0;
+    for (final sanction in updatedSession.activeSanctions) {
+      if (sanction.plannedEndDate != null && sanction.plannedEndDate!.isAfter(DateTime.now())) {
+        totalSanctionImpact += sanction.monthlyEconomicImpact;
+      }
+    }
+
+    // 戦争中の場合、軍事ダメージと経済ダメージを適用
+    double warDamage = 0;
+    if (updatedSession.warEnemyId != null && updatedSession.warStartDate != null) {
+      // 戦争での月間コスト（戦争中の毎月）
+      warDamage = 200000; // $200K/月の基本戦争コスト
+    }
+
+    // GDP の経済マイナスを計算
+    final totalMonthlyDamage = totalSanctionImpact + warDamage;
+    final gdpDamagePercent = (totalMonthlyDamage / (currentStatus.gdp * 1000000)) * 100;
+
+    // 満足度への影響（戦争と制裁）
+    double satisfactionImpact = 0;
+    if (updatedSession.warEnemyId != null) {
+      satisfactionImpact -= 1; // 毎月-1%の満足度低下
+    }
+    if (updatedSession.activeSanctions.isNotEmpty) {
+      satisfactionImpact -= 0.5;
+    }
+
+    // ステータスを更新（貿易収入と戦争/制裁ダメージを反映）
+    currentStatus = currentStatus.copyWith(
+      gdp: (currentStatus.gdp - (totalMonthlyDamage / 1000000)).clamp(0.1, double.infinity),
+      satisfaction:
+          (currentStatus.satisfaction + satisfactionImpact).clamp(0.0, 100.0),
+    );
+
+    updatedSession = updatedSession.copyWith(
+      status: currentStatus,
+      economicDamageFromWar: updatedSession.economicDamageFromWar + warDamage,
+      foreignDebt: updatedSession.foreignDebt + totalSanctionImpact,
+    );
+
+    // 国際スタンディングを計算
+    final nationsCount = updatedSession.nationRelationships.length;
+    if (nationsCount > 0) {
+      double totalStanding = 0;
+      for (final rel in updatedSession.nationRelationships.values) {
+        totalStanding += rel.standingScore;
+      }
+      final avgStanding = totalStanding / nationsCount;
+      final internationalStanding = ((avgStanding + 100) / 2).clamp(0.0, 100.0);
+
+      updatedSession = updatedSession.copyWith(
+        internationalStanding: internationalStanding,
+      );
+    }
+
+    return updatedSession;
+  }
+
   Future<void> continueToNextYear() async {
     try {
       final session = state.session;
@@ -571,80 +802,131 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
       final yearEndStatus = _logic.simulateYearPassed(session.status);
 
+      // 外交システムの状態を更新（貿易収入/支出、戦争ダメージ、制裁影響）
+      var sessionWithDiplomacy = _updateDiplomaticState(session, yearEndStatus);
+      var finalYearEndStatus = sessionWithDiplomacy.status;
+
       // 年末の国家指標をスナップショットとして記録（UI/UX改善用）
       final snapshot = IndicatorSnapshot(
-        year: yearEndStatus.year,
-        day: yearEndStatus.day,
-        gdp: yearEndStatus.gdp,
-        unemployment: yearEndStatus.unemployment,
-        satisfaction: yearEndStatus.satisfaction,
-        nationalPower: yearEndStatus.nationalPower,
-        inflationRate: yearEndStatus.inflationRate,
-        publicDebt: yearEndStatus.publicDebt,
-        stability: yearEndStatus.stability,
+        year: finalYearEndStatus.year,
+        day: finalYearEndStatus.day,
+        gdp: finalYearEndStatus.gdp,
+        unemployment: finalYearEndStatus.unemployment,
+        satisfaction: finalYearEndStatus.satisfaction,
+        nationalPower: finalYearEndStatus.nationalPower,
+        inflationRate: finalYearEndStatus.inflationRate,
+        publicDebt: finalYearEndStatus.publicDebt,
+        stability: finalYearEndStatus.stability,
       );
 
       final updatedHistory = List<IndicatorSnapshot>.from(session.indicatorHistory)
         ..add(snapshot);
 
       // 選挙チェック：4年ごとに実施
-      var finalSession = session.copyWith(
-        status: yearEndStatus,
+      var finalSession = sessionWithDiplomacy.copyWith(
+        status: finalYearEndStatus,
         lastPlayedAt: DateTime.now(),
         indicatorHistory: updatedHistory,
       );
 
+      // キャンペーンのクリーンアップ：完了したキャンペーンを削除
+      final activeCampaigns = session.activeCampaigns
+          .where((c) => !c.isCompleted(finalYearEndStatus.year, finalYearEndStatus.week))
+          .toList();
+
+      final rivalCampaigns = session.rivalCampaigns
+          .where((c) => !c.isCompleted(finalYearEndStatus.year, finalYearEndStatus.week))
+          .toList();
+
+      // スキャンダルのクリーンアップ：解決済みスキャンダルを削除
+      final activeScandalsList = session.activeScandalsList
+          .where((s) => !s.isResolved(finalYearEndStatus.year, finalYearEndStatus.week))
+          .toList();
+
       // 政治政党の状態を毎年更新
       final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
-      final gdpChange = yearEndStatus.gdp - session.status.gdp;
-      final economicTrend = (yearEndStatus.gdp > 0) ? (gdpChange / yearEndStatus.gdp) * 100 : 0;
-      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
+      final gdpChange = finalYearEndStatus.gdp - session.status.gdp;
+      final economicTrend = (finalYearEndStatus.gdp > 0) ? (gdpChange / finalYearEndStatus.gdp) * 100 : 0;
+      final satisfactionChange = finalYearEndStatus.satisfaction - session.status.satisfaction;
 
-      _logic.updatePoliticalPartyStates(
-        updatedParties,
-        playerSatisfaction: yearEndStatus.satisfaction,
-        playerStability: yearEndStatus.stability,
-        economicTrend: economicTrend,
-        satisfactionChange: satisfactionChange,
-      );
+      GameLogicService.updatePoliticalPartyStates(finalSession);
+
+      // 選挙年の場合は予算を補充
+      double newCampaignBudget = session.campaignBudget;
+      double newSpentBudget = 0;
+      if (GameLogicService.shouldHoldElection(finalSession)) {
+        // 選挙年：予算を リセット
+        newCampaignBudget = 500.0; // 500万単位
+        newSpentBudget = 0.0;
+      } else {
+        // 非選挙年の場合も予算を少し補充
+        newCampaignBudget = 250.0;
+        newSpentBudget = 0.0;
+      }
+
+      // 討論会効果の減衰（4週間後に効果が切れる）
+      int updatedWeeksSinceDebate = finalSession.weeksSinceDebate + 1;
+      double debateEffectsMultiplier = 1.0;
+      if (updatedWeeksSinceDebate <= 4 && finalSession.upcomingDebate != null) {
+        debateEffectsMultiplier =
+            finalSession.upcomingDebate!.outcome?.campaignMultiplier ?? 1.0;
+      } else {
+        updatedWeeksSinceDebate = 0;
+      }
 
       finalSession = finalSession.copyWith(
         politicalParties: updatedParties,
+        activeCampaigns: activeCampaigns,
+        rivalCampaigns: rivalCampaigns,
+        campaignBudget: newCampaignBudget,
+        spentBudget: newSpentBudget,
+        activeScandalsList: activeScandalsList,
+        debateEffectsMultiplier: debateEffectsMultiplier,
+        weeksSinceDebate: updatedWeeksSinceDebate,
       );
 
-      if (_logic.shouldHoldElection(yearEndStatus.year)) {
+      if (GameLogicService.shouldHoldElection(finalSession)) {
         // 選挙年：ライバル候補者を初期化
-        final rivalCandidates = _logic.initializeRivalCandidatesForElection(
-          year: yearEndStatus.year,
-          playerEconomicPolicy: 0, // TODO: プレイヤーの実際の政策値を使用
-          playerSocialPolicy: 0,
-          playerMilitaryPolicy: 0,
-        );
+        final rivalCandidates = GameLogicService.initializeRivalCandidatesForElection(finalSession);
+
+        // 討論会をスケジュール設定（最初のライバルとの討論）
+        Debate? scheduledDebate;
+        if (rivalCandidates.isNotEmpty) {
+          scheduledDebate = _logic.scheduleDebate(
+            session: finalSession,
+            opponent: rivalCandidates.first,
+            electionYear: finalYearEndStatus.year,
+          );
+        }
 
         final electionResult = _logic.calculateElectionResult(
           sessionId: session.id,
-          year: yearEndStatus.year,
-          satisfaction: yearEndStatus.satisfaction,
-          stability: yearEndStatus.stability,
+          year: finalYearEndStatus.year,
+          session: finalSession,
+          rivals: rivalCandidates,
+          difficulty: session.difficulty,
         );
 
-        final updatedElections = List<Election>.from(session.elections)
-          ..add(electionResult);
+        // 選挙スコアの累積平均を計算
+        final previousScore = session.cumulativeElectoralScore * session.successfulTerms;
+        final newCumulativeScore = (previousScore + electionResult.electoralScore) /
+            (session.successfulTerms + (electionResult.playerWon ? 1 : 0));
+
+        final newSuccessfulTerms = electionResult.playerWon ? session.successfulTerms + 1 : session.successfulTerms;
 
         finalSession = finalSession.copyWith(
-          elections: updatedElections,
+          lastElectionResult: electionResult,
+          successfulTerms: newSuccessfulTerms,
+          cumulativeElectoralScore: newCumulativeScore,
           rivalCandidates: rivalCandidates,
+          upcomingDebate: scheduledDebate,
         );
 
         // 落選時はゲームオーバー
-        if (!electionResult.won) {
+        if (!electionResult.playerWon) {
           // 選挙落選によるゲームオーバーフラグを設定
-          state = state.copyWith(
-            session: finalSession,
-            gameOverType: GameOverType.electionLoss,
-            isActive: false,
-          );
           await _firestore.updateGameSession(finalSession);
+          // ゲームオーバーを通知（UI層で処理）
           return;
         }
       }
@@ -653,12 +935,12 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       state = state.copyWith(session: finalSession);
 
       // アナリティクス：年終了イベントを追跡
-      final satisfactionChange = yearEndStatus.satisfaction - session.status.satisfaction;
-      final gdpChange = yearEndStatus.gdp - session.status.gdp;
+      final satisfactionChangeAnalytics = yearEndStatus.satisfaction - session.status.satisfaction;
+      final gdpChangeAnalytics = yearEndStatus.gdp - session.status.gdp;
       unawaited(_analytics.trackYearEnd(
         year: yearEndStatus.year - 1, // 終了した年を記録
-        satisfactionChange: satisfactionChange,
-        gdpChange: gdpChange,
+        satisfactionChange: satisfactionChangeAnalytics,
+        gdpChange: gdpChangeAnalytics,
         decisionsInYear: session.status.decisionsCount,
       ));
     } catch (e) {
@@ -667,6 +949,64 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'year_continue_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.continueToNextYear',
+      ));
+      rethrow;
+    }
+  }
+
+  /// キャンペーンを開始する
+  Future<void> launchCampaign({
+    required CampaignType type,
+    required int durationWeeks,
+    required double budgetSpent,
+  }) async {
+    try {
+      final session = state.session;
+      if (session == null) return;
+
+      // 予算チェック
+      final availableBudget = session.campaignBudget - session.spentBudget;
+      if (budgetSpent > availableBudget) {
+        throw Exception('予算不足です');
+      }
+
+      // キャンペーンを作成
+      final campaign = _logic.launchCampaign(
+        sessionId: session.id,
+        type: type,
+        durationWeeks: durationWeeks,
+        currentYear: session.status.year,
+        currentWeek: session.status.week,
+      );
+
+      // ゲームセッションを更新
+      final updatedCampaigns = List<Campaign>.from(session.activeCampaigns)
+        ..add(campaign);
+
+      final updatedSession = session.copyWith(
+        activeCampaigns: updatedCampaigns,
+        spentBudget: session.spentBudget + budgetSpent,
+        lastPlayedAt: DateTime.now(),
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：キャンペーン開始を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'campaign_launched',
+        parameters: {
+          'campaign_type': type.name,
+          'duration_weeks': durationWeeks,
+          'budget_spent': budgetSpent.toInt(),
+        },
+      ));
+    } catch (e) {
+      // Error tracking for campaign launch
+      unawaited(_analytics.trackError(
+        errorCode: 'campaign_launch_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.launchCampaign',
       ));
       rethrow;
     }

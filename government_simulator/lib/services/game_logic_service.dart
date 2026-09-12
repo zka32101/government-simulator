@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'package:government_simulator/models/country_status.dart';
-import 'package:government_simulator/models/election.dart';
 import 'package:government_simulator/models/event.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/faction.dart';
@@ -10,10 +9,13 @@ import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/policy_preview.dart';
+import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
-import 'package:government_simulator/models/campaign.dart';
+import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/debate.dart';
+import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/data/event_database.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:uuid/uuid.dart';
@@ -56,13 +58,6 @@ class GameLogicService {
       isNewGame: true,
     );
 
-    // 政治政党を初期化（プレイヤーの初期政策は中道的なバランス）
-    final politicalParties = initializePoliticalParties(
-      playerEconomicPolicy: 0,
-      playerSocialPolicy: 0,
-      playerMilitaryPolicy: 0,
-    );
-
     return GameSession(
       id: _uuid.v4(),
       userId: userId,
@@ -71,7 +66,6 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: difficulty,
-      politicalParties: politicalParties,
     );
   }
 
@@ -100,13 +94,6 @@ class GameLogicService {
       isNewGame: true,
     );
 
-    // 政治政党を初期化（プレイヤーの初期政策は中道的なバランス）
-    final politicalParties = initializePoliticalParties(
-      playerEconomicPolicy: 0,
-      playerSocialPolicy: 0,
-      playerMilitaryPolicy: 0,
-    );
-
     return GameSession(
       id: _uuid.v4(),
       userId: userId,
@@ -115,7 +102,6 @@ class GameLogicService {
       createdAt: DateTime.now(),
       lastPlayedAt: DateTime.now(),
       difficulty: 'normal',
-      politicalParties: politicalParties,
     );
   }
 
@@ -883,351 +869,168 @@ class GameLogicService {
     return faction.label;
   }
 
-  // =================== Election System ===================
-
-  /// 4年ごとの選挙が実施される必要があるかチェック
-  bool shouldHoldElection(int currentYear) {
-    return currentYear % 4 == 0 && currentYear > 1;
-  }
-
-  /// 選挙結果を計算
-  /// 国民満足度が高いほど再選の確率が上がり、低いと落選する
-  Election calculateElectionResult({
-    required String sessionId,
-    required int year,
-    required double satisfaction,
-    required double stability,
-  }) {
-    // 投票総数（全国民）
-    const totalVotes = 10000;
-
-    // 基礎投票率（60%）
-    final baseVotes = (totalVotes * 0.6).toInt();
-
-    // 満足度に基づいて投票率を調整（±20%）
-    final voteTurnout = baseVotes + ((satisfaction - 50) * 100).toInt();
-    final votesCast = voteTurnout.clamp(totalVotes * 0.4, totalVotes).toInt();
-
-    // 現職得票率の計算：満足度とは別に、安定度を考慮
-    // 満足度70%以上で基本的に再選可能、以下で危険
-    final baseSupportRate = 0.3 + (satisfaction / 100) * 0.5; // 30~80%
-    final stabilityBonus = (stability / 100) * 0.1; // 最大10%ボーナス
-    final supportRate = (baseSupportRate + stabilityBonus).clamp(0.2, 0.95);
-
-    // ランダムネスの追加（±5%）
-    final randomFactor = 0.95 + _random.nextDouble() * 0.1;
-    final finalSupportRate = (supportRate * randomFactor).clamp(0.0, 1.0);
-
-    final votesReceived = (votesCast * finalSupportRate).toInt();
-    final won = finalSupportRate >= 0.5;
-
-    return Election(
-      id: _uuid.v4(),
-      year: year,
-      votesCast: votesCast,
-      votesReceived: votesReceived,
-      won: won,
-      percentageVotes: (finalSupportRate * 100).clamp(0, 100),
-    );
-  }
-
-  /// 選挙用のライバル候補者を初期化
-  /// 4年ごとの選挙時に新しい候補者を生成
-  List<RivalCandidate> initializeRivalCandidatesForElection({
-    required int year,
-    required double playerEconomicPolicy,
-    required double playerSocialPolicy,
-    required double playerMilitaryPolicy,
-  }) {
-    // デフォルトの候補者を取得
-    var candidates = RivalCandidates.createDefault();
-
-    // 各候補者の人気度をランダムに初期化
-    for (var candidate in candidates) {
-      candidate.popularity = 20.0 + _random.nextDouble() * 30.0; // 20-50%
-      candidate.momentum = -2.0 + _random.nextDouble() * 4.0; // -2 to +2
-    }
-
-    return candidates;
-  }
-
-  /// 政治政党を初期化
-  /// ゲーム開始時に全政党を設定
-  Map<String, PoliticalParty> initializePoliticalParties({
-    required double playerEconomicPolicy,
-    required double playerSocialPolicy,
-    required double playerMilitaryPolicy,
-  }) {
-    var parties = PoliticalParties.createDefault();
-
-    // プレイヤーの政策に基づいて各党の忠誠度を調整
-    for (var partyId in parties.keys) {
-      final party = parties[partyId]!;
-      final affinity = party.calculatePolicyAffinity(
-        playerEconomicPolicy,
-        playerSocialPolicy,
-        playerMilitaryPolicy,
-      );
-
-      // 与党と連立政党の忠誠度を政策相性に基づいて設定
-      if (partyId == 'party_ruling' || partyId == 'party_coalition') {
-        party.loyalty = affinity;
-      }
-    }
-
-    return parties;
-  }
-
-  /// ライバル候補者の支持率を更新
-  void updateRivalCandidatePopularity(
-    List<RivalCandidate> candidates, {
-    required double playerSatisfaction,
-    required double playerStability,
-    required bool campaignActive,
-  }) {
-    for (var candidate in candidates) {
-      candidate.updatePopularity(
-        playerSatisfaction,
-        playerStability,
-        campaignActive,
-      );
-    }
-  }
-
-  /// 政治政党の状態を更新
-  void updatePoliticalPartyStates(
-    Map<String, PoliticalParty> parties, {
-    required double playerSatisfaction,
-    required double playerStability,
-    required double economicTrend,
-    required double satisfactionChange,
-  }) {
-    for (var partyId in parties.keys) {
-      final party = parties[partyId]!;
-
-      // 与党と連立政党の場合は、プレイヤーの成績に基づいて忠誠度を更新
-      if (partyId == 'party_ruling' || partyId == 'party_coalition') {
-        party.updateLoyalty(
-          playerSatisfaction,
-          party.loyalty, // 政策相性スコア
-          playerStability,
-          0, // ライバル支持の初期値
-        );
-
-        // 支持率も更新
-        party.updateSupport(
-          economicTrend,
-          satisfactionChange,
-          0,
-        );
-      } else {
-        // 野党の支持率は経済トレンドと国民満足度で更新
-        party.updateSupport(
-          economicTrend,
-          satisfactionChange,
-          (100 - playerSatisfaction) / 10, // 満足度が低いほど野党支持が増える
-        );
-      }
-    }
-  }
-
-  /// 選挙時に複数のライバル候補者と対戦、勝率を計算
-  /// player側のサポートスコアを返す（0-100）
-  double calculateElectionWithRivals(
-    List<RivalCandidate> rivals, {
-    required double playerSatisfaction,
-    required double playerStability,
-  }) {
-    // プレイヤーの基本支持率
-    final baseSupportRate = 0.3 + (playerSatisfaction / 100) * 0.5;
-    final stabilityBonus = (playerStability / 100) * 0.1;
-    final playerSupport = (baseSupportRate + stabilityBonus).clamp(0.2, 0.95);
-
-    // ランダムネスの追加
-    final randomFactor = 0.95 + _random.nextDouble() * 0.1;
-    final finalPlayerSupport = (playerSupport * randomFactor).clamp(0.0, 1.0);
-
-    return finalPlayerSupport * 100;
-  }
-
-  /// 世論調査を実施
-  /// 年間を通じて複数回実施可能
-  Poll conductPoll({
-    required String sessionId,
-    required int year,
-    required int week,
-    required double playerSatisfaction,
-    required double playerStability,
-    int sampleSize = 1000,
-  }) {
-    // プレイヤーの真の支持率を計算
-    final trueSupportRate = 0.3 + (playerSatisfaction / 100) * 0.5 + (playerStability / 100) * 0.1;
-
-    // サンプルサイズに基づいて誤差範囲を計算
-    // 大きなサンプルサイズほど誤差が小さい
-    final marginOfError = (50 / sqrt(sampleSize / 100)).clamp(2.0, 10.0);
-
-    // ランダムなサンプリング誤差を追加
-    final samplingError = (_random.nextDouble() - 0.5) * marginOfError;
-    final measuredSupport = (trueSupportRate * 100 + samplingError).clamp(0.0, 100.0).toDouble();
-
-    return Poll(
-      id: _uuid.v4(),
-      year: year,
-      week: week,
-      playerSupport: measuredSupport,
-      marginOfError: marginOfError,
-      sampleSize: sampleSize,
-      conductedAt: DateTime.now(),
-    );
-  }
-
-  /// 定期的な世論調査スケジュール
-  /// 選挙年の前年から定期的に実施
-  List<Poll> schedulePollsForElectionYear(
-    int upcomingElectionYear,
-    double playerSatisfaction,
-    double playerStability,
-  ) {
-    final polls = <Poll>[];
-    final pollingYear = upcomingElectionYear - 1;
-
-    // 年間4回（各四半期）実施
-    for (int quarter = 0; quarter < 4; quarter++) {
-      final week = (quarter * 13) + 1; // 週番号
-      final poll = conductPoll(
-        sessionId: '', // 本来はセッションIDが必要だが、ここではスケルトン
-        year: pollingYear,
-        week: week,
-        playerSatisfaction: playerSatisfaction,
-        playerStability: playerStability,
-        sampleSize: 1000 + (_random.nextInt(500)), // 1000-1500のランダムサンプル
-      );
-      polls.add(poll);
-    }
-
-    return polls;
-  }
-
-  /// 世論調査トレンドを分析
-  PollingTrend analyzePollingTrend(List<Poll> polls) {
-    return PollingTrend(polls);
-  }
-
-  /// キャンペーンを開始
-  /// 予算チェックと初期効果度の計算を行う
+  /// キャンペーンを開始する
   Campaign launchCampaign({
-    required String id,
+    required String sessionId,
     required CampaignType type,
-    required int startWeek,
     required int durationWeeks,
-    required int year,
-    required double budgetSpent,
-    required String difficulty,
+    required int currentYear,
+    required int currentWeek,
   }) {
-    // 基本コストを取得
-    final baseCost = CampaignManager.costByDifficulty[difficulty]![type]!;
-
-    // 実際に支出した額でコスト調整
-    double actualCost = baseCost;
-    if (budgetSpent > 0) {
-      actualCost = budgetSpent;
-    }
-
-    // 初期効果度を計算
     final effectiveness = CampaignManager.calculateInitialEffectiveness(
       type: type,
-      budgetSpent: actualCost,
-      difficulty: difficulty,
+      budgetSpent: CampaignManager.costByDifficulty['normal']![type]! * 1.5, // デフォルト予算
+      difficulty: 'normal',
     );
 
-    // 最大支持率上昇を計算
     final maxSupportBoost = CampaignManager.calculateMaxSupportBoost(type);
 
     return Campaign(
-      id: id,
-      name: '${type.label} キャンペーン',
+      id: _uuid.v4(),
+      name: '${type.label}キャンペーン',
       type: type,
-      startWeek: startWeek,
+      startWeek: currentWeek,
       durationWeeks: durationWeeks,
-      startYear: year,
+      startYear: currentYear,
       effectiveness: effectiveness,
       maxSupportBoost: maxSupportBoost,
       launchedAt: DateTime.now(),
     );
   }
 
-  /// 対立候補者のキャンペーン応答を生成
-  CounterCampaign? generateRivalCounterCampaign({
-    required Campaign playerCampaign,
-    required RivalCandidate rival,
-    required int currentWeek,
-    required String difficulty,
-  }) {
-    // プレイヤーのキャンペーン効果が大きい場合に反応
-    final playerImpact = playerCampaign.getWeeklyImpact(
-      playerCampaign.startYear,
-      currentWeek,
-    );
-
-    // 効果が5%以上の場合に反応確率が高い
-    final responseChance = (playerImpact / playerCampaign.maxSupportBoost * 100).clamp(0, 100);
-
-    if (_random.nextDouble() * 100 > responseChance) {
-      return null; // 応答しない
-    }
-
-    // 対立候補者が応答キャンペーンを開始（2-3週間後）
-    final delayWeeks = 2 + _random.nextInt(2);
-    final counterStartWeek = (currentWeek + delayWeeks).clamp(1, 52);
-    final counterDuration = (playerCampaign.durationWeeks * 0.7).toInt();
-
-    // 対立候補者の応答効果度は60-80%
-    final rivalEffectiveness = playerCampaign.effectiveness * 0.6 +
-        playerCampaign.effectiveness * 0.2 * _random.nextDouble();
-
-    return CounterCampaign(
-      id: _uuid.v4(),
-      name: '${rival.name}の対抗キャンペーン',
-      type: playerCampaign.type,
-      startWeek: counterStartWeek,
-      durationWeeks: counterDuration.clamp(1, 52),
-      startYear: playerCampaign.startYear,
-      effectiveness: rivalEffectiveness.clamp(0, 100),
-      maxSupportBoost: playerCampaign.maxSupportBoost * 0.75,
-      launchedAt: DateTime.now(),
-      rivalId: rival.id,
-      isRetaliatory: true,
-    );
-  }
-
-  /// 各週のキャンペーン合計効果を計算
+  /// キャンペーンの純粋な支持率への影響を計算
+  /// プレイヤーキャンペーンとカウンターキャンペーンの効果を合計
   double calculateCampaignNetImpact({
     required int year,
     required int week,
     required List<Campaign> activeCampaigns,
     required List<CounterCampaign> counterCampaigns,
   }) {
-    // プレイヤーのキャンペーン効果を合計
-    double playerImpact = 0;
+    // プレイヤーキャンペーンの総効果
+    double playerImpact = 0.0;
     for (final campaign in activeCampaigns) {
       playerImpact += campaign.getWeeklyImpact(year, week);
     }
 
-    // 対立候補者のキャンペーン効果を合計
-    double rivalImpact = 0;
-    for (final counter in counterCampaigns) {
-      rivalImpact += counter.getWeeklyImpact(year, week);
+    // カウンターキャンペーンの総効果（負）
+    double counterImpact = 0.0;
+    for (final campaign in counterCampaigns) {
+      counterImpact += campaign.getWeeklyImpact(year, week);
     }
 
-    // 対立候補者のキャンペーンはプレイヤーの効果を30-50%削減
-    final reductionFactor = rivalImpact > 0 ? (rivalImpact / 15).clamp(0.3, 0.5) : 0;
-    final rivalReduction = playerImpact * reductionFactor;
+    // カウンターキャンペーンはプレイヤー効果を30-50%削減
+    final counterReduction = playerImpact * (0.3 + _random.nextDouble() * 0.2);
 
-    return (playerImpact - rivalReduction).clamp(-playerImpact, playerImpact);
+    return (playerImpact - counterReduction - counterImpact).clamp(-15.0, 15.0);
   }
 
-  /// キャンペーン効果を反映した世論調査を実施
+  /// ライバル候補者がプレイヤーキャンペーンに対抗キャンペーンで応答するかを判定
+  /// プレイヤーキャンペーンが5%以上の効果を持つ場合に応答確率がある
+  CounterCampaign? generateRivalCounterCampaign({
+    required Campaign playerCampaign,
+    required RivalCandidate rival,
+    required int currentYear,
+    required int currentWeek,
+    required String difficulty,
+  }) {
+    // プレイヤーキャンペーンの最大効果が5%未満なら応答しない
+    if (playerCampaign.maxSupportBoost < 5.0) {
+      return null;
+    }
+
+    // ライバルがこのキャンペーンに応答する確率（60-80%）
+    final responseStrength = 0.6 + _random.nextDouble() * 0.2;
+
+    // 応答の遅延：2-3週間後に開始
+    final delayWeeks = 2 + _random.nextInt(2);
+    final responseStartWeek = (currentWeek + delayWeeks - 1) % 52 + 1;
+
+    // ライバルキャンペーンの効果度（プレイヤー効果の60-80%）
+    final rivalEffectiveness = playerCampaign.effectiveness * responseStrength;
+
+    // ライバルキャンペーンの最大支持率上昇（プレイヤー効果の60-80%）
+    final rivalMaxBoost = playerCampaign.maxSupportBoost * responseStrength;
+
+    return CounterCampaign(
+      id: _uuid.v4(),
+      name: '${playerCampaign.type.label}対抗キャンペーン',
+      type: playerCampaign.type,
+      startWeek: responseStartWeek,
+      durationWeeks: playerCampaign.durationWeeks,
+      startYear: currentYear,
+      effectiveness: rivalEffectiveness.clamp(0, 100),
+      maxSupportBoost: rivalMaxBoost,
+      launchedAt: DateTime.now(),
+      rivalId: rival.id,
+      isRetaliatory: true,
+    );
+  }
+
+  /// 日次でキャンペーン効果をセッションに適用
+  /// 支持率の変化とライバル応答をトリガー
+  GameSession applyDailyCampaignEffects({
+    required GameSession session,
+  }) {
+    var updatedSession = session;
+    final year = session.status.year;
+    final week = (session.status.day / 7).ceil();
+
+    // キャンペーンの純粋な支持率への影響を計算
+    final campaignNetImpact = calculateCampaignNetImpact(
+      year: year,
+      week: week,
+      activeCampaigns: session.activeCampaigns,
+      counterCampaigns: session.rivalCampaigns,
+    );
+
+    // 支持率に影響を適用（満足度として）
+    var newStatus = session.status;
+    if (campaignNetImpact.abs() > 0.1) {
+      newStatus = newStatus.copyWith(
+        satisfaction: (newStatus.satisfaction + campaignNetImpact).clamp(0, 100).toDouble(),
+      );
+      updatedSession = updatedSession.copyWith(status: newStatus);
+    }
+
+    // ライバル応答をトリガー：有効なキャンペーンに対して
+    final newRivalCampaigns = List<CounterCampaign>.from(session.rivalCampaigns);
+
+    for (final campaign in session.activeCampaigns) {
+      // このキャンペーンに対する応答がまだ存在するか確認
+      final hasExistingResponse = newRivalCampaigns.any(
+        (rc) => rc.type == campaign.type && rc.isRetaliatory
+      );
+
+      if (!hasExistingResponse && campaign.maxSupportBoost >= 5.0) {
+        // ライバル候補者から応答を生成
+        for (final rival in session.rivalCandidates) {
+          final counterCampaign = generateRivalCounterCampaign(
+            playerCampaign: campaign,
+            rival: rival,
+            currentYear: year,
+            currentWeek: week,
+            difficulty: session.difficulty,
+          );
+
+          if (counterCampaign != null) {
+            newRivalCampaigns.add(counterCampaign);
+            // 最初のライバルのみ応答
+            break;
+          }
+        }
+      }
+    }
+
+    if (newRivalCampaigns.length != session.rivalCampaigns.length) {
+      updatedSession = updatedSession.copyWith(
+        rivalCampaigns: newRivalCampaigns,
+      );
+    }
+
+    return updatedSession;
+  }
+
+  /// キャンペーン効果を反映したポール調査を実施
   Poll conductPollWithCampaigns({
     required Poll basePoll,
     required int year,
@@ -1235,7 +1038,7 @@ class GameLogicService {
     required List<Campaign> activeCampaigns,
     required List<CounterCampaign> counterCampaigns,
   }) {
-    // キャンペーンの合計効果を計算
+    // キャンペーンの純粋な支持率への影響を計算
     final campaignImpact = calculateCampaignNetImpact(
       year: year,
       week: week,
@@ -1243,10 +1046,10 @@ class GameLogicService {
       counterCampaigns: counterCampaigns,
     );
 
-    // 調査結果に反映
+    // キャンペーン調整済みの支持率
     final adjustedSupport = (basePoll.playerSupport + campaignImpact).clamp(0.0, 100.0).toDouble();
 
-    // キャンペーンがある場合は誤差範囲が縮小（意見が固まる）
+    // キャンペーンが活発な場合は誤差範囲を縮小（意見がより固まっている）
     final campaignInfluence = (activeCampaigns.length + counterCampaigns.length) * 0.5;
     final adjustedMargin = (basePoll.marginOfError * (1 - campaignInfluence / 100)).clamp(1.0, 10.0).toDouble();
 
@@ -1260,5 +1063,624 @@ class GameLogicService {
       conductedAt: DateTime.now(),
       rivalSupport: basePoll.rivalSupport,
     );
+  }
+
+  /// スキャンダルを生成・トリガー
+  /// 確率に基づいてスキャンダルを発生させる
+  Scandal? generateRandomScandal({
+    required int currentYear,
+    required int currentWeek,
+    required double playerSupport,
+    required String difficulty,
+    required int playerReputation,
+    required int activecampaignCount,
+  }) {
+    // スキャンダル発生確率を計算
+    final probability = ScandalManager.calculateScandalProbability(
+      playerSupport: playerSupport,
+      activecampaignCount: activecampaignCount,
+      difficulty: difficulty,
+      playerReputation: playerReputation,
+    );
+
+    // 確率判定
+    if (_random.nextDouble() > probability) {
+      return null;
+    }
+
+    // スキャンダルタイプをランダムに選択
+    final types = ScandalType.values;
+    final type = types[_random.nextInt(types.length)];
+
+    // スキャンダルタイトルを取得
+    final title = ScandalManager.getScandalTitle(type);
+
+    // 基本影響度 (5-15%)
+    final baseImpact = type.baseImpact + (_random.nextDouble() * 5 - 2.5);
+
+    return Scandal(
+      id: _uuid.v4(),
+      title: title,
+      type: type,
+      discoveredAt: DateTime.now(),
+      startWeek: currentWeek,
+      startYear: currentYear,
+      baseImpact: baseImpact.clamp(5.0, 15.0),
+      initialIntensity: 100.0,
+      involvedPersonId: null, // プレイヤーのスキャンダル
+    );
+  }
+
+  /// ライバルスキャンダルの生成
+  Scandal? generateRivalScandal({
+    required RivalCandidate rival,
+    required int currentYear,
+    required int currentWeek,
+  }) {
+    // ライバルスキャンダルの発生確率: 5-10%
+    if (_random.nextDouble() > 0.075) {
+      return null;
+    }
+
+    final types = ScandalType.values;
+    final type = types[_random.nextInt(types.length)];
+    final title = ScandalManager.getScandalTitle(type);
+    final baseImpact = type.baseImpact + (_random.nextDouble() * 3 - 1.5);
+
+    return Scandal(
+      id: _uuid.v4(),
+      title: title,
+      type: type,
+      discoveredAt: DateTime.now(),
+      startWeek: currentWeek,
+      startYear: currentYear,
+      baseImpact: baseImpact.clamp(5.0, 15.0),
+      initialIntensity: 100.0,
+      involvedPersonId: rival.id,
+    );
+  }
+
+  /// スキャンダルの支持率への影響を計算
+  double calculateScandalNetImpact({
+    required List<Scandal> activeScandalsList,
+    required int year,
+    required int week,
+    required int playerReputation,
+    required int mediaFavoring,
+  }) {
+    if (activeScandalsList.isEmpty) return 0.0;
+
+    double totalImpact = 0.0;
+
+    for (final scandal in activeScandalsList) {
+      // プレイヤーのスキャンダルのみ（involvedPersonId == null）影響を計算
+      if (scandal.involvedPersonId == null) {
+        var impact = scandal.getWeeklyImpact(year, week);
+
+        // メディア報道乗数を適用
+        final mediaCoverageMultiplier =
+            ScandalManager.calculateMediaCoverageMultiplier(
+          playerReputation: playerReputation,
+          mediaFavoring: mediaFavoring,
+        );
+        impact *= mediaCoverageMultiplier;
+
+        totalImpact -= impact; // 支持率低下はマイナス
+      }
+    }
+
+    return totalImpact.clamp(-30.0, 0.0);
+  }
+
+  /// スキャンダルへのプレイヤー応答を処理
+  GameSession respondToScandal({
+    required GameSession session,
+    required Scandal scandal,
+    required ScandalResponse response,
+  }) {
+    // スキャンダルを応答済みに更新
+    final respondedScandal = Scandal(
+      id: scandal.id,
+      title: scandal.title,
+      type: scandal.type,
+      discoveredAt: scandal.discoveredAt,
+      startWeek: scandal.startWeek,
+      startYear: scandal.startYear,
+      baseImpact: scandal.baseImpact,
+      initialIntensity: scandal.initialIntensity,
+      involvedPersonId: scandal.involvedPersonId,
+      playerResponse: response,
+      respondedAt: DateTime.now(),
+    );
+
+    // スキャンダルリストを更新
+    final updatedScandalsList = session.activeScandalsList
+        .map((s) => s.id == scandal.id ? respondedScandal : s)
+        .toList();
+
+    // 応答に応じて評判を調整
+    int reputationChange = 0;
+    switch (response) {
+      case ScandalResponse.deny:
+        reputationChange = -5; // 否定は信頼低下
+        break;
+      case ScandalResponse.apologize:
+        reputationChange = -10; // 謝罪は長期的信頼低下
+        break;
+      case ScandalResponse.counterattack:
+        reputationChange = -3; // 反論は少し低下
+        break;
+      case ScandalResponse.ignore:
+        reputationChange = 0; // 無視は影響なし
+        break;
+    }
+
+    final newReputation =
+        (session.playerReputation + reputationChange).clamp(0, 100);
+
+    return session.copyWith(
+      activeScandalsList: updatedScandalsList,
+      playerReputation: newReputation,
+    );
+  }
+
+  /// 次の選挙のための討論会をスケジュール設定
+  Debate? scheduleDebate({
+    required GameSession session,
+    required RivalCandidate opponent,
+    required int electionYear,
+  }) {
+    // 既に討論会がスケジュールされていないか確認
+    if (session.upcomingDebate != null &&
+        session.upcomingDebate!.electionYear == electionYear) {
+      return null;
+    }
+
+    return Debate(
+      id: _uuid.v4(),
+      electionYear: electionYear,
+      rounds: [],
+      opponentId: opponent.id,
+      opponentName: opponent.name,
+      scheduledAt: DateTime.now(),
+      playerScore: 0.0,
+      rivalScore: 0.0,
+    );
+  }
+
+  /// 討論ラウンドのプレイヤーパフォーマンスを計算
+  double calculatePlayerRoundPerformance({
+    required GameSession session,
+    required DebateTopic topic,
+    required String difficulty,
+  }) {
+    // ベーススコア: 50
+    double score = 50.0;
+
+    // 政策マッチボーナス
+    final status = session.status;
+    final policyMatchBonus = _calculatePolicyMatchBonus(topic, status);
+    score += policyMatchBonus;
+
+    // 満足度：高いほど自信がある
+    final satisfactionBonus = (status.satisfaction / 100) * 15;
+    score += satisfactionBonus;
+
+    // 安定度：低いと緊張して悪くなる
+    final stabilityPenalty = (100 - status.stability) / 100 * 10;
+    score -= stabilityPenalty;
+
+    // 評判：高いほど説得力がある
+    final reputationBonus = (session.playerReputation / 100) * 10;
+    score += reputationBonus;
+
+    // スキャンダル：進行中のスキャンダルは信頼度を落とす
+    if (session.activeScandalsList.isNotEmpty) {
+      final activeScandalCount = session.activeScandalsList
+          .where((s) => s.involvedPersonId == null)
+          .length;
+      score -= activeScandalCount * 5;
+    }
+
+    // ランダム要素: パフォーマンスの変動 (±30)
+    final performanceVariation =
+        (_random.nextDouble() * 60) - 30;
+    score += performanceVariation;
+
+    return score.clamp(0.0, 100.0);
+  }
+
+  /// ライバルのラウンドパフォーマンスを計算
+  double calculateRivalRoundPerformance({
+    required RivalCandidate rival,
+    required DebateTopic topic,
+    required String difficulty,
+  }) {
+    // ベーススコア: 50
+    double score = 50.0;
+
+    // 難易度による調整
+    final difficultyMult = difficulty == 'hard'
+        ? 1.3
+        : difficulty == 'easy'
+            ? 0.7
+            : 1.0;
+
+    // ライバルの支持率が高いほど自信がある
+    final supportBonus = (rival.popularity / 100) * 15;
+    score += supportBonus * difficultyMult;
+
+    // ライバルの政策一貫性
+    score += _random.nextDouble() * 20;
+
+    // ランダム要素
+    final performanceVariation =
+        (_random.nextDouble() * 60) - 30;
+    score += performanceVariation;
+
+    return score.clamp(0.0, 100.0);
+  }
+
+  /// 討論の勝者を決定
+  DebateOutcome determineDebateWinner({
+    required double playerScore,
+    required double rivalScore,
+  }) {
+    final difference = playerScore - rivalScore;
+
+    if (difference > 30) {
+      return DebateOutcome.dominantVictory;
+    } else if (difference > 15) {
+      return DebateOutcome.clearVictory;
+    } else if (difference > 5) {
+      return DebateOutcome.narrowVictory;
+    } else if (difference.abs() <= 5) {
+      return DebateOutcome.tie;
+    } else if (difference < -5) {
+      return DebateOutcome.narrowLoss;
+    } else if (difference < -15) {
+      return DebateOutcome.clearLoss;
+    } else {
+      return DebateOutcome.dominantLoss;
+    }
+  }
+
+  /// 討論結果から支持率変化を計算
+  double calculateDebateImpact({
+    required DebateOutcome outcome,
+  }) {
+    return outcome.supportChange;
+  }
+
+  /// トピックに基づいて政策マッチボーナスを計算
+  double _calculatePolicyMatchBonus(DebateTopic topic, CountryStatus status) {
+    switch (topic) {
+      case DebateTopic.economy:
+        // GDP成長政策を選択していれば+10
+        return (status.gdp > 1500) ? 10.0 : ((status.gdp > 1000) ? 5.0 : -5.0);
+
+      case DebateTopic.healthcare:
+        // 満足度が高ければ医療に投資している
+        return (status.satisfaction > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.security:
+        // 国力が高ければセキュリティに注力している
+        return (status.nationalPower > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.environment:
+        // 安定度が高ければ環境政策も充実
+        return (status.stability > 70) ? 10.0 : -5.0;
+
+      case DebateTopic.infrastructure:
+        // GDP成長と安定度で判定
+        return ((status.gdp > 1000 && status.stability > 60)
+            ? 10.0
+            : (status.stability > 50)
+                ? 5.0
+                : -5.0);
+
+      case DebateTopic.education:
+        // 国力と国家人材を示唆する統計で判定
+        return (status.nationalPower > 60) ? 10.0 : -5.0;
+    }
+  }
+
+  /// プレイヤーの得票率を計算
+  double calculatePlayerVoteShare({
+    required GameSession session,
+    required CountryStatus status,
+    required List<Campaign> activeCampaigns,
+    required List<Scandal> activeScandalsList,
+    required Debate? debate,
+  }) {
+    // ベース支持率（満足度と安定度の平均）
+    double baseSupport =
+        ((status.satisfaction * 0.4) + (status.stability * 0.3) + (session.playerReputation * 0.3)) /
+            100 *
+            60;
+
+    // キャンペーン効果
+    double campaignBonus = 0.0;
+    for (final campaign in activeCampaigns) {
+      // 有効な状態のキャンペーンは +1 から +3% の効果
+      final effectiveness = campaign.effectiveness;
+      if (effectiveness > 0) {
+        campaignBonus += 2.0 * (effectiveness / 100);
+      }
+    }
+    // キャンペーン効果にデバウンス乗数を適用
+    campaignBonus = campaignBonus * (1 + (session.debateEffectsMultiplier - 1) * 0.5);
+
+    // 討論会効果
+    double debateBonus = 0.0;
+    if (debate != null && debate.isCompleted) {
+      debateBonus = switch (debate.outcome!) {
+        DebateOutcome.dominantVictory => 10.0,
+        DebateOutcome.clearVictory => 6.0,
+        DebateOutcome.narrowVictory => 3.0,
+        DebateOutcome.tie => 0.5,
+        DebateOutcome.narrowLoss => -3.0,
+        DebateOutcome.clearLoss => -6.0,
+        DebateOutcome.dominantLoss => -10.0,
+      };
+    }
+
+    // スキャンダル影響
+    double scandalPenalty = 0.0;
+    final currentYear = session.status.year;
+    final currentWeek = (session.status.day / 7).ceil();
+    for (final scandal in activeScandalsList) {
+      if (scandal.isActive(currentYear, currentWeek)) {
+        scandalPenalty -= scandal.getWeeklyImpact(currentYear, currentWeek);
+      }
+    }
+
+    // 最終的な得票率を計算し、0-100 にクランプ
+    double totalVoteShare = baseSupport + campaignBonus + debateBonus + scandalPenalty;
+    return totalVoteShare.clamp(0.0, 100.0);
+  }
+
+  /// ライバルの得票率を計算（AI難易度に応じた調整）
+  double calculateRivalVoteShare({
+    required RivalCandidate rival,
+    required double playerVoteShare,
+    required String difficulty,
+  }) {
+    // ライバルのベース支持率
+    double baseRivalSupport = rival.popularity;
+
+    // 難易度による乗数（ハードなら敵が強い）
+    final difficultyMultiplier = switch (difficulty) {
+      'easy' => 0.8,
+      'normal' => 1.0,
+      'hard' => 1.2,
+      _ => 1.0,
+    };
+
+    // ライバルの支持率調整（プレイヤーの得票率に応じた市場シェア）
+    double adjustedRivalSupport = baseRivalSupport * difficultyMultiplier;
+
+    // 100未満の範囲に納める
+    return adjustedRivalSupport.clamp(0.0, 100.0);
+  }
+
+  /// 選挙結果を計算
+  ElectionResult calculateElectionResult({
+    required String sessionId,
+    required int year,
+    required GameSession session,
+    required List<RivalCandidate> rivals,
+    required String difficulty,
+  }) {
+    // プレイヤーの得票率を計算
+    final playerVote = calculatePlayerVoteShare(
+      session: session,
+      status: session.status,
+      activeCampaigns: session.activeCampaigns,
+      activeScandalsList: session.activeScandalsList,
+      debate: session.debateHistory.lastOrNull,
+    );
+
+    // ライバル候補者の得票率を計算
+    final rivalVotes = <String, double>{};
+    for (final rival in rivals) {
+      final rivalVote = calculateRivalVoteShare(
+        rival: rival,
+        playerVoteShare: playerVote,
+        difficulty: difficulty,
+      );
+      rivalVotes[rival.id] = rivalVote;
+    }
+
+    // 少数派候補の投票率を生成（3-5人、各2-8%）
+    final minorCandidateVotes = <String, double>{};
+    final minorCandidateCount = 3 + _random.nextInt(3);
+    double totalMinorVotes = 0.0;
+
+    for (int i = 0; i < minorCandidateCount; i++) {
+      final minorVote = 2.0 + (_random.nextInt(7) * 1.0);
+      minorCandidateVotes['minor_$i'] = minorVote;
+      totalMinorVotes += minorVote;
+    }
+
+    // 投票率を正規化（100%になるように調整）
+    final totalVotes = playerVote + rivalVotes.values.fold(0.0, (a, b) => a + b) + totalMinorVotes;
+    final scaleFactor = totalVotes > 0 ? 100.0 / totalVotes : 1.0;
+
+    final scaledPlayerVote = (playerVote * scaleFactor).clamp(0.0, 100.0);
+    final scaledRivalVotes = <String, double>{};
+    for (final entry in rivalVotes.entries) {
+      scaledRivalVotes[entry.key] = (entry.value * scaleFactor).clamp(0.0, 100.0);
+    }
+    final scaledMinorVotes = <String, double>{};
+    for (final entry in minorCandidateVotes.entries) {
+      scaledMinorVotes[entry.key] = (entry.value * scaleFactor).clamp(0.0, 100.0);
+    }
+
+    // 勝敗を決定
+    final maxRivalVote = scaledRivalVotes.values.isNotEmpty ? scaledRivalVotes.values.reduce((a, b) => a > b ? a : b) : 0.0;
+    final playerWon = scaledPlayerVote >= maxRivalVote && scaledPlayerVote >= 40;
+    final marginOfVictory = scaledPlayerVote - maxRivalVote;
+
+    // 勝利タイプを決定
+    final victoryType = _determineVictoryType(scaledPlayerVote, playerWon, marginOfVictory);
+
+    // 選挙パフォーマンススコアを計算
+    final electoralScore = calculateElectoralScore(
+      voteShare: scaledPlayerVote,
+      playerReputation: session.playerReputation,
+      debateOutcome: session.debateHistory.lastOrNull?.outcome,
+      campaignEfficiency: _calculateCampaignEfficiency(session),
+    );
+
+    // ナレーティブを生成
+    final narrativeText = _generateElectionNarrative(
+      voteShare: scaledPlayerVote,
+      victoryType: victoryType,
+      playerWon: playerWon,
+      marginOfVictory: marginOfVictory,
+      rivals: rivals,
+    );
+
+    return ElectionResult(
+      year: year,
+      playerVoteShare: scaledPlayerVote,
+      playerMarginOfVictory: marginOfVictory,
+      rivalVotes: scaledRivalVotes,
+      minorCandidateVotes: scaledMinorVotes,
+      playerWon: playerWon,
+      victoryType: victoryType,
+      electoralScore: electoralScore,
+      narrativeText: narrativeText,
+    );
+  }
+
+  /// 選挙パフォーマンススコアを計算（0-100）
+  double calculateElectoralScore({
+    required double voteShare,
+    required int playerReputation,
+    required DebateOutcome? debateOutcome,
+    required double campaignEfficiency,
+  }) {
+    // 得票率ベース（0-100の範囲から0-50を取得）
+    double baseScore = (voteShare / 100) * 50;
+
+    // 名声ボーナス（0-15）
+    double reputationBonus = (playerReputation / 100) * 15;
+
+    // 討論会ボーナス（0-20）
+    double debateBonus = 0.0;
+    if (debateOutcome != null) {
+      debateBonus = switch (debateOutcome) {
+        DebateOutcome.dominantVictory => 20.0,
+        DebateOutcome.clearVictory => 15.0,
+        DebateOutcome.narrowVictory => 10.0,
+        DebateOutcome.tie => 5.0,
+        DebateOutcome.narrowLoss => 0.0,
+        DebateOutcome.clearLoss => -5.0,
+        DebateOutcome.dominantLoss => -10.0,
+      };
+    }
+
+    // キャンペーン効率ボーナス（0-15）
+    double efficiencyBonus = (campaignEfficiency * 100).clamp(0.0, 100.0) / 100 * 15;
+
+    double totalScore = (baseScore + reputationBonus + debateBonus + efficiencyBonus).clamp(0.0, 100.0);
+    return totalScore;
+  }
+
+  /// キャンペーン効率を計算（支出と効果の比率）
+  double _calculateCampaignEfficiency(GameSession session) {
+    if (session.activeCampaigns.isEmpty) return 0.5;
+
+    double totalEffectiveness = 0.0;
+    for (final campaign in session.activeCampaigns) {
+      totalEffectiveness += campaign.effectiveness;
+    }
+
+    final avgEffectiveness = totalEffectiveness / session.activeCampaigns.length;
+    return (avgEffectiveness / 100).clamp(0.0, 1.0);
+  }
+
+  /// 勝利タイプを決定
+  ElectionVictoryType _determineVictoryType(double playerVote, bool playerWon, double marginOfVictory) {
+    if (!playerWon) {
+      if (playerVote >= 45) {
+        return ElectionVictoryType.narrowLoss;
+      } else if (playerVote >= 35) {
+        return ElectionVictoryType.clearLoss;
+      } else {
+        return ElectionVictoryType.landslideDefeat;
+      }
+    }
+
+    // プレイヤーが勝った場合
+    if (playerVote >= 65) {
+      return ElectionVictoryType.dominantVictory;
+    } else if (playerVote >= 55) {
+      return ElectionVictoryType.clearVictory;
+    } else if (playerVote >= 50) {
+      return ElectionVictoryType.narrowVictory;
+    } else if (playerVote >= 40) {
+      return ElectionVictoryType.pluralityVictory;
+    }
+
+    return ElectionVictoryType.pluralityVictory;
+  }
+
+  /// 選挙ナレーティブを生成
+  String _generateElectionNarrative({
+    required double voteShare,
+    required ElectionVictoryType victoryType,
+    required bool playerWon,
+    required double marginOfVictory,
+    required List<RivalCandidate> rivals,
+  }) {
+    final mainRival = rivals.isNotEmpty ? rivals.first : null;
+
+    if (playerWon) {
+      if (victoryType == ElectionVictoryType.dominantVictory) {
+        return '圧倒的な勝利！${voteShare.toStringAsFixed(1)}%の得票率で、${mainRival?.name ?? "ライバル"}候補に大差をつけた。'
+            '国民は君の方針に強い支持を示した。';
+      } else if (victoryType == ElectionVictoryType.clearVictory) {
+        return '明確な勝利を収めた。${voteShare.toStringAsFixed(1)}%の支持で、${mainRival?.name ?? "ライバル"}候補を上回った。'
+            '次の任期での政策実行に向けて、国民の信任を得た。';
+      } else if (victoryType == ElectionVictoryType.narrowVictory) {
+        return '接戦を制した。${voteShare.toStringAsFixed(1)}%で50%を超え、辛くも勝利を手にした。'
+            '国民の声に耳を傾け、更なる成果を上げる必要がある。';
+      } else {
+        return '相対多数での勝利。${voteShare.toStringAsFixed(1)}%で最多得票を獲得したが、完全な過半数ではない。'
+            '政治的課題は多く、連携が求められる時代となった。';
+      }
+    } else {
+      if (victoryType == ElectionVictoryType.narrowLoss) {
+        return '僅差での敗北。${voteShare.toStringAsFixed(1)}%の支持を得たが、${mainRival?.name ?? "ライバル"}候補に及ばなかった。'
+            '再起を目指す次の機会に向けて、戦略を再考する必要がある。';
+      } else if (victoryType == ElectionVictoryType.clearLoss) {
+        return '明確な敗北。${voteShare.toStringAsFixed(1)}%の得票率は、${mainRival?.name ?? "ライバル"}候補の信任には届かなかった。'
+            '君の時代は終わり、新しい指導者の下で国は進む。';
+      } else {
+        return '圧倒的な敗北。わずか${voteShare.toStringAsFixed(1)}%の支持率で、国民は明確に君の方針を拒否した。'
+            '政治キャリアは終焉を迎えた。';
+      }
+    }
+  }
+
+  /// Update political party states based on current game conditions
+  static void updatePoliticalPartyStates(GameSession session) {
+    // TODO: Implement political party state updates
+  }
+
+  /// Determine if election should be held based on game progress
+  static bool shouldHoldElection(GameSession session) {
+    // Elections typically held annually or at specific game milestones
+    return false; // Placeholder
+  }
+
+  /// Initialize rival candidates for election
+  static List<RivalCandidate> initializeRivalCandidatesForElection(
+      GameSession session) {
+    // Use existing rivals or create new ones
+    return session.rivalCandidates ?? [];
   }
 }
