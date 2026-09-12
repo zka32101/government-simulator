@@ -5,6 +5,7 @@ import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
+import 'debate_round_screen.dart';
 
 /// 討論会準備画面
 /// 対戦相手のプロフィール、トピックのプレビュー、戦略のヒントを表示（アニメーション付き）
@@ -165,10 +166,12 @@ class _DebatePreparationScreenState extends ConsumerState<DebatePreparationScree
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        Navigator.pushNamed(
-                          context,
-                          '/debate_round',
-                          arguments: widget.debate,
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => DebateRoundScreen(
+                              debate: widget.debate,
+                            ),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.play_arrow),

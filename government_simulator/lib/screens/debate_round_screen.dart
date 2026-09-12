@@ -5,6 +5,7 @@ import 'package:government_simulator/models/debate_choice.dart';
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
+import 'debate_round_result_screen.dart';
 
 /// 討論会ラウンド画面
 /// プレイヤーがトーンと強調を選択してラウンドを進める（アニメーション付き）
@@ -189,16 +190,16 @@ class _DebateRoundScreenState extends ConsumerState<DebateRoundScreen>
 
   void _submitRound(BuildContext context, bool isLastRound) {
     // ここでラウンド結果画面へ遷移
-    Navigator.pushNamed(
-      context,
-      '/debate_round_result',
-      arguments: {
-        'debate': widget.debate,
-        'currentRoundIndex': widget.currentRoundIndex,
-        'selectedTone': selectedTone,
-        'selectedEmphasis': selectedEmphasis,
-        'isLastRound': isLastRound,
-      },
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DebateRoundResultScreen(
+          debate: widget.debate,
+          currentRoundIndex: widget.currentRoundIndex,
+          selectedTone: selectedTone,
+          selectedEmphasis: selectedEmphasis,
+          isLastRound: isLastRound,
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/debate_choice.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
+import 'debate_round_screen.dart';
+import 'debate_summary_screen.dart';
 
 /// 討論会ラウンド結果画面
 /// ラウンドのスコア、コメンタリー、モメンタムを表示（アニメーション付き）
@@ -214,19 +216,21 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
 
   void _continueDebate(BuildContext context) {
     if (widget.isLastRound) {
-      Navigator.pushNamed(
-        context,
-        '/debate_summary',
-        arguments: widget.debate,
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DebateSummaryScreen(
+            debate: widget.debate,
+          ),
+        ),
       );
     } else {
-      Navigator.pushNamed(
-        context,
-        '/debate_round',
-        arguments: {
-          'debate': widget.debate,
-          'currentRoundIndex': widget.currentRoundIndex + 1,
-        },
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DebateRoundScreen(
+            debate: widget.debate,
+            currentRoundIndex: widget.currentRoundIndex + 1,
+          ),
+        ),
       );
     }
   }
