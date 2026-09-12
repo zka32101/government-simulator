@@ -170,6 +170,7 @@ class _DebatePreparationScreenState extends ConsumerState<DebatePreparationScree
                           MaterialPageRoute(
                             builder: (context) => DebateRoundScreen(
                               debate: widget.debate,
+                              currentRoundIndex: 0,
                             ),
                           ),
                         );
