@@ -3,6 +3,7 @@
 
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/game_session.dart';
+import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/services/approval_service.dart';
 import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/data/scenarios/ostia_scenario.dart';
@@ -70,7 +71,7 @@ class ScenarioService {
       '同盟国' || 'NATO同盟国' => RelationshipStatus.allied,
       '友好国' || '友好国・経済的主導国' || 'セキュリティ同盟国' ||
       '地域経済的リーダー' || '地域パートナー' || 'EU主要国' ||
-      '北欧パートナー' => RelationshipStatus.friendly,
+      '北欧パートナー' => RelationshipStatus.cordial,
       '中立国（不安定）' || '中立国' || '新興経済的パートナー' ||
       '隣国（不安定）' || '経済的主導国・領土紛争国' ||
       '支配的な大国' => RelationshipStatus.neutral,
@@ -87,15 +88,15 @@ class ScenarioService {
     final relationships = <String, NationRelationship>{};
 
     for (final initial in scenario.initialNations) {
+      // スタンディングスコアから relationshipStatus を決定
+      final status = _parseRelationshipStatus(initial.relationship);
+
       relationships[initial.nationName] = NationRelationship(
+        nationId: initial.nationName.toLowerCase().replaceAll(' ', '_'),
         nationName: initial.nationName,
-        standing: initial.standingScore,
-        relationshipStatus: _parseRelationshipStatus(initial.relationship),
-        tradeVolume: 0,
-        militaryAllianceLevel: 0,
-        culturalInfluence: 0,
-        diplomaticFavors: 0,
-        incidentHistory: [],
+        standingScore: initial.standingScore.toDouble(),
+        isAlly: status == RelationshipStatus.allied,
+        isAtWar: status == RelationshipStatus.enemy,
       );
     }
 

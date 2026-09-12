@@ -973,7 +973,7 @@ class GameLogicService {
   }) {
     var updatedSession = session;
     final year = session.status.year;
-    final week = session.status.week;
+    final week = (session.status.day / 7).ceil();
 
     // キャンペーンの純粋な支持率への影響を計算
     final campaignNetImpact = calculateCampaignNetImpact(
@@ -1307,7 +1307,7 @@ class GameLogicService {
             : 1.0;
 
     // ライバルの支持率が高いほど自信がある
-    final supportBonus = (rival.supportRating / 100) * 15;
+    final supportBonus = (rival.popularity / 100) * 15;
     score += supportBonus * difficultyMult;
 
     // ライバルの政策一貫性
@@ -1402,10 +1402,10 @@ class GameLogicService {
     // キャンペーン効果
     double campaignBonus = 0.0;
     for (final campaign in activeCampaigns) {
-      if (campaign.isActive) {
-        // 有効な状態のキャンペーンは +1 から +3% の効果
-        final effectiveness = (campaign.effectiveness ?? 0.5);
-        campaignBonus += 2.0 * effectiveness;
+      // 有効な状態のキャンペーンは +1 から +3% の効果
+      final effectiveness = campaign.effectiveness;
+      if (effectiveness > 0) {
+        campaignBonus += 2.0 * (effectiveness / 100);
       }
     }
     // キャンペーン効果にデバウンス乗数を適用
@@ -1427,9 +1427,11 @@ class GameLogicService {
 
     // スキャンダル影響
     double scandalPenalty = 0.0;
+    final currentYear = session.status.year;
+    final currentWeek = (session.status.day / 7).ceil();
     for (final scandal in activeScandalsList) {
-      if (scandal.isActive) {
-        scandalPenalty += scandal.getWeeklyImpact();
+      if (scandal.isActive(currentYear, currentWeek)) {
+        scandalPenalty -= scandal.getWeeklyImpact(currentYear, currentWeek);
       }
     }
 
@@ -1445,7 +1447,7 @@ class GameLogicService {
     required String difficulty,
   }) {
     // ライバルのベース支持率
-    double baseRivalSupport = rival.supportRating;
+    double baseRivalSupport = rival.popularity;
 
     // 難易度による乗数（ハードなら敵が強い）
     final difficultyMultiplier = switch (difficulty) {
@@ -1593,13 +1595,11 @@ class GameLogicService {
 
     double totalEffectiveness = 0.0;
     for (final campaign in session.activeCampaigns) {
-      if (campaign.isActive) {
-        totalEffectiveness += campaign.effectiveness ?? 0.5;
-      }
+      totalEffectiveness += campaign.effectiveness;
     }
 
     final avgEffectiveness = totalEffectiveness / session.activeCampaigns.length;
-    return avgEffectiveness.clamp(0.0, 1.0);
+    return (avgEffectiveness / 100).clamp(0.0, 1.0);
   }
 
   /// 勝利タイプを決定
