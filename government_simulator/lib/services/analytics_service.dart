@@ -207,7 +207,7 @@ class AnalyticsService {
   }) async {
     await _analytics.logEvent(
       name: name,
-      parameters: parameters,
+      parameters: parameters as Map<String, Object>?,
     );
   }
 }
