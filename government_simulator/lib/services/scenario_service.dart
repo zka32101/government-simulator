@@ -2,10 +2,7 @@
 /// 複数の仮想国シナリオの提供と初期化
 
 import 'package:government_simulator/models/scenario.dart';
-import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/international_relations.dart';
-import 'package:government_simulator/services/approval_service.dart';
-import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/data/scenarios/ostia_scenario.dart';
 import 'package:government_simulator/data/scenarios/amanda_scenario.dart';
 import 'package:government_simulator/data/scenarios/islas_scenario.dart';
