@@ -431,7 +431,7 @@ class _CampaignScreenState extends ConsumerState<CampaignScreen> {
     );
   }
 
-  void _launchCampaign(
+  Future<void> _launchCampaign(
     GameSession session,
     CampaignType type,
     int durationWeeks,
