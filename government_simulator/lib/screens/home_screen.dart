@@ -86,7 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _currentEvent = event);
   }
 
-  void _handleChoice(Choice choice) async {
+  Future<void> _handleChoice(Choice choice) async {
     // カードのスワイプ確定演出やボタン連打で同じ選択が二重に発火すると、
     // 同一イベントに対する EventDetailScreen が二重に積まれたり、
     // applyChoice が二重適用されうるため、処理中は再入を無視する。
@@ -225,7 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _onContinueYear() async {
+  Future<void> _onContinueYear() async {
     // 「続行」ボタンの連打で continueToNextYear/pop が二重発火すると、
     // 2回目の pop が YearEndScreen ではなく既にその下にある HomeScreen
     // （Navigator のルート）に対して行われてしまうため、処理中は無視する。
@@ -243,7 +243,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _onRestartGame() async {
+  Future<void> _onRestartGame() async {
     // GameOverScreen/EndingScreen/SettingsScreen のいずれからも呼ばれうる
     // ため、連打で startNewYear が二重発火し、Firestore 上に余分な
     // セッションが作られてしまうことを防ぐ。
