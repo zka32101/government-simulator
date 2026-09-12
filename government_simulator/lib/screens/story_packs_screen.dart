@@ -1,12 +1,12 @@
 /// ストーリーパック選択画面
 /// ユーザーがテーマ別にシナリオを選択できる新しいゲーム開始フロー
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/story_pack.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/services/story_pack_service.dart';
-import 'package:government_simulator/services/scenario_service.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 
 /// ストーリーパック選択画面
@@ -117,7 +117,7 @@ class _StoryPacksScreenState extends ConsumerState<StoryPacksScreen>
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: packs.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            separatorBuilder: (context, index) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final pack = packs[index];
               return _StoryPackCard(
@@ -192,7 +192,7 @@ class _StoryPacksScreenState extends ConsumerState<StoryPacksScreen>
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: _selectedPackScenarios!.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final scenario = _selectedPackScenarios![index];
               return _ScenarioTile(

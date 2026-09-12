@@ -1,5 +1,6 @@
 /// ストーリーパック管理サービス
 /// パック内のシナリオ管理と進捗追跡
+library;
 
 import 'package:government_simulator/models/story_pack.dart';
 import 'package:government_simulator/models/scenario.dart';
