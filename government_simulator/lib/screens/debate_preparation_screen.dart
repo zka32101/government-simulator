@@ -67,10 +67,13 @@ class _DebatePreparationScreenState extends ConsumerState<DebatePreparationScree
       orElse: () => RivalCandidate(
         id: widget.debate.opponentId,
         name: widget.debate.opponentName,
-        supportRating: 40,
+        emoji: '🎭',
+        affiliation: 'Independent',
+        description: 'Debate opponent',
         economicPolicy: 50,
         socialPolicy: 50,
         militaryPolicy: 50,
+        popularity: 40,
       ),
     );
 
@@ -224,11 +227,11 @@ class _OpponentProfileCard extends StatelessWidget {
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
-                    color: _getSupportColor(opponent.supportRating),
+                    color: _getSupportColor(opponent.popularity),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${opponent.supportRating.toStringAsFixed(1)}%',
+                    '${opponent.popularity.toStringAsFixed(1)}%',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -491,7 +494,7 @@ class _StrategyTipsWidget extends StatelessWidget {
     }
 
     // 対戦相手の強さに関するヒント
-    if (opponent.supportRating >= 45) {
+    if (opponent.popularity >= 45) {
       tips.add({
         'icon': Icons.warning,
         'title': '相手は強敵です',
