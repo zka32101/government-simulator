@@ -2,7 +2,6 @@
 /// 円グラフと棒グラフで投票分布をアニメーション表示
 
 import 'package:flutter/material.dart';
-import 'package:government_simulator/utils/animation_configs.dart';
 
 /// 投票分布チャートウィジェット
 class VoteDistributionChart extends StatefulWidget {
