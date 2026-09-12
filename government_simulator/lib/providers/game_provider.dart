@@ -24,6 +24,11 @@ import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
+import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/services/approval_service.dart';
+import 'package:government_simulator/services/crisis_event_service.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
+import 'package:government_simulator/models/scenario.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -264,6 +269,81 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'scenario_load_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.loadOrCreateFromScenario',
+      ));
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
+  }
+
+  /// シナリオパック：仮想国シナリオから新規セッションを開始する。
+  /// プレイヤーが選択したGameScenarioをゲーム初期化に使用。
+  Future<void> loadOrCreateFromGameScenario({
+    required String userId,
+    required String playerName,
+    required GameScenario gameScenario,
+  }) async {
+    try {
+      state = state.copyWith(isLoading: true);
+
+      // シナリオからゲーム初期化データを生成
+      final scenarioData =
+          ScenarioService.createGameSessionDataFromScenario(gameScenario);
+
+      // 基本GameSessionを作成
+      final session = GameSession(
+        id: _uuid.v4(),
+        userId: userId,
+        countryName: gameScenario.countryName,
+        status: CountryStatus.initial(),
+        createdAt: DateTime.now(),
+        lastPlayedAt: DateTime.now(),
+        difficulty: gameScenario.difficulty,
+        // シナリオから初期値を設定
+        nationalApproval: gameScenario.initialApproval,
+        economicSatisfaction: gameScenario.economicSatisfaction,
+        socialSatisfaction: gameScenario.socialSatisfaction,
+        securitySatisfaction: gameScenario.securitySatisfaction,
+        healthcareSatisfaction: gameScenario.healthcareSatisfaction,
+        nationRelationships: scenarioData['nationRelationships'] as Map<String, NationRelationship>,
+      );
+
+      // シナリオの初期状態をスナップショットとして記録
+      final initialSnapshot = IndicatorSnapshot(
+        year: session.status.year,
+        day: session.status.day,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        satisfaction: session.status.satisfaction,
+        nationalPower: session.status.nationalPower,
+        inflationRate: session.status.inflationRate,
+        publicDebt: session.status.publicDebt,
+        stability: session.status.stability,
+      );
+
+      final sessionWithHistory = session.copyWith(
+        indicatorHistory: [initialSnapshot],
+      );
+
+      await _firestore.createGameSession(sessionWithHistory);
+
+      state = GameSessionState(
+        session: sessionWithHistory,
+        decisions: const [],
+        isLoading: false,
+      );
+
+      // アナリティクス：シナリオパック開始を追跡
+      unawaited(_analytics.trackGameStarted(
+        countryName: gameScenario.countryName,
+        difficulty: gameScenario.difficulty,
+        scenarioId: gameScenario.id,
+      ));
+    } catch (e) {
+      // Error tracking for game scenario load
+      unawaited(_analytics.trackError(
+        errorCode: 'game_scenario_load_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.loadOrCreateFromGameScenario',
       ));
       state = state.copyWith(isLoading: false);
       rethrow;

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
+import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'scenario_select_screen.dart';
 import 'country_stage_select_screen.dart';
+import 'scenario_selection_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final void Function(String countryName, String difficulty) onStart;
@@ -19,11 +21,16 @@ class OnboardingScreen extends StatefulWidget {
   final Future<void> Function(String countryName, CountryStage stage)
       onStartStage;
 
+  /// シナリオパック：選ばれた仮想国シナリオで開始する。
+  final Future<void> Function(String playerName, GameScenario scenario)
+      onStartGameScenario;
+
   const OnboardingScreen({
     Key? key,
     required this.onStart,
     required this.onStartScenario,
     required this.onStartStage,
+    required this.onStartGameScenario,
   }) : super(key: key);
 
   @override
@@ -85,6 +92,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         builder: (_) => CountryStageSelectScreen(
           onSelect: (stage) async {
             await widget.onStartStage(name.isEmpty ? '新興共和国' : name, stage);
+            if (mounted) Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+  }
+
+  void _onOpenGameScenarioSelect() {
+    final name = _nameController.text.trim();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScenarioSelectionScreen(
+          onScenarioSelected: (scenario) async {
+            await widget.onStartGameScenario(
+                name.isEmpty ? '新興共和国' : name, scenario);
             if (mounted) Navigator.of(context).pop();
           },
         ),
@@ -292,6 +314,26 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   ),
                   child: const Text(
                     '🌍 ステージを選んで始める',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+
+                const SizedBox(height: AppConstants.paddingM),
+
+                // シナリオパック（複数の仮想国シナリオから選ぶ）
+                OutlinedButton(
+                  onPressed: _onOpenGameScenarioSelect,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.deepOrange,
+                    side: const BorderSide(color: Colors.deepOrange),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.borderRadiusM),
+                    ),
+                  ),
+                  child: const Text(
+                    '🎭 シナリオパック - 仮想国で統治する',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ),

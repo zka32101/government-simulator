@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:uuid/uuid.dart';
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/models/game_session.dart';
+import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/services/approval_service.dart';
 
 /// 危機イベント表示情報
@@ -47,12 +48,25 @@ class CrisisEventService {
   final _random = Random();
 
   /// ゲーム状態に基づいて危機を生成
-  Crisis? generateCrisis(GameSession session, ApprovalService approvalService) {
+  /// シナリオがある場合、そのシナリオ固有の危機タイプをフィルタリング
+  Crisis? generateCrisis(
+    GameSession session,
+    ApprovalService approvalService, {
+    GameScenario? scenario,
+  }) {
     final approval = approvalService.currentApproval;
     final riskLevel = approvalService.getRiskLevel();
 
     // 危機リスクレベルに応じて危機タイプを決定
-    final probableCrises = approvalService.getProbableCrises();
+    var probableCrises = approvalService.getProbableCrises();
+
+    // シナリオがある場合、そのシナリオ固有の危機タイプでフィルタリング
+    if (scenario != null && scenario.uniqueCrises.isNotEmpty) {
+      probableCrises = probableCrises
+          .where((crisis) => scenario.uniqueCrises.contains(crisis))
+          .toList();
+    }
+
     if (probableCrises.isEmpty) return null;
 
     // ランダムに危機タイプを選択
