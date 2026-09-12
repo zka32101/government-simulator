@@ -917,12 +917,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         // 落選時はゲームオーバー
         if (!electionResult.playerWon) {
           // 選挙落選によるゲームオーバーフラグを設定
-          state = state.copyWith(
-            session: finalSession,
-            gameOverType: GameOverType.electionLoss,
-            isActive: false,
-          );
           await _firestore.updateGameSession(finalSession);
+          // ゲームオーバーを通知（UI層で処理）
           return;
         }
       }
