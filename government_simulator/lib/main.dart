@@ -99,7 +99,7 @@ class _AppRootState extends ConsumerState<_AppRoot> {
     }
   }
 
-  void _onOnboardingComplete(String countryName, String difficulty) async {
+  Future<void> _onOnboardingComplete(String countryName, String difficulty) async {
     final auth = ref.read(authServiceProvider);
     final userId = auth.userId ?? 'demo';
     await ref.read(gameSessionProvider.notifier).loadOrCreate(
