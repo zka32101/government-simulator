@@ -13,9 +13,7 @@ import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/campaign.dart';
-import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
-import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/debate.dart';
@@ -716,16 +714,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   GameSession _updateDiplomaticState(GameSession session, CountryStatus status) {
     var updatedSession = session;
     var currentStatus = status;
-
-    // 貿易協定から年間収入を月単位で適用（概算）
-    final yearlyTradeIncome =
-        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
-          return sum + (deal.isActive ? deal.yearlyIncome : 0);
-        });
-    final yearlyTradeExpense =
-        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
-          return sum + (deal.isActive ? deal.yearlyExpense : 0);
-        });
 
     // 制裁による月間経済ダメージを計算
     double totalSanctionImpact = 0;
