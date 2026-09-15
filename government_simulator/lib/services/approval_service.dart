@@ -1,6 +1,8 @@
 /// 承認度管理サービス
 /// 市民満足度を承認度に変換し、危機トリガーを判定
 
+library;
+
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/models/game_session.dart';
 

@@ -1,6 +1,8 @@
 /// 選挙結果・システム
 /// プレイヤーと対立候補者の得票率、勝敗、スコアを追跡
 
+library;
+
 import 'package:uuid/uuid.dart';
 
 enum ElectionVictoryType {

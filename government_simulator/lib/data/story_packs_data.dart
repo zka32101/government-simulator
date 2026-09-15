@@ -1,6 +1,8 @@
 /// ストーリーパック定義データ
 /// テーマ別にシナリオをグループ化してナラティブな体験を提供
 
+library;
+
 import 'package:government_simulator/models/story_pack.dart';
 
 /// ヨーロッパ政治危機パック

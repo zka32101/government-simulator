@@ -2,6 +2,8 @@
 /// アフリカ中部・サハラ以南地域
 /// テーマ：資源紛争、内戦危機、国家建設
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/crisis.dart';
 

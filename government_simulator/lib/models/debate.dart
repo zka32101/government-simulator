@@ -1,6 +1,8 @@
 /// 選挙討論会・システム
 /// 選挙前の候補者討論で政策立場と支持率に影響を与える
 
+library;
+
 import 'package:uuid/uuid.dart';
 
 enum DebateTopic {

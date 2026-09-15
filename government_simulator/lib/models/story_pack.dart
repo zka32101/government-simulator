@@ -1,6 +1,8 @@
 /// ストーリーパックモデル
 /// 複数のシナリオをテーマ別に組織化し、ナラティブな体験を提供
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 
 /// ストーリーパック：テーマ別にシナリオをグループ化

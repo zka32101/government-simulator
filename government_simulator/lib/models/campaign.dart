@@ -1,6 +1,8 @@
 /// 選挙キャンペーン・システム
 /// プレイヤーと対立候補者がキャンペーンを実施して支持率に影響を与える
 
+library;
+
 enum CampaignType {
   tvAds('📺 TV Ads', 50.0, 8.0),
   rallies('🎤 Rallies', 30.0, 6.0),

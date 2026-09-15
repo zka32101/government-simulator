@@ -1,6 +1,8 @@
 /// シナリオ管理サービス
 /// 複数の仮想国シナリオの提供と初期化
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/data/scenarios/ostia_scenario.dart';

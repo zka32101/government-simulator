@@ -1,6 +1,8 @@
 /// 危機イベント生成サービス
 /// 承認度とゲーム状態に基づいて危機イベントを生成・管理
 
+library;
+
 import 'dart:math';
 import 'package:uuid/uuid.dart';
 import 'package:government_simulator/models/crisis.dart';

@@ -1,4 +1,6 @@
 /// 政治政党：プレイヤーと関連する政党データ
+library;
+
 class PoliticalParty {
   final String id;
   final String name;

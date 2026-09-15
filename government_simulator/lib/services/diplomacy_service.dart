@@ -1,6 +1,8 @@
 /// 外交サービス
 /// 国家間の関係、貿易、イベント生成を管理
 
+library;
+
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/game_session.dart';
 

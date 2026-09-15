@@ -1,4 +1,6 @@
 /// 世論調査：選挙時の予測支持率を追跡
+library;
+
 class Poll {
   final String id;
   final int year;

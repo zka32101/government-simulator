@@ -2,6 +2,8 @@
 /// デモ、暴動、クーデターなどの政治的危機を管理
 
 /// 危機タイプ
+library;
+
 enum CrisisType {
   demonstration,    // 低レベルの市民不安
   riot,            // 暴力的な市民不安

@@ -1,4 +1,6 @@
 /// ライバル候補者：選挙に対抗する野党候補者
+library;
+
 class RivalCandidate {
   final String id;
   final String name;

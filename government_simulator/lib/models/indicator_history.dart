@@ -1,5 +1,7 @@
 /// 国家指標の履歴スナップショット。
 /// ゲーム進行に伴い、毎年末（またはターン終了時）に記録される。
+library;
+
 class IndicatorSnapshot {
   /// ゲーム内の年（1から始まる）
   final int year;

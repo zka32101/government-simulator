@@ -1,6 +1,8 @@
 /// 政策選択肢の経済学的根拠を説明するモデル。
 /// 教育的価値向上のため、各政策がなぜそのような影響を持つのかを
 /// 経済学の観点から詳細に説明する。
+library;
+
 class PolicyExplanation {
   final String policyId;
   final String policyName;

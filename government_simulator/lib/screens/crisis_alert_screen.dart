@@ -1,6 +1,8 @@
 /// 危機アラート画面
 /// 発生した危機をプレイヤーに通知し、対応選択肢を提示
 
+library;
+
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/services/crisis_event_service.dart';

@@ -1,5 +1,6 @@
 /// 国際関係・外交システム
 /// 各国との関係、貿易協定、外交的恩義を管理
+library;
 
 /// 国家間の関係ステータス
 enum RelationshipStatus {

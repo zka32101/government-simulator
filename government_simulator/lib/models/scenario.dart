@@ -1,6 +1,8 @@
 /// ゲームシナリオモデル
 /// 複数の仮想国シナリオを定義・管理
 
+library;
+
 import 'package:government_simulator/models/crisis.dart';
 
 /// ゲームシナリオ
