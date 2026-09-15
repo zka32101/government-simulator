@@ -426,7 +426,6 @@ class _BudgetBreakdownChartState extends State<BudgetBreakdownChart> {
   ) {
     final sections = sectors.asMap().entries.map((entry) {
       final index = entry.key;
-      final sector = entry.value.key;
       final percentage = entry.value.value;
       final color = colors[index];
 
