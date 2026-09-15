@@ -94,7 +94,7 @@ class NationRelationship {
   final String nationName;
 
   /// 関係スコア（-100 ～ +100）
-  final double standingScore;
+  double standingScore;
 
   /// 貿易量（0-100%）
   final double tradeVolume;
@@ -115,7 +115,7 @@ class NationRelationship {
   final double economicDependency;
 
   /// 最後の相互作用の日時
-  final DateTime? lastInteraction;
+  DateTime? lastInteraction;
 
   /// 戦争状態か
   final bool isAtWar;

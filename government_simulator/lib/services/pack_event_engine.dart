@@ -4,7 +4,6 @@ library;
 
 import 'package:government_simulator/models/game_session.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
-import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/services/pack_event_service.dart';
 
 /// パックイベント処理エンジン
