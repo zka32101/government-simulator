@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/game_session.dart';
@@ -23,7 +24,15 @@ import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/services/scandal_service.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
+import 'package:government_simulator/services/cabinet_infighting_service.dart';
+import 'package:government_simulator/services/achievement_service.dart';
+import 'package:government_simulator/services/random_crisis_generator.dart';
+import 'package:government_simulator/services/citizen_survey_service.dart';
 import 'package:government_simulator/models/scenario.dart';
+import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/scandal_event.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -984,6 +993,774 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         context: 'GameSessionNotifier.launchCampaign',
       ));
       rethrow;
+    }
+  }
+
+  /// スキャンダルシステム：月間スキャンダル処理
+  Future<void> processMonthlyScandalCheck(GameSession session) async {
+    try {
+      final scandalService = ScandalService(allScandals: session.activeScandalsList);
+
+      // スキャンダル発生確率を計算
+      final occurenceProbability = scandalService.calculateScandalOccurrenceProbability(
+        playerApproval: session.nationalApproval,
+        activePolicies: session.activeCampaigns.length,
+        difficulty: session.difficulty,
+        month: DateTime.now().month,
+      );
+
+      // スキャンダル発生判定
+      if (Random().nextDouble() < occurenceProbability) {
+        // 新しいスキャンダルを生成
+        final scandalType = ScandalType.values[Random().nextInt(ScandalType.values.length)];
+        final severity = ScandalManager.determineSeverity(
+          scandalType,
+          Random().nextDouble(),
+        );
+
+        final scandal = Scandal(
+          id: const Uuid().v4(),
+          title: ScandalManager.getScandalTitle(scandalType),
+          description: ScandalManager.getScandalDescription(scandalType, severity),
+          type: scandalType,
+          severity: severity,
+          discoveredAt: DateTime.now(),
+          startWeek: ((DateTime.now().month - 1) ~/ 4) + 1,
+          startYear: DateTime.now().year,
+          baseImpact: scandalType.baseImpact,
+          initialIntensity: 100.0,
+          involvedPersonId: null,
+          trustDamage: severity.weeksActive * 5.0,
+        );
+
+        // スキャンダルをセッションに追加
+        final updatedScandals = [...session.activeScandalsList, scandal];
+        final updatedSession = session.copyWith(activeScandalsList: updatedScandals);
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：スキャンダル発生を追跡
+        unawaited(_analytics.trackEvent(
+          name: 'scandal_occurred',
+          parameters: {
+            'scandal_type': scandalType.name,
+            'severity': severity.name,
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'scandal_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyScandalCheck',
+      ));
+    }
+  }
+
+  /// スキャンダルに応答
+  Future<void> respondToScandale(
+    GameSession session,
+    String scandalId,
+    ScandalResponse response,
+  ) async {
+    try {
+      final scandal = session.activeScandalsList.firstWhere(
+        (s) => s.id == scandalId,
+      );
+
+      final scandalService = ScandalService(allScandals: session.activeScandalsList);
+      final respondedScandale = scandalService.respondToScandale(
+        scandal,
+        response,
+        playerApproval: session.nationalApproval,
+        difficulty: session.difficulty == 'hard' ? 2 : session.difficulty == 'easy' ? 0 : 1,
+      );
+
+      // スキャンダルを更新
+      final updatedScandals = session.activeScandalsList.map((s) {
+        return s.id == scandalId ? respondedScandale : s;
+      }).toList();
+
+      // 政治的信頼度を更新
+      final trustDamage = respondedScandale.trustDamage;
+      final newApproval = (session.nationalApproval - (respondedScandale.baseImpact * 0.5))
+          .clamp(0.0, 100.0);
+
+      final updatedSession = session.copyWith(
+        activeScandalsList: updatedScandals,
+        nationalApproval: newApproval,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：スキャンダル応答を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'scandal_responded',
+        parameters: {
+          'response_type': response.name,
+          'success_probability': scandalService
+              .calculateResponseSuccessRate(
+                response: response,
+                severity: scandal.severity,
+                playerApproval: session.nationalApproval,
+                politicalTrust: 80.0,
+                difficulty: session.difficulty == 'hard' ? 2 : session.difficulty == 'easy' ? 0 : 1,
+              )
+              .toInt(),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'scandal_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToScandale',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 外交システム：月間外交イベント処理
+  Future<void> processMonthlyDiplomacy(GameSession session) async {
+    try {
+      final diplomacyService = DiplomacyService(
+        allRelationships: session.nationRelationships.values.toList(),
+        activeTradeAgreements: session.activeTradeDeals,
+        diplomaticEvents: session.activeInternationalEvents,
+        activeSanctions: session.activeSanctions,
+      );
+
+      // 関係の自然減衰を適用
+      final updatedRelationships = <String, NationRelationship>{};
+      for (final entry in session.nationRelationships.entries) {
+        final nation = entry.value;
+        final decay = diplomacyService.calculateRelationshipDecay(nation, 4);
+        if (decay > 0) {
+          nation.changeStanding(-decay);
+        }
+        updatedRelationships[entry.key] = nation;
+      }
+
+      // 月間外交イベントをシミュレーション
+      final diplomaticEvents = diplomacyService.simulateMonthlyDiplomacy(
+        month: DateTime.now().month,
+        year: DateTime.now().year,
+      );
+
+      final updatedSession = session.copyWith(
+        nationRelationships: updatedRelationships,
+        activeInternationalEvents: [...session.activeInternationalEvents, ...diplomaticEvents],
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：外交イベント発生を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'diplomacy_events_processed',
+        parameters: {
+          'event_count': diplomaticEvents.length,
+          'international_standing': diplomacyService.calculateInternationalStanding(),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'diplomacy_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyDiplomacy',
+      ));
+    }
+  }
+
+  /// 外交イベントに対する選択を処理
+  Future<void> respondToDiplomaticEvent(
+    GameSession session,
+    String eventId,
+    DiplomaticOption choice,
+    String targetNationId,
+  ) async {
+    try {
+      final event = session.activeInternationalEvents.firstWhere(
+        (e) => e.id == eventId,
+      );
+
+      final diplomacyService = DiplomacyService(
+        allRelationships: session.nationRelationships.values.toList(),
+        activeTradeAgreements: session.activeTradeDeals,
+        diplomaticEvents: session.activeInternationalEvents,
+        activeSanctions: session.activeSanctions,
+      );
+
+      // 外交選択を処理
+      final updatedNation = diplomacyService.respondToDiplomaticEvent(
+        targetNationId,
+        choice,
+      );
+
+      // 国家関係を更新
+      final updatedRelationships = {...session.nationRelationships};
+      updatedRelationships[targetNationId] = updatedNation;
+
+      // イベントを解決済みに
+      final resolvedEvent = event.copyWith(
+        playerChoice: choice,
+        resolvedDate: DateTime.now(),
+      );
+      final updatedEvents = session.activeInternationalEvents.map((e) {
+        return e.id == eventId ? resolvedEvent : e;
+      }).toList();
+      final historicalEvents = [...session.historicalInternationalEvents, resolvedEvent];
+
+      // 承認度への影響を反映
+      final newApproval = (session.nationalApproval + choice.approvalImpact).clamp(0.0, 100.0);
+
+      // 経済コストを反映（負の値は収入）
+      final newForeignDebt = (session.foreignDebt + choice.economicCost).clamp(0.0, double.infinity);
+
+      final updatedSession = session.copyWith(
+        nationRelationships: updatedRelationships,
+        activeInternationalEvents: updatedEvents.where((e) => e.resolvedDate == null).toList(),
+        historicalInternationalEvents: historicalEvents,
+        nationalApproval: newApproval,
+        foreignDebt: newForeignDebt,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：外交選択を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'diplomatic_event_resolved',
+        parameters: {
+          'target_nation': targetNationId,
+          'choice_label': choice.label,
+          'relationship_change': choice.relationshipChange,
+          'approval_impact': choice.approvalImpact,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'diplomacy_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToDiplomaticEvent',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 内閣システム：月間内閣確執チェック
+  Future<void> processMonthlyCabinetInfighting(GameSession session) async {
+    try {
+      final infightingService = CabinetInfightingService(
+        cabinet: session.status.cabinet,
+      );
+
+      // 背信の確率をチェック
+      for (final role in MinisterRole.values) {
+        if (session.status.cabinet.betrayed.contains(role)) continue;
+
+        final betrayalProb = infightingService.calculateBetrayalProbability(role);
+        if (Random().nextDouble() < betrayalProb) {
+          // 背信が発生
+          final betrayalReasons = [
+            '権力の衰退に不満を持つようになった',
+            '他勢力との秘密交渉に発覚した',
+            '政策の不一致が深刻化した',
+            '個人的な欲望が優先されるようになった',
+            '外国勢力に買収されていた',
+          ];
+
+          final betrayalEvent = BetrayalEvent(
+            id: const Uuid().v4(),
+            traitor: role,
+            reason: betrayalReasons[Random().nextInt(betrayalReasons.length)],
+            discoveredDate: DateTime.now(),
+            approvalDamage: Random().nextDouble() * 20 + 10, // 10-30%
+            trustDamage: Random().nextDouble() * 40 + 20, // 20-60%
+            economicLoss: Random().nextDouble() * 5000000 + 1000000, // $1-6M
+          );
+
+          // キャビネットを更新（背信マーク）
+          final updatedCabinet = session.status.cabinet.markBetrayed(role);
+          final updatedStatus = session.status.copyWith(cabinet: updatedCabinet);
+          var updatedSession = session.copyWith(status: updatedStatus);
+
+          // 承認度と信頼度にダメージを適用
+          updatedSession = updatedSession.copyWith(
+            nationalApproval: (updatedSession.nationalApproval - betrayalEvent.approvalDamage)
+                .clamp(0.0, 100.0),
+          );
+
+          await _firestore.updateGameSession(updatedSession);
+          state = state.copyWith(session: updatedSession);
+
+          // アナリティクス
+          unawaited(_analytics.trackEvent(
+            name: 'minister_betrayal',
+            parameters: {
+              'minister': role.name,
+              'reason': betrayalEvent.reason,
+              'approval_damage': betrayalEvent.approvalDamage,
+            },
+          ));
+        }
+      }
+
+      // 大臣間の対立をチェック
+      final rolePairs = <(MinisterRole, MinisterRole)>[];
+      for (int i = 0; i < MinisterRole.values.length; i++) {
+        for (int j = i + 1; j < MinisterRole.values.length; j++) {
+          rolePairs.add((MinisterRole.values[i], MinisterRole.values[j]));
+        }
+      }
+
+      for (final (role1, role2) in rolePairs) {
+        final conflictProb = infightingService.calculateConflictProbability(role1, role2);
+        if (Random().nextDouble() < conflictProb) {
+          // 対立が発生
+          final conflictDescriptions = [
+            '${role1.label}と${role2.label}が予算配分を巡って対立',
+            '${role1.label}と${role2.label}の方針の相違が表面化',
+            '${role1.label}と${role2.label}の権力争いが激化',
+            '${role1.label}が${role2.label}の政策を公然と批判',
+            '${role1.label}と${role2.label}の派閥が衝突',
+          ];
+
+          final conflict = MinisterConflict(
+            id: const Uuid().v4(),
+            minister1: role1,
+            minister2: role2,
+            description: conflictDescriptions[Random().nextInt(conflictDescriptions.length)],
+            tensionLevel: Random().nextDouble() * 40 + 30, // 30-70%
+            occurredDate: DateTime.now(),
+          );
+
+          // セッションを更新（新しい対立を追加）
+          // 注：ゲームセッションにアクティブな対立フィールドがない場合は、スキップ
+        }
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'cabinet_infighting_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyCabinetInfighting',
+      ));
+    }
+  }
+
+  /// 大臣の忠誠度を調整
+  Future<void> adjustMinisterLoyalty(
+    GameSession session,
+    MinisterRole role,
+    double delta,
+  ) async {
+    try {
+      final deltas = {role: delta};
+      final updatedCabinet = session.status.cabinet.applyDeltas(deltas);
+      final updatedStatus = session.status.copyWith(cabinet: updatedCabinet);
+      final updatedSession = session.copyWith(status: updatedStatus);
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'minister_loyalty_adjusted',
+        parameters: {
+          'minister': role.name,
+          'delta': delta,
+          'new_loyalty': updatedCabinet.of(role),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'loyalty_adjustment_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.adjustMinisterLoyalty',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 実績システム：新規実績をチェック
+  Future<List<Achievement>> checkNewAchievements(GameSession session) async {
+    try {
+      final achievementService = AchievementService(
+        unlockedAchievements: session.unlockedAchievements
+            .map((id) => AchievementUnlock(
+                  achievementId: id,
+                  unlockedAt: DateTime.now(),
+                  gameStateSnapshot: {},
+                ))
+            .toList(),
+      );
+
+      // 新規アンロック実績を検出
+      final newUnlocks = achievementService.detectNewAchievements(
+        session,
+        session.unlockedAchievements,
+      );
+
+      // 新規実績がある場合、セッションを更新
+      if (newUnlocks.isNotEmpty) {
+        final updatedIds = [
+          ...session.unlockedAchievements,
+          ...newUnlocks.map((u) => u.achievementId),
+        ];
+
+        final updatedSession = session.copyWith(
+          unlockedAchievements: updatedIds,
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：実績アンロックを追跡
+        for (final unlock in newUnlocks) {
+          unawaited(_analytics.trackEvent(
+            name: 'achievement_unlocked',
+            parameters: {
+              'achievement_id': unlock.achievementId,
+              'unlocked_at': unlock.unlockedAt.toIso8601String(),
+              'year': unlock.gameStateSnapshot['year'],
+            },
+          ));
+        }
+      }
+
+      // 新規アンロック実績に対応するAchievementオブジェクトを返す
+      return Achievements.all
+          .where((a) => newUnlocks.any((u) => u.achievementId == a.id))
+          .toList();
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'achievement_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.checkNewAchievements',
+      ));
+      return [];
+    }
+  }
+
+  /// 実績進捗を取得
+  Map<String, AchievementProgress> getAchievementProgress(GameSession session) {
+    try {
+      final achievementService = AchievementService();
+      return achievementService.calculateAllProgress(session);
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'achievement_progress_calculation_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.getAchievementProgress',
+      ));
+      return {};
+    }
+  }
+
+  /// 実績達成率を計算
+  double getAchievementCompletionRate(GameSession session) {
+    try {
+      final allAchievementIds = Achievements.all.map((a) => a.id).toList();
+      final achievementService = AchievementService(
+        unlockedAchievements: session.unlockedAchievements
+            .map((id) => AchievementUnlock(
+                  achievementId: id,
+                  unlockedAt: DateTime.now(),
+                  gameStateSnapshot: {},
+                ))
+            .toList(),
+      );
+
+      return achievementService.calculateCompletionRate(allAchievementIds);
+    } catch (e) {
+      return 0.0;
+    }
+  }
+
+  /// 危機システム：月間ランダム危機チェック
+  Future<void> processMonthlyRandomCrises(GameSession session) async {
+    try {
+      final crisisGenerator = RandomCrisisGenerator();
+
+      // 危機発生確率を計算
+      final crisisProbability = crisisGenerator.calculateCrisisProbability(
+        approval: session.nationalApproval,
+        stability: session.status.stability,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        activeCrisisCount: session.activeCrises.length,
+        internationalTension:
+            session.internationalStanding > 50 ? 30 : (100 - session.internationalStanding),
+      );
+
+      // 危機発生判定
+      if (Random().nextDouble() < crisisProbability) {
+        // 危機のタイプをランダムに選択
+        final crisisType = CrisisType.values[Random().nextInt(CrisisType.values.length)];
+
+        // 危機の厳しさを決定
+        final severity = crisisGenerator.determineSeverity(
+          approval: session.nationalApproval,
+          stability: session.status.stability,
+          random: Random(),
+        );
+
+        // 新しい危機を生成
+        final newCrisis = Crisis(
+          id: const Uuid().v4(),
+          type: crisisType,
+          startDate: DateTime.now(),
+          durationDays: crisisGenerator.calculateDuration(severity),
+          approvalImpact: -10.0 * severity.damageMultiplier, // 重大度に応じたダメージ
+          description: _generateCrisisDescription(crisisType, severity),
+          triggers: [
+            '承認度: ${session.nationalApproval.toStringAsFixed(1)}%',
+            '安定度: ${session.status.stability.toStringAsFixed(1)}%',
+          ],
+          escalationRisk: crisisGenerator.calculateChainProbability(severity),
+        );
+
+        // 新しい危機をセッションに追加
+        var updatedSession = session.copyWith(
+          activeCrises: [...session.activeCrises, newCrisis],
+        );
+
+        // 承認度に即座のダメージを適用
+        updatedSession = updatedSession.copyWith(
+          nationalApproval:
+              (updatedSession.nationalApproval + newCrisis.getApprovalImpact()).clamp(0.0, 100.0),
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：危機発生を追跡
+        unawaited(_analytics.trackEvent(
+          name: 'crisis_occurred',
+          parameters: {
+            'crisis_type': crisisType.name,
+            'severity': severity.label,
+            'approval_impact': newCrisis.getApprovalImpact(),
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'crisis_generation_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyRandomCrises',
+      ));
+    }
+  }
+
+  /// 危機に対する対応を処理
+  Future<void> respondToCrisis(
+    GameSession session,
+    String crisisId,
+    CrisisResponse response,
+  ) async {
+    try {
+      final crisis = session.activeCrises.firstWhere((c) => c.id == crisisId);
+
+      // 危機を更新（対応内容を記録、解決日時を設定）
+      final respondedCrisis = crisis.copyWith(
+        playerResponse: response,
+        resolvedDate: DateTime.now(),
+      );
+
+      // 危機を更新
+      final updatedCrises = session.activeCrises.map((c) {
+        return c.id == crisisId ? respondedCrisis : c;
+      }).toList();
+
+      // 承認度への影響を計算
+      final approvalImpact = respondedCrisis.getApprovalImpact();
+      final newApproval = (session.nationalApproval + approvalImpact).clamp(0.0, 100.0);
+
+      // 経済的影響を計算（該当する場合）
+      final economicImpact = crisis.economicImpact ?? 0.0;
+
+      var updatedSession = session.copyWith(
+        activeCrises: updatedCrises.where((c) => !c.isResolved).toList(),
+        nationalApproval: newApproval,
+      );
+
+      // 経済的影響を反映
+      if (economicImpact > 0) {
+        final updatedStatus = updatedSession.status.copyWith(
+          gdp: (updatedSession.status.gdp - (economicImpact / 1000000000)).clamp(0.1, double.infinity),
+        );
+        updatedSession = updatedSession.copyWith(status: updatedStatus);
+      }
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：危機対応を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'crisis_responded',
+        parameters: {
+          'crisis_type': crisis.type.name,
+          'response_type': response.name,
+          'approval_impact': approvalImpact,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'crisis_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToCrisis',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 危機の説明文を生成
+  String _generateCrisisDescription(CrisisType type, CrisisSeverity severity) {
+    final severityPrefix = switch (severity) {
+      CrisisSeverity.mild => '軽微な',
+      CrisisSeverity.moderate => '',
+      CrisisSeverity.severe => '深刻な',
+      CrisisSeverity.critical => '致命的な',
+    };
+
+    return switch (type) {
+      CrisisType.demonstration =>
+        '$severityPrefix デモが首都で発生。市民が政府の政策に反発している。',
+      CrisisType.riot =>
+        '$severityPrefix 暴動が複数地域で発生。警察と市民が対立。秩序が崩壊している。',
+      CrisisType.laborStrike =>
+        '$severityPrefix 労働者ストライキが全土に広がる。主要産業が停止。',
+      CrisisType.economicCrisis =>
+        '$severityPrefix 経済危機が発生。市場が混乱し、失業が急増している。',
+      CrisisType.militaryCoup =>
+        '$severityPrefix クーデターの兆候が報告される。軍部が不満を募らせている。',
+    };
+  }
+
+  /// 世論システム：国民世論調査を実施
+  Future<SurveyResult> conductCitizenSurvey(GameSession session) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 調査を実施
+      final surveyResult = surveyService.conductSurvey(
+        approval: session.nationalApproval,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        stability: session.status.stability,
+        sampleSize: 1500, // サンプルサイズ
+      );
+
+      // アナリティクス：調査実施を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'citizen_survey_conducted',
+        parameters: {
+          'sample_size': surveyResult.sampleSize,
+          'average_satisfaction': surveyResult.averageSatisfaction,
+          'confidence_level': surveyResult.confidenceLevel,
+          'top_priority': surveyResult.topPriority?.name ?? 'unknown',
+        },
+      ));
+
+      return surveyResult;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'survey_conduction_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.conductCitizenSurvey',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 特定のトピックへの対応を実施（満足度向上）
+  Future<void> addressPublicOpinion(
+    GameSession session,
+    OpinionTopic topic,
+    double investmentAmount,
+  ) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 投資額に基づいて満足度を上昇
+      final satisfactionIncrease = (investmentAmount / 1000000000) * 100; // $1B = 100%向上
+      final cappedIncrease = satisfactionIncrease.clamp(0.0, 30.0); // 最大30%
+
+      surveyService.updateTopicSatisfaction(topic, cappedIncrease);
+
+      // 承認度にも反映
+      final approvalBoost = cappedIncrease * 0.3; // 30%の効果
+      var updatedSession = session.copyWith(
+        nationalApproval: (session.nationalApproval + approvalBoost).clamp(0.0, 100.0),
+      );
+
+      // 予算から投資額を差し引く
+      final updatedStatus = updatedSession.status.copyWith(
+        gdp: (updatedSession.status.gdp - (investmentAmount / 1000000000))
+            .clamp(0.1, double.infinity),
+      );
+      updatedSession = updatedSession.copyWith(status: updatedStatus);
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：施策実施を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'public_opinion_policy_implemented',
+        parameters: {
+          'topic': topic.name,
+          'investment_amount': investmentAmount,
+          'satisfaction_increase': cappedIncrease,
+          'approval_boost': approvalBoost,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'opinion_addressing_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.addressPublicOpinion',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 月間世論の自然な変動を処理
+  Future<void> processMonthlyOpinionShifts(GameSession session) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 優先度の時間経過による減衰を計算（人々の関心の移ろい）
+      surveyService.decayPriorities();
+
+      // 世論の分裂度を計算（政治的分断の度合い）
+      final polarization = surveyService.calculatePolarization();
+
+      // 分裂度が高い場合、承認度に悪影響
+      if (polarization > 70) {
+        var updatedSession = session.copyWith(
+          nationalApproval: (session.nationalApproval - (polarization - 70) * 0.1)
+              .clamp(0.0, 100.0),
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス
+        unawaited(_analytics.trackEvent(
+          name: 'opinion_polarization_detected',
+          parameters: {
+            'polarization_level': polarization,
+            'approval_impact': polarization - 70 * 0.1,
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'opinion_shift_processing_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyOpinionShifts',
+      ));
     }
   }
 }
