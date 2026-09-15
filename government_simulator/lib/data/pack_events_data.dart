@@ -1,5 +1,6 @@
 /// ストーリーパック固有イベントデータ
 /// 各パックに関連する危機、チャンス、ストーリー分岐
+library;
 
 import 'package:government_simulator/models/story_pack_event.dart';
 
