@@ -57,7 +57,6 @@ class CrisisEventService {
     GameScenario? scenario,
   }) {
     final approval = approvalService.currentApproval;
-    final riskLevel = approvalService.getRiskLevel();
 
     // 危機リスクレベルに応じて危機タイプを決定
     var probableCrises = approvalService.getProbableCrises();
@@ -350,7 +349,7 @@ class CrisisEventService {
     GameSession session,
   ) {
     // 選択を危機に記録
-    final updatedCrisis = crisis.copyWith(
+    crisis.copyWith(
       playerResponse: response,
       resolvedDate: DateTime.now(),
     );
