@@ -727,9 +727,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           return sum + (deal.isActive ? deal.yearlyExpense : 0);
         });
 
-    // 月間ベースの貿易ネット（年間÷12）
-    final monthlyTradeNet = (yearlyTradeIncome - yearlyTradeExpense) / 12;
-
     // 制裁による月間経済ダメージを計算
     double totalSanctionImpact = 0;
     for (final sanction in updatedSession.activeSanctions) {
@@ -747,7 +744,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
     // GDP の経済マイナスを計算
     final totalMonthlyDamage = totalSanctionImpact + warDamage;
-    final gdpDamagePercent = (totalMonthlyDamage / (currentStatus.gdp * 1000000)) * 100;
 
     // 満足度への影響（戦争と制裁）
     double satisfactionImpact = 0;
@@ -839,9 +835,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
       // 政治政党の状態を毎年更新
       final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
-      final gdpChange = finalYearEndStatus.gdp - session.status.gdp;
-      final economicTrend = (finalYearEndStatus.gdp > 0) ? (gdpChange / finalYearEndStatus.gdp) * 100 : 0;
-      final satisfactionChange = finalYearEndStatus.satisfaction - session.status.satisfaction;
 
       GameLogicService.updatePoliticalPartyStates(finalSession);
 

@@ -1680,6 +1680,6 @@ class GameLogicService {
   static List<RivalCandidate> initializeRivalCandidatesForElection(
       GameSession session) {
     // Use existing rivals or create new ones
-    return session.rivalCandidates ?? [];
+    return session.rivalCandidates;
   }
 }

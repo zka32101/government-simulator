@@ -109,8 +109,6 @@ class ApprovalService {
   /// 危機トリガー確率を計算
   /// 承認度と危機タイプから発生確率を算出
   double calculateCrisisProbability(CrisisType type) {
-    final riskLevel = getRiskLevel();
-
     // ベース確率
     double baseProbability = switch (type) {
       CrisisType.demonstration =>
