@@ -27,6 +27,7 @@ import 'package:government_simulator/services/scenario_service.dart';
 import 'package:government_simulator/services/scandal_service.dart';
 import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/cabinet_infighting_service.dart';
+import 'package:government_simulator/services/achievement_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/scandal_event.dart';
@@ -1376,6 +1377,101 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         context: 'GameSessionNotifier.adjustMinisterLoyalty',
       ));
       rethrow;
+    }
+  }
+
+  /// 実績システム：新規実績をチェック
+  Future<List<Achievement>> checkNewAchievements(GameSession session) async {
+    try {
+      final achievementService = AchievementService(
+        unlockedAchievements: session.unlockedAchievements
+            .map((id) => AchievementUnlock(
+                  achievementId: id,
+                  unlockedAt: DateTime.now(),
+                  gameStateSnapshot: {},
+                ))
+            .toList(),
+      );
+
+      // 新規アンロック実績を検出
+      final newUnlocks = achievementService.detectNewAchievements(
+        session,
+        session.unlockedAchievements,
+      );
+
+      // 新規実績がある場合、セッションを更新
+      if (newUnlocks.isNotEmpty) {
+        final updatedIds = [
+          ...session.unlockedAchievements,
+          ...newUnlocks.map((u) => u.achievementId),
+        ];
+
+        final updatedSession = session.copyWith(
+          unlockedAchievements: updatedIds,
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：実績アンロックを追跡
+        for (final unlock in newUnlocks) {
+          unawaited(_analytics.trackEvent(
+            name: 'achievement_unlocked',
+            parameters: {
+              'achievement_id': unlock.achievementId,
+              'unlocked_at': unlock.unlockedAt.toIso8601String(),
+              'year': unlock.gameStateSnapshot['year'],
+            },
+          ));
+        }
+      }
+
+      // 新規アンロック実績に対応するAchievementオブジェクトを返す
+      return Achievements.all
+          .where((a) => newUnlocks.any((u) => u.achievementId == a.id))
+          .toList();
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'achievement_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.checkNewAchievements',
+      ));
+      return [];
+    }
+  }
+
+  /// 実績進捗を取得
+  Map<String, AchievementProgress> getAchievementProgress(GameSession session) {
+    try {
+      final achievementService = AchievementService();
+      return achievementService.calculateAllProgress(session);
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'achievement_progress_calculation_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.getAchievementProgress',
+      ));
+      return {};
+    }
+  }
+
+  /// 実績達成率を計算
+  double getAchievementCompletionRate(GameSession session) {
+    try {
+      final allAchievementIds = Achievements.all.map((a) => a.id).toList();
+      final achievementService = AchievementService(
+        unlockedAchievements: session.unlockedAchievements
+            .map((id) => AchievementUnlock(
+                  achievementId: id,
+                  unlockedAt: DateTime.now(),
+                  gameStateSnapshot: {},
+                ))
+            .toList(),
+      );
+
+      return achievementService.calculateCompletionRate(allAchievementIds);
+    } catch (e) {
+      return 0.0;
     }
   }
 }
