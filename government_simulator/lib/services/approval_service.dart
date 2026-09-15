@@ -1,8 +1,9 @@
 /// 承認度管理サービス
 /// 市民満足度を承認度に変換し、危機トリガーを判定
 
+library;
+
 import 'package:government_simulator/models/crisis.dart';
-import 'package:government_simulator/models/game_session.dart';
 
 /// 承認度計算・管理サービス
 class ApprovalService {
@@ -108,8 +109,6 @@ class ApprovalService {
   /// 危機トリガー確率を計算
   /// 承認度と危機タイプから発生確率を算出
   double calculateCrisisProbability(CrisisType type) {
-    final riskLevel = getRiskLevel();
-
     // ベース確率
     double baseProbability = switch (type) {
       CrisisType.demonstration =>

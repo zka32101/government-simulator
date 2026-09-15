@@ -1,5 +1,6 @@
 /// 国際関係・外交システム
 /// 各国との関係、貿易協定、外交的恩義を管理
+library;
 
 /// 国家間の関係ステータス
 enum RelationshipStatus {
@@ -94,7 +95,7 @@ class NationRelationship {
   final String nationName;
 
   /// 関係スコア（-100 ～ +100）
-  final double standingScore;
+  double standingScore;
 
   /// 貿易量（0-100%）
   final double tradeVolume;
@@ -115,7 +116,7 @@ class NationRelationship {
   final double economicDependency;
 
   /// 最後の相互作用の日時
-  final DateTime? lastInteraction;
+  DateTime? lastInteraction;
 
   /// 戦争状態か
   final bool isAtWar;
@@ -126,7 +127,7 @@ class NationRelationship {
   /// 最後の同盟変更日
   final DateTime? allianceChangeDate;
 
-  const NationRelationship({
+  NationRelationship({
     required this.nationId,
     required this.nationName,
     this.standingScore = 0.0,

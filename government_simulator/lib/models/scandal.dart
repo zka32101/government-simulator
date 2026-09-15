@@ -1,7 +1,7 @@
 /// スキャンダルシステム
 /// ランダムな負のイベントがキャンペーンと支持率に影響を与える
 
-import 'package:uuid/uuid.dart';
+library;
 
 enum ScandalType {
   political('政治スキャンダル', 10.0),

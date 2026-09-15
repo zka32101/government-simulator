@@ -2,6 +2,8 @@
 /// アジア太平洋地域の新興経済大国
 /// テーマ：急速経済成長、地域覇権争い、民族多様性
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/crisis.dart';
 

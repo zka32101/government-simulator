@@ -13,24 +13,16 @@ import 'package:government_simulator/models/promise.dart';
 import 'package:government_simulator/models/historical_scenario.dart';
 import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/campaign.dart';
-import 'package:government_simulator/models/rival_candidate.dart';
 import 'package:government_simulator/models/political_party.dart';
-import 'package:government_simulator/models/polling.dart';
-import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/debate.dart';
-import 'package:government_simulator/models/scandal.dart';
-import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
-import 'package:government_simulator/services/approval_service.dart';
-import 'package:government_simulator/services/crisis_event_service.dart';
-import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:uuid/uuid.dart';
 
@@ -723,19 +715,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     var updatedSession = session;
     var currentStatus = status;
 
-    // 貿易協定から年間収入を月単位で適用（概算）
-    final yearlyTradeIncome =
-        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
-          return sum + (deal.isActive ? deal.yearlyIncome : 0);
-        });
-    final yearlyTradeExpense =
-        updatedSession.activeTradeDeals.fold<double>(0.0, (sum, deal) {
-          return sum + (deal.isActive ? deal.yearlyExpense : 0);
-        });
-
-    // 月間ベースの貿易ネット（年間÷12）
-    final monthlyTradeNet = (yearlyTradeIncome - yearlyTradeExpense) / 12;
-
     // 制裁による月間経済ダメージを計算
     double totalSanctionImpact = 0;
     for (final sanction in updatedSession.activeSanctions) {
@@ -753,7 +732,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
     // GDP の経済マイナスを計算
     final totalMonthlyDamage = totalSanctionImpact + warDamage;
-    final gdpDamagePercent = (totalMonthlyDamage / (currentStatus.gdp * 1000000)) * 100;
 
     // 満足度への影響（戦争と制裁）
     double satisfactionImpact = 0;
@@ -845,9 +823,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
       // 政治政党の状態を毎年更新
       final updatedParties = Map<String, PoliticalParty>.from(session.politicalParties);
-      final gdpChange = finalYearEndStatus.gdp - session.status.gdp;
-      final economicTrend = (finalYearEndStatus.gdp > 0) ? (gdpChange / finalYearEndStatus.gdp) * 100 : 0;
-      final satisfactionChange = finalYearEndStatus.satisfaction - session.status.satisfaction;
 
       GameLogicService.updatePoliticalPartyStates(finalSession);
 

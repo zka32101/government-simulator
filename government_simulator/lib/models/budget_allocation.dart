@@ -1,5 +1,7 @@
 /// 政府予算配分を表現するモデル
 /// 国家の歳出をセクター別に分類し、政策による予算シフトの影響を可視化する
+library;
+
 class BudgetAllocation {
   /// 各セクターの予算配分（パーセンテージ）。合計は常に100%
   final Map<BudgetSector, double> sectorAllocations;

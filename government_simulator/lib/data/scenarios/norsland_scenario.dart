@@ -2,6 +2,8 @@
 /// 北ヨーロッパ・北欧地方
 /// テーマ：高福祉国家の危機、気候変動、移民問題
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/crisis.dart';
 

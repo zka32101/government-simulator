@@ -1,5 +1,7 @@
 /// 「歴史のif」チャレンジ：実在の歴史的局面を想起させる架空シナリオ。
 /// 固定された初期国家ステータスから統治をスタートする。
+library;
+
 class HistoricalScenario {
   final String id;
   final String emoji;

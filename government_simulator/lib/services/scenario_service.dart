@@ -1,6 +1,8 @@
 /// シナリオ管理サービス
 /// 複数の仮想国シナリオの提供と初期化
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/data/scenarios/ostia_scenario.dart';
@@ -98,11 +100,6 @@ class ScenarioService {
     }
 
     return relationships;
-  }
-
-  /// セッションIDを生成
-  static String _generateSessionId() {
-    return 'session_${DateTime.now().millisecondsSinceEpoch}';
   }
 
   /// シナリオの詳細情報を取得

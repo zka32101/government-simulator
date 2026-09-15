@@ -1,5 +1,6 @@
 /// 投票分布の可視化ウィジェット
 /// 円グラフと棒グラフで投票分布をアニメーション表示
+library;
 
 import 'package:flutter/material.dart';
 

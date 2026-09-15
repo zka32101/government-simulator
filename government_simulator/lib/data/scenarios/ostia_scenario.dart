@@ -2,6 +2,8 @@
 /// ヨーロッパ・カルパチア地方の中堅先進国
 /// テーマ：経済危機からの回復と国際紛争の選択肢
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/crisis.dart';
 

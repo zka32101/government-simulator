@@ -1,6 +1,8 @@
 /// アニメーション設定・システム
 /// 統一されたアニメーション構成とヘルパー関数
 
+library;
+
 import 'package:flutter/material.dart';
 
 /// アニメーション設定（継続時間とカーブ）

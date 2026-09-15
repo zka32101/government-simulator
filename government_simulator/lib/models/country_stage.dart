@@ -3,6 +3,8 @@
 /// 難易度固定の easy/normal/hard 選択とは異なり、資源国・観光国・
 /// 財政危機国など性格の異なる初期環境を「ステージ」として選ばせ、
 /// 星の数（difficultyStars, 1〜5）で難易度を視覚的に表現する。
+library;
+
 class CountryStage {
   final String id;
   final String emoji;

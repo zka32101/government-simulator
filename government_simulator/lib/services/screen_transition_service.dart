@@ -1,6 +1,8 @@
 /// スクリーン遷移アニメーション管理
 /// 画面遷移時のスムーズなアニメーションを提供
 
+library;
+
 import 'package:flutter/material.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
 

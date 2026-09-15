@@ -2,6 +2,8 @@
 /// ラテンアメリカ・カリブ地域
 /// テーマ：民主主義の危機、麻薬組織、米国の影響
 
+library;
+
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/crisis.dart';
 

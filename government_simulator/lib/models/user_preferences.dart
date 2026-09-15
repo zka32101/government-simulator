@@ -2,6 +2,8 @@
 /// ゲーム内設定：音声、アニメーション、テーマなど
 
 /// ユーザー設定モデル
+library;
+
 class UserPreferences {
   /// サウンド有効化フラグ
   final bool soundEnabled;

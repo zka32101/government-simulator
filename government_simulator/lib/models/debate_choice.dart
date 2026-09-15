@@ -1,6 +1,8 @@
 /// 討論会の選択肢・システム
 /// プレイヤーのラウンドごとの戦略的選択
 
+library;
+
 enum ArgumentTone {
   aggressive,   // 攻撃的：相手の弱点を攻撃
   defensive,    // 防御的：自分の立場を守る

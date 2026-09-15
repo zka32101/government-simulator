@@ -1,4 +1,6 @@
 /// 週替わり「全国民投票」の設問。全プレイヤーが同じ週は同じ設問に投票する。
+library;
+
 class WeeklyPollQuestion {
   final String id;
   final String emoji;

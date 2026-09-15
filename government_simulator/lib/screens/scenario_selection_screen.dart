@@ -1,6 +1,8 @@
 /// シナリオ選択画面
 /// プレイヤーが複数の仮想国シナリオから選択できる
 
+library;
+
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/services/scenario_service.dart';

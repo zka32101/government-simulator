@@ -1,6 +1,8 @@
 /// 外交イベント画面
 /// 外交的危機や提案の表示と対応選択肢
 
+library;
+
 import 'package:flutter/material.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/utils/animation_configs.dart';

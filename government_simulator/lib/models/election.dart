@@ -1,4 +1,6 @@
 /// 選挙システム：4年ごとに開催される大統領選挙
+library;
+
 class Election {
   final String id;
   final int year;

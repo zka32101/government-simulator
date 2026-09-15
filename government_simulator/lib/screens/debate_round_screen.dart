@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/debate_choice.dart';
-import 'package:government_simulator/models/game_session.dart';
-import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
 import 'debate_round_result_screen.dart';
 

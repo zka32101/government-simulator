@@ -2,6 +2,8 @@
 /// ゲーム内の効果音とサウンドの再生を統一的に管理
 
 /// サウンドエフェクトの種類
+library;
+
 enum SoundEffect {
   /// 討論会開始音
   debateStart,
