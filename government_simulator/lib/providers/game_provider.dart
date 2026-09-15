@@ -29,6 +29,7 @@ import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/cabinet_infighting_service.dart';
 import 'package:government_simulator/services/achievement_service.dart';
 import 'package:government_simulator/services/random_crisis_generator.dart';
+import 'package:government_simulator/services/citizen_survey_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/scandal_event.dart';
@@ -1635,5 +1636,131 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       CrisisType.militaryCoup =>
         '$severityPrefix クーデターの兆候が報告される。軍部が不満を募らせている。',
     };
+  }
+
+  /// 世論システム：国民世論調査を実施
+  Future<SurveyResult> conductCitizenSurvey(GameSession session) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 調査を実施
+      final surveyResult = surveyService.conductSurvey(
+        approval: session.nationalApproval,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        stability: session.status.stability,
+        sampleSize: 1500, // サンプルサイズ
+      );
+
+      // アナリティクス：調査実施を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'citizen_survey_conducted',
+        parameters: {
+          'sample_size': surveyResult.sampleSize,
+          'average_satisfaction': surveyResult.averageSatisfaction,
+          'confidence_level': surveyResult.confidenceLevel,
+          'top_priority': surveyResult.topPriority?.name ?? 'unknown',
+        },
+      ));
+
+      return surveyResult;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'survey_conduction_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.conductCitizenSurvey',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 特定のトピックへの対応を実施（満足度向上）
+  Future<void> addressPublicOpinion(
+    GameSession session,
+    OpinionTopic topic,
+    double investmentAmount,
+  ) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 投資額に基づいて満足度を上昇
+      final satisfactionIncrease = (investmentAmount / 1000000000) * 100; // $1B = 100%向上
+      final cappedIncrease = satisfactionIncrease.clamp(0.0, 30.0); // 最大30%
+
+      surveyService.updateTopicSatisfaction(topic, cappedIncrease);
+
+      // 承認度にも反映
+      final approvalBoost = cappedIncrease * 0.3; // 30%の効果
+      var updatedSession = session.copyWith(
+        nationalApproval: (session.nationalApproval + approvalBoost).clamp(0.0, 100.0),
+      );
+
+      // 予算から投資額を差し引く
+      final updatedStatus = updatedSession.status.copyWith(
+        gdp: (updatedSession.status.gdp - (investmentAmount / 1000000000))
+            .clamp(0.1, double.infinity),
+      );
+      updatedSession = updatedSession.copyWith(status: updatedStatus);
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：施策実施を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'public_opinion_policy_implemented',
+        parameters: {
+          'topic': topic.name,
+          'investment_amount': investmentAmount,
+          'satisfaction_increase': cappedIncrease,
+          'approval_boost': approvalBoost,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'opinion_addressing_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.addressPublicOpinion',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 月間世論の自然な変動を処理
+  Future<void> processMonthlyOpinionShifts(GameSession session) async {
+    try {
+      final surveyService = CitizenSurveyService();
+
+      // 優先度の時間経過による減衰を計算（人々の関心の移ろい）
+      surveyService.decayPriorities();
+
+      // 世論の分裂度を計算（政治的分断の度合い）
+      final polarization = surveyService.calculatePolarization();
+
+      // 分裂度が高い場合、承認度に悪影響
+      if (polarization > 70) {
+        var updatedSession = session.copyWith(
+          nationalApproval: (session.nationalApproval - (polarization - 70) * 0.1)
+              .clamp(0.0, 100.0),
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス
+        unawaited(_analytics.trackEvent(
+          name: 'opinion_polarization_detected',
+          parameters: {
+            'polarization_level': polarization,
+            'approval_impact': polarization - 70 * 0.1,
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'opinion_shift_processing_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyOpinionShifts',
+      ));
+    }
   }
 }
