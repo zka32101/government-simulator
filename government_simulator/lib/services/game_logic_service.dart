@@ -11,7 +11,6 @@ import 'package:government_simulator/models/country_stage.dart';
 import 'package:government_simulator/models/policy_preview.dart';
 import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/rival_candidate.dart';
-import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/debate.dart';

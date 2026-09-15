@@ -102,11 +102,6 @@ class ScenarioService {
     return relationships;
   }
 
-  /// セッションIDを生成
-  static String _generateSessionId() {
-    return 'session_${DateTime.now().millisecondsSinceEpoch}';
-  }
-
   /// シナリオの詳細情報を取得
   static String getScenarioDescription(GameScenario scenario) {
     return '''

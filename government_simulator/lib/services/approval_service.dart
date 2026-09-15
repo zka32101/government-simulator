@@ -4,7 +4,6 @@
 library;
 
 import 'package:government_simulator/models/crisis.dart';
-import 'package:government_simulator/models/game_session.dart';
 
 /// 承認度計算・管理サービス
 class ApprovalService {
