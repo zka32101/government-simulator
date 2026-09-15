@@ -7,6 +7,7 @@ import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/polling.dart';
 import 'package:government_simulator/models/campaign.dart';
 import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/scandal_event.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';

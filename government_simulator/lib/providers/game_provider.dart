@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/game_session.dart';
@@ -23,7 +24,10 @@ import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/services/scandal_service.dart';
 import 'package:government_simulator/models/scenario.dart';
+import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/scandal_event.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -982,6 +986,131 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'campaign_launch_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.launchCampaign',
+      ));
+      rethrow;
+    }
+  }
+
+  /// スキャンダルシステム：月間スキャンダル処理
+  Future<void> processMonthlyScandalCheck(GameSession session) async {
+    try {
+      final scandalService = ScandalService(allScandals: session.activeScandalsList);
+
+      // スキャンダル発生確率を計算
+      final occurenceProbability = scandalService.calculateScandalOccurrenceProbability(
+        playerApproval: session.nationalApproval,
+        activePolicies: session.activeCampaigns.length,
+        difficulty: session.difficulty,
+        month: DateTime.now().month,
+      );
+
+      // スキャンダル発生判定
+      if (Random().nextDouble() < occurenceProbability) {
+        // 新しいスキャンダルを生成
+        final scandalType = ScandalType.values[Random().nextInt(ScandalType.values.length)];
+        final severity = ScandalManager.determineSeverity(
+          scandalType,
+          Random().nextDouble(),
+        );
+
+        final scandal = Scandal(
+          id: const Uuid().v4(),
+          title: ScandalManager.getScandalTitle(scandalType),
+          description: ScandalManager.getScandalDescription(scandalType, severity),
+          type: scandalType,
+          severity: severity,
+          discoveredAt: DateTime.now(),
+          startWeek: ((DateTime.now().month - 1) ~/ 4) + 1,
+          startYear: DateTime.now().year,
+          baseImpact: scandalType.baseImpact,
+          initialIntensity: 100.0,
+          involvedPersonId: null,
+          trustDamage: severity.weeksActive * 5.0,
+        );
+
+        // スキャンダルをセッションに追加
+        final updatedScandals = [...session.activeScandalsList, scandal];
+        final updatedSession = session.copyWith(activeScandalsList: updatedScandals);
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：スキャンダル発生を追跡
+        unawaited(_analytics.trackEvent(
+          name: 'scandal_occurred',
+          parameters: {
+            'scandal_type': scandalType.name,
+            'severity': severity.name,
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'scandal_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyScandalCheck',
+      ));
+    }
+  }
+
+  /// スキャンダルに応答
+  Future<void> respondToScandale(
+    GameSession session,
+    String scandalId,
+    ScandalResponse response,
+  ) async {
+    try {
+      final scandal = session.activeScandalsList.firstWhere(
+        (s) => s.id == scandalId,
+      );
+
+      final scandalService = ScandalService(allScandals: session.activeScandalsList);
+      final respondedScandale = scandalService.respondToScandale(
+        scandal,
+        response,
+        playerApproval: session.nationalApproval,
+        difficulty: session.difficulty == 'hard' ? 2 : session.difficulty == 'easy' ? 0 : 1,
+      );
+
+      // スキャンダルを更新
+      final updatedScandals = session.activeScandalsList.map((s) {
+        return s.id == scandalId ? respondedScandale : s;
+      }).toList();
+
+      // 政治的信頼度を更新
+      final trustDamage = respondedScandale.trustDamage;
+      final newApproval = (session.nationalApproval - (respondedScandale.baseImpact * 0.5))
+          .clamp(0.0, 100.0);
+
+      final updatedSession = session.copyWith(
+        activeScandalsList: updatedScandals,
+        nationalApproval: newApproval,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：スキャンダル応答を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'scandal_responded',
+        parameters: {
+          'response_type': response.name,
+          'success_probability': scandalService
+              .calculateResponseSuccessRate(
+                response: response,
+                severity: scandal.severity,
+                playerApproval: session.nationalApproval,
+                politicalTrust: 80.0,
+                difficulty: session.difficulty == 'hard' ? 2 : session.difficulty == 'easy' ? 0 : 1,
+              )
+              .toInt(),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'scandal_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToScandale',
       ));
       rethrow;
     }
