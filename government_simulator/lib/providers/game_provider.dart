@@ -28,6 +28,7 @@ import 'package:government_simulator/services/scandal_service.dart';
 import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/cabinet_infighting_service.dart';
 import 'package:government_simulator/services/achievement_service.dart';
+import 'package:government_simulator/services/random_crisis_generator.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/scandal_event.dart';
@@ -1473,5 +1474,166 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     } catch (e) {
       return 0.0;
     }
+  }
+
+  /// 危機システム：月間ランダム危機チェック
+  Future<void> processMonthlyRandomCrises(GameSession session) async {
+    try {
+      final crisisGenerator = RandomCrisisGenerator();
+
+      // 危機発生確率を計算
+      final crisisProbability = crisisGenerator.calculateCrisisProbability(
+        approval: session.nationalApproval,
+        stability: session.status.stability,
+        gdp: session.status.gdp,
+        unemployment: session.status.unemployment,
+        activeCrisisCount: session.activeCrises.length,
+        internationalTension:
+            session.internationalStanding > 50 ? 30 : (100 - session.internationalStanding),
+      );
+
+      // 危機発生判定
+      if (Random().nextDouble() < crisisProbability) {
+        // 危機のタイプをランダムに選択
+        final crisisType = CrisisType.values[Random().nextInt(CrisisType.values.length)];
+
+        // 危機の厳しさを決定
+        final severity = crisisGenerator.determineSeverity(
+          approval: session.nationalApproval,
+          stability: session.status.stability,
+          random: Random(),
+        );
+
+        // 新しい危機を生成
+        final newCrisis = Crisis(
+          id: const Uuid().v4(),
+          type: crisisType,
+          startDate: DateTime.now(),
+          durationDays: crisisGenerator.calculateDuration(severity),
+          approvalImpact: -10.0 * severity.damageMultiplier, // 重大度に応じたダメージ
+          description: _generateCrisisDescription(crisisType, severity),
+          triggers: [
+            '承認度: ${session.nationalApproval.toStringAsFixed(1)}%',
+            '安定度: ${session.status.stability.toStringAsFixed(1)}%',
+          ],
+          escalationRisk: crisisGenerator.calculateChainProbability(severity),
+        );
+
+        // 新しい危機をセッションに追加
+        var updatedSession = session.copyWith(
+          activeCrises: [...session.activeCrises, newCrisis],
+        );
+
+        // 承認度に即座のダメージを適用
+        updatedSession = updatedSession.copyWith(
+          nationalApproval:
+              (updatedSession.nationalApproval + newCrisis.getApprovalImpact()).clamp(0.0, 100.0),
+        );
+
+        await _firestore.updateGameSession(updatedSession);
+        state = state.copyWith(session: updatedSession);
+
+        // アナリティクス：危機発生を追跡
+        unawaited(_analytics.trackEvent(
+          name: 'crisis_occurred',
+          parameters: {
+            'crisis_type': crisisType.name,
+            'severity': severity.label,
+            'approval_impact': newCrisis.getApprovalImpact(),
+          },
+        ));
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'crisis_generation_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyRandomCrises',
+      ));
+    }
+  }
+
+  /// 危機に対する対応を処理
+  Future<void> respondToCrisis(
+    GameSession session,
+    String crisisId,
+    CrisisResponse response,
+  ) async {
+    try {
+      final crisis = session.activeCrises.firstWhere((c) => c.id == crisisId);
+
+      // 危機を更新（対応内容を記録、解決日時を設定）
+      final respondedCrisis = crisis.copyWith(
+        playerResponse: response,
+        resolvedDate: DateTime.now(),
+      );
+
+      // 危機を更新
+      final updatedCrises = session.activeCrises.map((c) {
+        return c.id == crisisId ? respondedCrisis : c;
+      }).toList();
+
+      // 承認度への影響を計算
+      final approvalImpact = respondedCrisis.getApprovalImpact();
+      final newApproval = (session.nationalApproval + approvalImpact).clamp(0.0, 100.0);
+
+      // 経済的影響を計算（該当する場合）
+      final economicImpact = crisis.economicImpact ?? 0.0;
+
+      var updatedSession = session.copyWith(
+        activeCrises: updatedCrises.where((c) => !c.isResolved).toList(),
+        nationalApproval: newApproval,
+      );
+
+      // 経済的影響を反映
+      if (economicImpact > 0) {
+        final updatedStatus = updatedSession.status.copyWith(
+          gdp: (updatedSession.status.gdp - (economicImpact / 1000000000)).clamp(0.1, double.infinity),
+        );
+        updatedSession = updatedSession.copyWith(status: updatedStatus);
+      }
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：危機対応を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'crisis_responded',
+        parameters: {
+          'crisis_type': crisis.type.name,
+          'response_type': response.name,
+          'approval_impact': approvalImpact,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'crisis_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToCrisis',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 危機の説明文を生成
+  String _generateCrisisDescription(CrisisType type, CrisisSeverity severity) {
+    final severityPrefix = switch (severity) {
+      CrisisSeverity.mild => '軽微な',
+      CrisisSeverity.moderate => '',
+      CrisisSeverity.severe => '深刻な',
+      CrisisSeverity.critical => '致命的な',
+    };
+
+    return switch (type) {
+      CrisisType.demonstration =>
+        '$severityPrefix デモが首都で発生。市民が政府の政策に反発している。',
+      CrisisType.riot =>
+        '$severityPrefix 暴動が複数地域で発生。警察と市民が対立。秩序が崩壊している。',
+      CrisisType.laborStrike =>
+        '$severityPrefix 労働者ストライキが全土に広がる。主要産業が停止。',
+      CrisisType.economicCrisis =>
+        '$severityPrefix 経済危機が発生。市場が混乱し、失業が急増している。',
+      CrisisType.militaryCoup =>
+        '$severityPrefix クーデターの兆候が報告される。軍部が不満を募らせている。',
+    };
   }
 }
