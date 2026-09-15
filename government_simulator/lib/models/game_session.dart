@@ -11,6 +11,7 @@ import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/crisis.dart';
+import 'package:government_simulator/models/story_pack_event.dart';
 
 class GameSession {
   final String id;
@@ -103,6 +104,11 @@ class GameSession {
   final DateTime? coupAttemptTime; // クーデター開始時刻
   final int daysUntilCoup; // クーデターまでの日数カウント
 
+  // ストーリーパックイベント・システム
+  final List<StoryPackEventProgress> packEventProgress; // イベント進捗追跡
+  final String? currentPackId; // 現在のプレイ中のストーリーパック
+  final Map<String, int> packEventHistory; // 各パックで発生したイベント数
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -165,6 +171,9 @@ class GameSession {
     this.coupAttemptInProgress = false,
     this.coupAttemptTime,
     this.daysUntilCoup = 0,
+    this.packEventProgress = const [],
+    this.currentPackId,
+    this.packEventHistory = const {},
   });
 
   // プレイ時間（分）
@@ -254,6 +263,9 @@ class GameSession {
     bool? coupAttemptInProgress,
     DateTime? coupAttemptTime,
     int? daysUntilCoup,
+    List<StoryPackEventProgress>? packEventProgress,
+    String? currentPackId,
+    Map<String, int>? packEventHistory,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -318,6 +330,9 @@ class GameSession {
       coupAttemptInProgress: coupAttemptInProgress ?? this.coupAttemptInProgress,
       coupAttemptTime: coupAttemptTime ?? this.coupAttemptTime,
       daysUntilCoup: daysUntilCoup ?? this.daysUntilCoup,
+      packEventProgress: packEventProgress ?? this.packEventProgress,
+      currentPackId: currentPackId ?? this.currentPackId,
+      packEventHistory: packEventHistory ?? this.packEventHistory,
     );
   }
 
@@ -389,6 +404,9 @@ class GameSession {
       'coupAttemptInProgress': coupAttemptInProgress,
       'coupAttemptTime': coupAttemptTime?.toIso8601String(),
       'daysUntilCoup': daysUntilCoup,
+      'packEventProgress': packEventProgress.map((p) => p.toMap()).toList(),
+      'currentPackId': currentPackId,
+      'packEventHistory': packEventHistory,
     };
   }
 
@@ -554,6 +572,14 @@ class GameSession {
           ? DateTime.tryParse(map['coupAttemptTime'] as String)
           : null,
       daysUntilCoup: map['daysUntilCoup'] ?? 0,
+      packEventProgress: (map['packEventProgress'] as List?)
+              ?.map((p) => StoryPackEventProgress.fromMap(p as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      currentPackId: map['currentPackId'] as String?,
+      packEventHistory: map['packEventHistory'] != null
+          ? Map<String, int>.from(map['packEventHistory'] as Map<String, dynamic>)
+          : const {},
     );
   }
 }
