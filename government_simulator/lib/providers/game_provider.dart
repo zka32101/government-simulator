@@ -25,6 +25,7 @@ import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
 import 'package:government_simulator/services/scandal_service.dart';
+import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/scandal_event.dart';
@@ -1111,6 +1112,134 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'scandal_response_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.respondToScandale',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 外交システム：月間外交イベント処理
+  Future<void> processMonthlyDiplomacy(GameSession session) async {
+    try {
+      final diplomacyService = DiplomacyService(
+        allRelationships: session.nationRelationships.values.toList(),
+        activeTradeAgreements: session.activeTradeDeals,
+        diplomaticEvents: session.activeInternationalEvents,
+        activeSanctions: session.activeSanctions,
+      );
+
+      // 関係の自然減衰を適用
+      final updatedRelationships = <String, NationRelationship>{};
+      for (final entry in session.nationRelationships.entries) {
+        final nation = entry.value;
+        final decay = diplomacyService.calculateRelationshipDecay(nation, 4);
+        if (decay > 0) {
+          nation.changeStanding(-decay);
+        }
+        updatedRelationships[entry.key] = nation;
+      }
+
+      // 月間外交イベントをシミュレーション
+      final diplomaticEvents = diplomacyService.simulateMonthlyDiplomacy(
+        month: DateTime.now().month,
+        year: DateTime.now().year,
+      );
+
+      final updatedSession = session.copyWith(
+        nationRelationships: updatedRelationships,
+        activeInternationalEvents: [...session.activeInternationalEvents, ...diplomaticEvents],
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：外交イベント発生を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'diplomacy_events_processed',
+        parameters: {
+          'event_count': diplomaticEvents.length,
+          'international_standing': diplomacyService.calculateInternationalStanding(),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'diplomacy_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyDiplomacy',
+      ));
+    }
+  }
+
+  /// 外交イベントに対する選択を処理
+  Future<void> respondToDiplomaticEvent(
+    GameSession session,
+    String eventId,
+    DiplomaticOption choice,
+    String targetNationId,
+  ) async {
+    try {
+      final event = session.activeInternationalEvents.firstWhere(
+        (e) => e.id == eventId,
+      );
+
+      final diplomacyService = DiplomacyService(
+        allRelationships: session.nationRelationships.values.toList(),
+        activeTradeAgreements: session.activeTradeDeals,
+        diplomaticEvents: session.activeInternationalEvents,
+        activeSanctions: session.activeSanctions,
+      );
+
+      // 外交選択を処理
+      final updatedNation = diplomacyService.respondToDiplomaticEvent(
+        targetNationId,
+        choice,
+      );
+
+      // 国家関係を更新
+      final updatedRelationships = {...session.nationRelationships};
+      updatedRelationships[targetNationId] = updatedNation;
+
+      // イベントを解決済みに
+      final resolvedEvent = event.copyWith(
+        playerChoice: choice,
+        resolvedDate: DateTime.now(),
+      );
+      final updatedEvents = session.activeInternationalEvents.map((e) {
+        return e.id == eventId ? resolvedEvent : e;
+      }).toList();
+      final historicalEvents = [...session.historicalInternationalEvents, resolvedEvent];
+
+      // 承認度への影響を反映
+      final newApproval = (session.nationalApproval + choice.approvalImpact).clamp(0.0, 100.0);
+
+      // 経済コストを反映（負の値は収入）
+      final newForeignDebt = (session.foreignDebt + choice.economicCost).clamp(0.0, double.infinity);
+
+      final updatedSession = session.copyWith(
+        nationRelationships: updatedRelationships,
+        activeInternationalEvents: updatedEvents.where((e) => e.resolvedDate == null).toList(),
+        historicalInternationalEvents: historicalEvents,
+        nationalApproval: newApproval,
+        foreignDebt: newForeignDebt,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      // アナリティクス：外交選択を追跡
+      unawaited(_analytics.trackEvent(
+        name: 'diplomatic_event_resolved',
+        parameters: {
+          'target_nation': targetNationId,
+          'choice_label': choice.label,
+          'relationship_change': choice.relationshipChange,
+          'approval_impact': choice.approvalImpact,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'diplomacy_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToDiplomaticEvent',
       ));
       rethrow;
     }
