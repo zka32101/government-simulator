@@ -3,8 +3,6 @@
 
 library;
 
-import 'package:uuid/uuid.dart';
-
 enum ScandalType {
   political('政治スキャンダル', 10.0),
   personal('個人スキャンダル', 8.0),

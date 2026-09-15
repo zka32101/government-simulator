@@ -3,8 +3,6 @@
 
 library;
 
-import 'package:uuid/uuid.dart';
-
 enum DebateTopic {
   economy('経済', [
     'GDP',

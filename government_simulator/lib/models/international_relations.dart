@@ -127,7 +127,7 @@ class NationRelationship {
   /// 最後の同盟変更日
   final DateTime? allianceChangeDate;
 
-  const NationRelationship({
+  NationRelationship({
     required this.nationId,
     required this.nationName,
     this.standingScore = 0.0,

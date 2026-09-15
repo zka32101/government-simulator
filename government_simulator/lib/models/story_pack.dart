@@ -3,8 +3,6 @@
 
 library;
 
-import 'package:government_simulator/models/scenario.dart';
-
 /// ストーリーパック：テーマ別にシナリオをグループ化
 class StoryPack {
   final String id;

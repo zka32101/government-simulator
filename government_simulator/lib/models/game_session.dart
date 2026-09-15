@@ -461,7 +461,7 @@ class GameSession {
               ? Map<String, PoliticalParty>.from(
                   (map['politicalParties'] as Map<String, dynamic>).map(
                     (k, v) => MapEntry(
-                      k as String,
+                      k,
                       PoliticalParty.fromMap(v as Map<String, dynamic>),
                     ),
                   ),
@@ -511,7 +511,7 @@ class GameSession {
           ? Map<String, NationRelationship>.from(
               (map['nationRelationships'] as Map<String, dynamic>).map(
                 (k, v) => MapEntry(
-                  k as String,
+                  k,
                   NationRelationship.fromMap(v as Map<String, dynamic>),
                 ),
               ),
