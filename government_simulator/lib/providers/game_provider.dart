@@ -26,6 +26,7 @@ import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
 import 'package:government_simulator/services/scandal_service.dart';
 import 'package:government_simulator/services/diplomacy_service.dart';
+import 'package:government_simulator/services/cabinet_infighting_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/scandal_event.dart';
@@ -1240,6 +1241,139 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'diplomacy_response_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.respondToDiplomaticEvent',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 内閣システム：月間内閣確執チェック
+  Future<void> processMonthlyCabinetInfighting(GameSession session) async {
+    try {
+      final infightingService = CabinetInfightingService(
+        cabinet: session.status.cabinet,
+      );
+
+      // 背信の確率をチェック
+      for (final role in MinisterRole.values) {
+        if (session.status.cabinet.betrayed.contains(role)) continue;
+
+        final betrayalProb = infightingService.calculateBetrayalProbability(role);
+        if (Random().nextDouble() < betrayalProb) {
+          // 背信が発生
+          final betrayalReasons = [
+            '権力の衰退に不満を持つようになった',
+            '他勢力との秘密交渉に発覚した',
+            '政策の不一致が深刻化した',
+            '個人的な欲望が優先されるようになった',
+            '外国勢力に買収されていた',
+          ];
+
+          final betrayalEvent = BetrayalEvent(
+            id: const Uuid().v4(),
+            traitor: role,
+            reason: betrayalReasons[Random().nextInt(betrayalReasons.length)],
+            discoveredDate: DateTime.now(),
+            approvalDamage: Random().nextDouble() * 20 + 10, // 10-30%
+            trustDamage: Random().nextDouble() * 40 + 20, // 20-60%
+            economicLoss: Random().nextDouble() * 5000000 + 1000000, // $1-6M
+          );
+
+          // キャビネットを更新（背信マーク）
+          final updatedCabinet = session.status.cabinet.markBetrayed(role);
+          final updatedStatus = session.status.copyWith(cabinet: updatedCabinet);
+          var updatedSession = session.copyWith(status: updatedStatus);
+
+          // 承認度と信頼度にダメージを適用
+          updatedSession = updatedSession.copyWith(
+            nationalApproval: (updatedSession.nationalApproval - betrayalEvent.approvalDamage)
+                .clamp(0.0, 100.0),
+          );
+
+          await _firestore.updateGameSession(updatedSession);
+          state = state.copyWith(session: updatedSession);
+
+          // アナリティクス
+          unawaited(_analytics.trackEvent(
+            name: 'minister_betrayal',
+            parameters: {
+              'minister': role.name,
+              'reason': betrayalEvent.reason,
+              'approval_damage': betrayalEvent.approvalDamage,
+            },
+          ));
+        }
+      }
+
+      // 大臣間の対立をチェック
+      final rolePairs = <(MinisterRole, MinisterRole)>[];
+      for (int i = 0; i < MinisterRole.values.length; i++) {
+        for (int j = i + 1; j < MinisterRole.values.length; j++) {
+          rolePairs.add((MinisterRole.values[i], MinisterRole.values[j]));
+        }
+      }
+
+      for (final (role1, role2) in rolePairs) {
+        final conflictProb = infightingService.calculateConflictProbability(role1, role2);
+        if (Random().nextDouble() < conflictProb) {
+          // 対立が発生
+          final conflictDescriptions = [
+            '${role1.label}と${role2.label}が予算配分を巡って対立',
+            '${role1.label}と${role2.label}の方針の相違が表面化',
+            '${role1.label}と${role2.label}の権力争いが激化',
+            '${role1.label}が${role2.label}の政策を公然と批判',
+            '${role1.label}と${role2.label}の派閥が衝突',
+          ];
+
+          final conflict = MinisterConflict(
+            id: const Uuid().v4(),
+            minister1: role1,
+            minister2: role2,
+            description: conflictDescriptions[Random().nextInt(conflictDescriptions.length)],
+            tensionLevel: Random().nextDouble() * 40 + 30, // 30-70%
+            occurredDate: DateTime.now(),
+          );
+
+          // セッションを更新（新しい対立を追加）
+          // 注：ゲームセッションにアクティブな対立フィールドがない場合は、スキップ
+        }
+      }
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'cabinet_infighting_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.processMonthlyCabinetInfighting',
+      ));
+    }
+  }
+
+  /// 大臣の忠誠度を調整
+  Future<void> adjustMinisterLoyalty(
+    GameSession session,
+    MinisterRole role,
+    double delta,
+  ) async {
+    try {
+      final deltas = {role: delta};
+      final updatedCabinet = session.status.cabinet.applyDeltas(deltas);
+      final updatedStatus = session.status.copyWith(cabinet: updatedCabinet);
+      final updatedSession = session.copyWith(status: updatedStatus);
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'minister_loyalty_adjusted',
+        parameters: {
+          'minister': role.name,
+          'delta': delta,
+          'new_loyalty': updatedCabinet.of(role),
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'loyalty_adjustment_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.adjustMinisterLoyalty',
       ));
       rethrow;
     }
