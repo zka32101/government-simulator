@@ -1097,10 +1097,15 @@ class GameLogicService {
     // 基本影響度 (5-15%)
     final baseImpact = type.baseImpact + (_random.nextDouble() * 5 - 2.5);
 
+    final severity = _determineScandalSeverity(baseImpact);
+    final description = _generateScandalDescription(type, severity);
+
     return Scandal(
       id: _uuid.v4(),
       title: title,
+      description: description,
       type: type,
+      severity: severity,
       discoveredAt: DateTime.now(),
       startWeek: currentWeek,
       startYear: currentYear,
@@ -1125,11 +1130,15 @@ class GameLogicService {
     final type = types[_random.nextInt(types.length)];
     final title = ScandalManager.getScandalTitle(type);
     final baseImpact = type.baseImpact + (_random.nextDouble() * 3 - 1.5);
+    final severity = _determineScandalSeverity(baseImpact);
+    final description = _generateScandalDescription(type, severity);
 
     return Scandal(
       id: _uuid.v4(),
       title: title,
+      description: description,
       type: type,
+      severity: severity,
       discoveredAt: DateTime.now(),
       startWeek: currentWeek,
       startYear: currentYear,
@@ -1181,7 +1190,9 @@ class GameLogicService {
     final respondedScandal = Scandal(
       id: scandal.id,
       title: scandal.title,
+      description: scandal.description,
       type: scandal.type,
+      severity: scandal.severity,
       discoveredAt: scandal.discoveredAt,
       startWeek: scandal.startWeek,
       startYear: scandal.startYear,
@@ -1208,6 +1219,9 @@ class GameLogicService {
         break;
       case ScandalResponse.counterattack:
         reputationChange = -3; // 反論は少し低下
+        break;
+      case ScandalResponse.coverup:
+        reputationChange = -15; // 隠蔽は大幅信頼低下（暴露リスク）
         break;
       case ScandalResponse.ignore:
         reputationChange = 0; // 無視は影響なし
@@ -1681,5 +1695,32 @@ class GameLogicService {
       GameSession session) {
     // Use existing rivals or create new ones
     return session.rivalCandidates;
+  }
+
+  /// Determine scandal severity based on impact
+  ScandalSeverity _determineScandalSeverity(double baseImpact) {
+    if (baseImpact < 8.0) {
+      return ScandalSeverity.minor;
+    } else if (baseImpact < 10.0) {
+      return ScandalSeverity.moderate;
+    } else if (baseImpact < 12.0) {
+      return ScandalSeverity.serious;
+    }
+    return ScandalSeverity.critical;
+  }
+
+  /// Generate scandal description based on type and severity
+  String _generateScandalDescription(ScandalType type, ScandalSeverity severity) {
+    final severityLabel = severity.label;
+    switch (type) {
+      case ScandalType.political:
+        return '政治的スキャンダルが報道されている。$severityLabel程度の悪影響が懸念されている。';
+      case ScandalType.personal:
+        return '個人的なスキャンダルが発覚した。$severityLabel程度の信頼度低下が予想される。';
+      case ScandalType.economic:
+        return '経済的な不正疑惑が浮上している。$severityLabel程度の経済への信頼が揺らいでいる。';
+      case ScandalType.health:
+        return '健康に関する問題が報じられている。$severityLabel程度の懸念がある。';
+    }
   }
 }
