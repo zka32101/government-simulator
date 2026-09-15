@@ -1712,15 +1712,11 @@ class GameLogicService {
   /// Generate scandal description based on type and severity
   String _generateScandalDescription(ScandalType type, ScandalSeverity severity) {
     final severityLabel = severity.label;
-    switch (type) {
-      case ScandalType.political:
-        return '政治的スキャンダルが報道されている。$severityLabel程度の悪影響が懸念されている。';
-      case ScandalType.personal:
-        return '個人的なスキャンダルが発覚した。$severityLabel程度の信頼度低下が予想される。';
-      case ScandalType.economic:
-        return '経済的な不正疑惑が浮上している。$severityLabel程度の経済への信頼が揺らいでいる。';
-      case ScandalType.health:
-        return '健康に関する問題が報じられている。$severityLabel程度の懸念がある。';
-    }
+    return switch (type) {
+      ScandalType.political => '政治的スキャンダルが報道されている。$severityLabel程度の悪影響が懸念されている。',
+      ScandalType.personal => '個人的なスキャンダルが発覚した。$severityLabel程度の信頼度低下が予想される。',
+      ScandalType.economic => '経済的な不正疑惑が浮上している。$severityLabel程度の経済への信頼が揺らいでいる。',
+      ScandalType.health => '健康に関する問題が報じられている。$severityLabel程度の懸念がある。',
+    };
   }
 }
