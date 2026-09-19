@@ -12,7 +12,8 @@ class StoryPackEvent {
   final String theme; // 'economic', 'military', 'diplomatic', 'social'
 
   /// イベント発生条件
-  final int? triggerYear; // 特定の年に発生（nullなら柔軟）
+  final int? triggerYear; // 発生可能になる年（triggerYearMaxがnullなら、この年ちょうどに発生）
+  final int? triggerYearMax; // 発生可能な年の範囲の終端（triggerYearと合わせて「n年目〜m年目のどこか」を表す）
   final List<String> triggerScenarioIds; // どのシナリオで発生するか
   final String? triggerCondition; // 条件文（例：gdp < 500）
 
@@ -38,6 +39,7 @@ class StoryPackEvent {
     required this.eventType,
     required this.theme,
     this.triggerYear,
+    this.triggerYearMax,
     required this.triggerScenarioIds,
     this.triggerCondition,
     required this.storyText,
@@ -59,6 +61,7 @@ class StoryPackEvent {
       'eventType': eventType,
       'theme': theme,
       'triggerYear': triggerYear,
+      'triggerYearMax': triggerYearMax,
       'triggerScenarioIds': triggerScenarioIds,
       'triggerCondition': triggerCondition,
       'storyText': storyText,
@@ -81,6 +84,7 @@ class StoryPackEvent {
       eventType: map['eventType'] as String,
       theme: map['theme'] as String,
       triggerYear: map['triggerYear'] as int?,
+      triggerYearMax: map['triggerYearMax'] as int?,
       triggerScenarioIds: List<String>.from(map['triggerScenarioIds'] as List),
       triggerCondition: map['triggerCondition'] as String?,
       storyText: map['storyText'] as String,

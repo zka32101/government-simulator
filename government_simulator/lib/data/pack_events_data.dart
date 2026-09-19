@@ -15,6 +15,7 @@ final europeanCrisisEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['ostia'],
     storyText: '''
 IMFからの救済プログラムが承認されようとしています。しかし、その条件は厳しく、
@@ -119,6 +120,7 @@ IMFの要求を完全に受け入れるか、交渉するか、あるいは拒�
     eventType: 'decision_point',
     theme: 'political',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['ostia', 'amanda'],
     storyText: '''
 経済政策をめぐる対立は膠着状態に陥りました。野党は「国民に直接信を問うべきだ」として
@@ -169,6 +171,7 @@ IMFの要求を完全に受け入れるか、交渉するか、あるいは拒�
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 2,
+    triggerYearMax: 4,
     triggerScenarioIds: ['ostia', 'amanda'],
     storyText: '''
 共通通貨圏の財務相会合で、あなたの国の財政赤字が名指しで問題視されました。
@@ -220,6 +223,7 @@ IMFの要求を完全に受け入れるか、交渉するか、あるいは拒�
     eventType: 'plot_twist',
     theme: 'political',
     triggerYear: 4,
+    triggerYearMax: 6,
     triggerScenarioIds: ['ostia', 'amanda'],
     storyText: '''
 「エリートはもう国民の声を聞いていない」——そう訴える新興政党が、直近の世論調査で
@@ -277,6 +281,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'diplomatic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['islas'],
     storyText: '''
 隣国の大国から、突然、強硬な通達が届きました。
@@ -379,6 +384,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'opportunity',
     theme: 'economic',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['islas'],
     storyText: '''
 調査船からの報告に、閣議室がどよめきました。あなたの国の排他的経済水域内で、
@@ -429,6 +435,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 2,
+    triggerYearMax: 4,
     triggerScenarioIds: ['islas'],
     storyText: '''
 世界中で新たな感染症が猛威を振るい、各国が次々と国境を閉鎖しています。
@@ -479,6 +486,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'diplomatic',
     triggerYear: 4,
+    triggerYearMax: 6,
     triggerScenarioIds: ['islas'],
     storyText: '''
 最新の観測データが衝撃的な現実を突きつけました。このままのペースで海面上昇が進めば、
@@ -535,6 +543,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 2,
+    triggerYearMax: 4,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 あなたの国の気象学者から、予想外の警告が上がってきました。
@@ -638,6 +647,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'social',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 近隣地域の政情不安を受け、あなたの国に移民・難民申請が急増しています。
@@ -688,6 +698,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'decision_point',
     theme: 'political',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 総選挙の結果、これまで泡沫扱いされてきた国民保守政党が第三党に躍進しました。
@@ -740,6 +751,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'plot_twist',
     theme: 'diplomatic',
     triggerYear: 4,
+    triggerYearMax: 6,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 情報機関から緊急の報告が届きました。SNS上で拡散している「政府の秘密計画」を
@@ -797,6 +809,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 経済分析が明確な現実を示しています：あなたの国の輸出の70%は、かつての宗主国と
@@ -900,6 +913,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'plot_twist',
     theme: 'diplomatic',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 思いがけない申し出が旧宗主国から届きました。植民地時代に持ち去られた
@@ -951,6 +965,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 2,
+    triggerYearMax: 4,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 財務省からの報告は深刻でした。来月に迫った対外債務の利払いに、国庫の資金は
@@ -1003,6 +1018,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'decision_point',
     theme: 'economic',
     triggerYear: 4,
+    triggerYearMax: 6,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 「我々の資源は我々のものだ」——長年外国企業が採掘権を握ってきた鉱物資源をめぐり、
