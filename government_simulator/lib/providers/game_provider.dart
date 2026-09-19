@@ -521,6 +521,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       difficulty: session.difficulty,
       playerReputation: sessionWithCampaignEffects.playerReputation,
       activecampaignCount: sessionWithCampaignEffects.activeCampaigns.length,
+      corruption: newStatus.corruption,
     );
 
     if (newScandal != null) {
@@ -1657,7 +1658,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     try {
       final crisisGenerator = RandomCrisisGenerator();
 
-      // 危機発生確率を計算
+      // 危機発生確率を計算（汚職度が高いほど発生しやすい）
       final crisisProbability = crisisGenerator.calculateCrisisProbability(
         approval: session.nationalApproval,
         stability: session.status.stability,
@@ -1666,12 +1667,18 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         activeCrisisCount: session.activeCrises.length,
         internationalTension:
             session.internationalStanding > 50 ? 30 : (100 - session.internationalStanding),
+        corruption: session.status.corruption,
       );
 
       // 危機発生判定
       if (Random().nextDouble() < crisisProbability) {
-        // 危機のタイプをランダムに選択
-        final crisisType = CrisisType.values[Random().nextInt(CrisisType.values.length)];
+        // 危機のタイプを派閥の離反状況から選択（軍部の離反が進んでいればクーデター寄りに）
+        final crisisType = crisisGenerator.selectCrisisType(
+          militarySupport: session.status.factions.support[Faction.military] ?? 50.0,
+          laborSupport: session.status.factions.support[Faction.labor] ?? 50.0,
+          unemployment: session.status.unemployment,
+          random: Random(),
+        );
 
         // 危機の厳しさを決定
         final severity = crisisGenerator.determineSeverity(

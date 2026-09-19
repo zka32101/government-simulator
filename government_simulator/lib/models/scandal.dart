@@ -3,6 +3,8 @@
 
 library;
 
+import 'dart:math';
+
 enum ScandalType {
   political('政治スキャンダル', 10.0),
   personal('個人スキャンダル', 8.0),
@@ -346,6 +348,7 @@ class ScandalManager {
     required int activecampaignCount,
     required String difficulty,
     required int playerReputation,
+    double corruption = 0.0,
   }) {
     // 基本確率：2-5%
     double baseProbability = 0.03;
@@ -357,6 +360,9 @@ class ScandalManager {
     if (playerSupport > 50) {
       baseProbability += (playerSupport - 50) * 0.002;
     }
+
+    // 汚職度が高いほど、いずれ表沙汰になるスキャンダルの種が増える
+    baseProbability += (corruption / 100) * 0.08;
 
     // 難易度による調整
     final difficultyMult = difficulty == 'hard'
@@ -370,6 +376,25 @@ class ScandalManager {
     baseProbability *= (1.0 - (playerReputation / 100) * 0.3);
 
     return baseProbability.clamp(0.0, 1.0);
+  }
+
+  /// 汚職度に応じてスキャンダルの種類を選ぶ（汚職が進んでいるほど
+  /// 政治・経済がらみの醜聞が表面化しやすい）
+  static ScandalType selectScandalType(double corruption, Random random) {
+    final weights = <ScandalType, double>{
+      ScandalType.political: corruption > 40 ? 3.0 : 1.0,
+      ScandalType.economic: corruption > 40 ? 2.5 : 1.0,
+      ScandalType.personal: 1.0,
+      ScandalType.health: 1.0,
+    };
+
+    final totalWeight = weights.values.fold(0.0, (sum, w) => sum + w);
+    var roll = random.nextDouble() * totalWeight;
+    for (final entry in weights.entries) {
+      roll -= entry.value;
+      if (roll <= 0) return entry.key;
+    }
+    return ScandalType.personal;
   }
 
   /// スキャンダルの媒体報道乗数を計算

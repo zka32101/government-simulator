@@ -87,9 +87,13 @@ class RandomCrisisGenerator {
     required double unemployment,
     required int activeCrisisCount,
     required double internationalTension,
+    double corruption = 0.0,
   }) {
     // 基本確率：1%
     double probability = 0.01;
+
+    // 汚職が進んだ統治は制度への信頼を蝕み、危機を招きやすい
+    probability += (corruption / 100) * 0.05;
 
     // 承認度が低いほど危機が起こりやすい
     if (approval < 60) {
@@ -118,6 +122,32 @@ class RandomCrisisGenerator {
     probability += internationalTension / 100 * 0.08;
 
     return probability.clamp(0.0, 1.0);
+  }
+
+  /// 派閥の支持動向に応じて危機の種類を選ぶ
+  /// （軍部が離反していればクーデター寄り、労働者が離反していれば
+  /// ストライキ寄りなど、統治のツケが特定の危機として跳ね返る）
+  CrisisType selectCrisisType({
+    required double militarySupport,
+    required double laborSupport,
+    required double unemployment,
+    required Random random,
+  }) {
+    final weights = <CrisisType, double>{
+      CrisisType.demonstration: 1.0,
+      CrisisType.riot: 1.0,
+      CrisisType.laborStrike: (laborSupport < 30 || unemployment > 6) ? 2.5 : 1.0,
+      CrisisType.economicCrisis: unemployment > 8 ? 2.0 : 1.0,
+      CrisisType.militaryCoup: militarySupport < 20 ? 3.0 : (militarySupport < 35 ? 1.5 : 0.3),
+    };
+
+    final totalWeight = weights.values.fold(0.0, (sum, w) => sum + w);
+    var roll = random.nextDouble() * totalWeight;
+    for (final entry in weights.entries) {
+      roll -= entry.value;
+      if (roll <= 0) return entry.key;
+    }
+    return CrisisType.demonstration;
   }
 
   /// 危機の厳しさを決定

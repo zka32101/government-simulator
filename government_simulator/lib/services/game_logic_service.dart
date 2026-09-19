@@ -1151,13 +1151,15 @@ class GameLogicService {
     required String difficulty,
     required int playerReputation,
     required int activecampaignCount,
+    double corruption = 0.0,
   }) {
-    // スキャンダル発生確率を計算
+    // スキャンダル発生確率を計算（汚職度が高いほど発生しやすい）
     final probability = ScandalManager.calculateScandalProbability(
       playerSupport: playerSupport,
       activecampaignCount: activecampaignCount,
       difficulty: difficulty,
       playerReputation: playerReputation,
+      corruption: corruption,
     );
 
     // 確率判定
@@ -1165,9 +1167,8 @@ class GameLogicService {
       return null;
     }
 
-    // スキャンダルタイプをランダムに選択
-    final types = ScandalType.values;
-    final type = types[_random.nextInt(types.length)];
+    // スキャンダルタイプを選択（汚職度が高いほど政治・経済がらみに偏る）
+    final type = ScandalManager.selectScandalType(corruption, _random);
 
     // スキャンダルタイトルを取得
     final title = ScandalManager.getScandalTitle(type);
