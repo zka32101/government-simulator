@@ -13,6 +13,7 @@ import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
+import 'package:government_simulator/services/citizen_survey_service.dart';
 
 class GameSession {
   final String id;
@@ -98,6 +99,9 @@ class GameSession {
   final DateTime? lastCrisisTime; // 最後の危機発生時刻
   final int crisisCount; // 現在の任期中の危機数
   final double economicSatisfaction; // 経済満足度（0-100）
+
+  // 国民世論調査システム
+  final SurveyResult? latestSurvey; // 最新の世論調査結果
   final double socialSatisfaction; // 社会満足度（0-100）
   final double securitySatisfaction; // 安全保障満足度（0-100）
   final double healthcareSatisfaction; // 医療・教育満足度（0-100）
@@ -166,6 +170,7 @@ class GameSession {
     this.lastCrisisTime,
     this.crisisCount = 0,
     this.economicSatisfaction = 50.0,
+    this.latestSurvey,
     this.socialSatisfaction = 50.0,
     this.securitySatisfaction = 50.0,
     this.healthcareSatisfaction = 50.0,
@@ -258,6 +263,7 @@ class GameSession {
     DateTime? lastCrisisTime,
     int? crisisCount,
     double? economicSatisfaction,
+    SurveyResult? latestSurvey,
     double? socialSatisfaction,
     double? securitySatisfaction,
     double? healthcareSatisfaction,
@@ -325,6 +331,7 @@ class GameSession {
       lastCrisisTime: lastCrisisTime ?? this.lastCrisisTime,
       crisisCount: crisisCount ?? this.crisisCount,
       economicSatisfaction: economicSatisfaction ?? this.economicSatisfaction,
+      latestSurvey: latestSurvey ?? this.latestSurvey,
       socialSatisfaction: socialSatisfaction ?? this.socialSatisfaction,
       securitySatisfaction: securitySatisfaction ?? this.securitySatisfaction,
       healthcareSatisfaction: healthcareSatisfaction ?? this.healthcareSatisfaction,
@@ -399,6 +406,7 @@ class GameSession {
       'lastCrisisTime': lastCrisisTime?.toIso8601String(),
       'crisisCount': crisisCount,
       'economicSatisfaction': economicSatisfaction,
+      'latestSurvey': latestSurvey?.toMap(),
       'socialSatisfaction': socialSatisfaction,
       'securitySatisfaction': securitySatisfaction,
       'healthcareSatisfaction': healthcareSatisfaction,
@@ -562,6 +570,9 @@ class GameSession {
       crisisCount: map['crisisCount'] ?? 0,
       economicSatisfaction:
           (map['economicSatisfaction'] as num?)?.toDouble() ?? 50.0,
+      latestSurvey: map['latestSurvey'] != null
+          ? SurveyResult.fromMap(map['latestSurvey'] as Map<String, dynamic>)
+          : null,
       socialSatisfaction:
           (map['socialSatisfaction'] as num?)?.toDouble() ?? 50.0,
       securitySatisfaction:

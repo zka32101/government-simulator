@@ -41,12 +41,14 @@ class ChoiceResult {
   final GameOverType gameOver;
   final MinisterRole? betrayedMinister;
   final List<PromiseResolution> promiseResolutions;
+  final Scandal? newScandal;
 
   ChoiceResult({
     required this.newAchievements,
     required this.gameOver,
     this.betrayedMinister,
     this.promiseResolutions = const [],
+    this.newScandal,
   });
 
   factory ChoiceResult.empty() => ChoiceResult(
@@ -651,6 +653,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       gameOver: gameOver,
       betrayedMinister: betrayedRole,
       promiseResolutions: resolution.resolutions,
+      newScandal: newScandal,
     );
   }
 
@@ -1122,13 +1125,20 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   }
 
   /// 外交システム：月間外交イベント処理
-  Future<void> processMonthlyDiplomacy(GameSession session) async {
+  Future<List<DiplomaticEvent>> processMonthlyDiplomacy(GameSession session) async {
     try {
+      // 初回は近隣諸国との関係を初期化する
+      var nationRelationships = session.nationRelationships;
+      if (nationRelationships.isEmpty) {
+        nationRelationships = _seedNationRelationships();
+        session = session.copyWith(nationRelationships: nationRelationships);
+      }
+
       final diplomacyService = DiplomacyService(
-        allRelationships: session.nationRelationships.values.toList(),
-        activeTradeAgreements: session.activeTradeDeals,
-        diplomaticEvents: session.activeInternationalEvents,
+        nationRelationships: nationRelationships,
+        activeEvents: session.activeInternationalEvents,
         activeSanctions: session.activeSanctions,
+        tradeAgreements: session.activeTradeDeals,
       );
 
       // 関係の自然減衰を適用
@@ -1164,12 +1174,15 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           'international_standing': diplomacyService.calculateInternationalStanding(),
         },
       ));
+
+      return diplomaticEvents;
     } catch (e) {
       unawaited(_analytics.trackError(
         errorCode: 'diplomacy_check_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.processMonthlyDiplomacy',
       ));
+      return const [];
     }
   }
 
@@ -1186,10 +1199,10 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       );
 
       final diplomacyService = DiplomacyService(
-        allRelationships: session.nationRelationships.values.toList(),
-        activeTradeAgreements: session.activeTradeDeals,
-        diplomaticEvents: session.activeInternationalEvents,
+        nationRelationships: session.nationRelationships,
+        activeEvents: session.activeInternationalEvents,
         activeSanctions: session.activeSanctions,
+        tradeAgreements: session.activeTradeDeals,
       );
 
       // 外交選択を処理
@@ -1249,8 +1262,30 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// 初期の周辺諸国関係を生成
+  Map<String, NationRelationship> _seedNationRelationships() {
+    const seeds = [
+      ('nation_ally', '友邦連合'),
+      ('nation_neighbor', '隣国連邦'),
+      ('nation_trade', '通商共和国'),
+      ('nation_rival', '対立国家群'),
+    ];
+    final rng = Random();
+    return {
+      for (final (id, name) in seeds)
+        id: NationRelationship(
+          nationId: id,
+          nationName: name,
+          standingScore: rng.nextDouble() * 60 - 20, // -20 ～ +40
+        ),
+    };
+  }
+
   /// 内閣システム：月間内閣確執チェック
-  Future<void> processMonthlyCabinetInfighting(GameSession session) async {
+  Future<(BetrayalEvent?, MinisterConflict?)> processMonthlyCabinetInfighting(
+      GameSession session) async {
+    BetrayalEvent? firstBetrayal;
+    MinisterConflict? firstConflict;
     try {
       final infightingService = CabinetInfightingService(
         cabinet: session.status.cabinet,
@@ -1294,6 +1329,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
 
           await _firestore.updateGameSession(updatedSession);
           state = state.copyWith(session: updatedSession);
+          session = updatedSession;
+          firstBetrayal ??= betrayalEvent;
 
           // アナリティクス
           unawaited(_analytics.trackEvent(
@@ -1336,16 +1373,40 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
             occurredDate: DateTime.now(),
           );
 
-          // セッションを更新（新しい対立を追加）
-          // 注：ゲームセッションにアクティブな対立フィールドがない場合は、スキップ
+          // 対立は内閣の安定度をわずかに損なう
+          final updatedStatus = session.status.copyWith(
+            stability: (session.status.stability - conflict.tensionLevel * 0.05)
+                .clamp(0.0, 100.0),
+          );
+          final updatedSession = session.copyWith(status: updatedStatus);
+
+          await _firestore.updateGameSession(updatedSession);
+          state = state.copyWith(session: updatedSession);
+          session = updatedSession;
+          firstConflict ??= conflict;
+
+          unawaited(_analytics.trackEvent(
+            name: 'minister_conflict',
+            parameters: {
+              'minister1': role1.name,
+              'minister2': role2.name,
+              'tension_level': conflict.tensionLevel,
+            },
+          ));
+
+          // 1回の呼び出しで複数の対立が重複して連鎖するのを避ける
+          break;
         }
       }
+
+      return (firstBetrayal, firstConflict);
     } catch (e) {
       unawaited(_analytics.trackError(
         errorCode: 'cabinet_infighting_check_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.processMonthlyCabinetInfighting',
       ));
+      return (firstBetrayal, firstConflict);
     }
   }
 
@@ -1478,7 +1539,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   }
 
   /// 危機システム：月間ランダム危機チェック
-  Future<void> processMonthlyRandomCrises(GameSession session) async {
+  Future<Crisis?> processMonthlyRandomCrises(GameSession session) async {
     try {
       final crisisGenerator = RandomCrisisGenerator();
 
@@ -1543,13 +1604,17 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
             'approval_impact': newCrisis.getApprovalImpact(),
           },
         ));
+
+        return newCrisis;
       }
+      return null;
     } catch (e) {
       unawaited(_analytics.trackError(
         errorCode: 'crisis_generation_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.processMonthlyRandomCrises',
       ));
+      return null;
     }
   }
 
@@ -1652,6 +1717,11 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         sampleSize: 1500, // サンプルサイズ
       );
 
+      // 調査結果をセッションに保存
+      final updatedSession = session.copyWith(latestSurvey: surveyResult);
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
       // アナリティクス：調査実施を追跡
       unawaited(_analytics.trackEvent(
         name: 'citizen_survey_conducted',
@@ -1681,18 +1751,39 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     double investmentAmount,
   ) async {
     try {
-      final surveyService = CitizenSurveyService();
+      // まだ調査を実施していない場合は、このトピックへの投資を機に暫定調査を作る
+      final currentSurvey = session.latestSurvey ??
+          CitizenSurveyService().conductSurvey(
+            approval: session.nationalApproval,
+            gdp: session.status.gdp,
+            unemployment: session.status.unemployment,
+            stability: session.status.stability,
+          );
 
       // 投資額に基づいて満足度を上昇
       final satisfactionIncrease = (investmentAmount / 1000000000) * 100; // $1B = 100%向上
       final cappedIncrease = satisfactionIncrease.clamp(0.0, 30.0); // 最大30%
 
-      surveyService.updateTopicSatisfaction(topic, cappedIncrease);
+      final updatedOpinions =
+          Map<OpinionTopic, CitizenOpinion>.from(currentSurvey.opinions);
+      final currentOpinion = updatedOpinions[topic];
+      if (currentOpinion != null) {
+        updatedOpinions[topic] = currentOpinion.copyWith(
+          satisfaction: (currentOpinion.satisfaction + cappedIncrease).clamp(0.0, 100.0),
+        );
+      }
+      final updatedSurvey = SurveyResult(
+        id: currentSurvey.id,
+        surveyDate: currentSurvey.surveyDate,
+        sampleSize: currentSurvey.sampleSize,
+        opinions: updatedOpinions,
+      );
 
       // 承認度にも反映
       final approvalBoost = cappedIncrease * 0.3; // 30%の効果
       var updatedSession = session.copyWith(
         nationalApproval: (session.nationalApproval + approvalBoost).clamp(0.0, 100.0),
+        latestSurvey: updatedSurvey,
       );
 
       // 予算から投資額を差し引く
@@ -1728,24 +1819,45 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
   /// 月間世論の自然な変動を処理
   Future<void> processMonthlyOpinionShifts(GameSession session) async {
     try {
-      final surveyService = CitizenSurveyService();
+      final survey = session.latestSurvey;
+      // 調査未実施の場合、変動させる対象がないためスキップ
+      if (survey == null || survey.opinions.isEmpty) return;
 
       // 優先度の時間経過による減衰を計算（人々の関心の移ろい）
-      surveyService.decayPriorities();
+      final decayedOpinions = survey.opinions.map(
+        (topic, opinion) => MapEntry(
+          topic,
+          opinion.copyWith(priority: opinion.priority * 0.95),
+        ),
+      );
+      final decayedSurvey = SurveyResult(
+        id: survey.id,
+        surveyDate: survey.surveyDate,
+        sampleSize: survey.sampleSize,
+        opinions: decayedOpinions,
+      );
 
       // 世論の分裂度を計算（政治的分断の度合い）
-      final polarization = surveyService.calculatePolarization();
+      final priorities = decayedOpinions.values.map((o) => o.priority).toList();
+      final mean = priorities.fold(0.0, (sum, p) => sum + p) / priorities.length;
+      final variance =
+          priorities.fold(0.0, (sum, p) => sum + (p - mean) * (p - mean)) / priorities.length;
+      final polarization = (sqrt(variance) / 50).clamp(0.0, 100.0);
+
+      var updatedSession = session.copyWith(latestSurvey: decayedSurvey);
 
       // 分裂度が高い場合、承認度に悪影響
       if (polarization > 70) {
-        var updatedSession = session.copyWith(
-          nationalApproval: (session.nationalApproval - (polarization - 70) * 0.1)
+        updatedSession = updatedSession.copyWith(
+          nationalApproval: (updatedSession.nationalApproval - (polarization - 70) * 0.1)
               .clamp(0.0, 100.0),
         );
+      }
 
-        await _firestore.updateGameSession(updatedSession);
-        state = state.copyWith(session: updatedSession);
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
 
+      if (polarization > 70) {
         // アナリティクス
         unawaited(_analytics.trackEvent(
           name: 'opinion_polarization_detected',
@@ -1763,4 +1875,56 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       ));
     }
   }
+
+  /// 外交・内閣・危機の各システムをまとめて処理し、プレイヤーに通知すべき
+  /// 新規イベントを返す。ターンの度に呼び出す想定。
+  Future<MonthlySystemsResult> processMonthlySystems() async {
+    var session = state.session;
+    if (session == null) return MonthlySystemsResult.empty();
+
+    final diplomaticEvents = await processMonthlyDiplomacy(session);
+
+    session = state.session;
+    if (session == null) return MonthlySystemsResult(newDiplomaticEvents: diplomaticEvents);
+    final (betrayal, conflict) = await processMonthlyCabinetInfighting(session);
+
+    session = state.session;
+    if (session == null) {
+      return MonthlySystemsResult(
+        newDiplomaticEvents: diplomaticEvents,
+        newBetrayal: betrayal,
+        newConflict: conflict,
+      );
+    }
+    final newCrisis = await processMonthlyRandomCrises(session);
+
+    session = state.session;
+    if (session != null) {
+      await processMonthlyOpinionShifts(session);
+    }
+
+    return MonthlySystemsResult(
+      newDiplomaticEvents: diplomaticEvents,
+      newBetrayal: betrayal,
+      newConflict: conflict,
+      newCrisis: newCrisis,
+    );
+  }
+}
+
+/// 外交・内閣・危機の月次処理でプレイヤーに通知すべき新規イベント
+class MonthlySystemsResult {
+  final List<DiplomaticEvent> newDiplomaticEvents;
+  final BetrayalEvent? newBetrayal;
+  final MinisterConflict? newConflict;
+  final Crisis? newCrisis;
+
+  MonthlySystemsResult({
+    this.newDiplomaticEvents = const [],
+    this.newBetrayal,
+    this.newConflict,
+    this.newCrisis,
+  });
+
+  factory MonthlySystemsResult.empty() => MonthlySystemsResult();
 }
