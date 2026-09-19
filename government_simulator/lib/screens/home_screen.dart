@@ -13,6 +13,7 @@ import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/crisis_event_service.dart';
+import 'package:government_simulator/services/cabinet_infighting_service.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/widgets/policy_card.dart';
@@ -209,8 +210,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
 
       final newConflict = monthlyResult.newConflict;
-      if (newConflict != null) {
-        _showEventBanner('🔥 内閣内の対立', newConflict.description);
+      if (newConflict != null && mounted) {
+        await _handleCabinetConflict(newConflict);
       }
 
       for (final event in monthlyResult.newDiplomaticEvents) {
@@ -404,6 +405,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await ref.read(gameSessionProvider.notifier).respondToScandale(
           session,
           scandal.id,
+          response,
+        );
+  }
+
+  /// 内閣内の大臣対立への対応ダイアログ
+  Future<void> _handleCabinetConflict(MinisterConflict conflict) async {
+    final response = await showDialog<CabinetConflictResponse>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🔥 内閣内の対立'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(conflict.description),
+              const SizedBox(height: 8),
+              Text('緊張度：${conflict.tensionLevel.toStringAsFixed(0)}%',
+                  style: Theme.of(ctx).textTheme.labelMedium),
+            ],
+          ),
+        ),
+        actions: CabinetConflictResponse.values.map((r) {
+          final label = switch (r) {
+            CabinetConflictResponse.favorFirst => '${conflict.minister1.label}を支持する',
+            CabinetConflictResponse.favorSecond => '${conflict.minister2.label}を支持する',
+            _ => r.label,
+          };
+          return TextButton(
+            onPressed: () => Navigator.pop(ctx, r),
+            child: Text(label),
+          );
+        }).toList(),
+      ),
+    );
+
+    if (response == null || !mounted) return;
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null) return;
+
+    await ref.read(gameSessionProvider.notifier).respondToCabinetConflict(
+          session,
+          conflict.id,
           response,
         );
   }

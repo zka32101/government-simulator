@@ -13,6 +13,7 @@ import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
 import 'package:government_simulator/services/citizen_survey_service.dart';
+import 'package:government_simulator/services/cabinet_infighting_service.dart';
 
 class GameSession {
   final String id;
@@ -114,6 +115,9 @@ class GameSession {
   final Map<String, int> packEventHistory; // 各パックで発生したイベント数
   final String? scenarioId; // 開始時に選んだシナリオID（ストーリーパックイベントの発生判定に使用）
 
+  // 内閣内紛システム
+  final List<MinisterConflict> activeMinisterConflicts; // 大臣間の対立（未解決分）
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -181,6 +185,7 @@ class GameSession {
     this.currentPackId,
     this.packEventHistory = const {},
     this.scenarioId,
+    this.activeMinisterConflicts = const [],
   });
 
   // プレイ時間（分）
@@ -275,6 +280,7 @@ class GameSession {
     String? currentPackId,
     Map<String, int>? packEventHistory,
     String? scenarioId,
+    List<MinisterConflict>? activeMinisterConflicts,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -344,6 +350,7 @@ class GameSession {
       currentPackId: currentPackId ?? this.currentPackId,
       packEventHistory: packEventHistory ?? this.packEventHistory,
       scenarioId: scenarioId ?? this.scenarioId,
+      activeMinisterConflicts: activeMinisterConflicts ?? this.activeMinisterConflicts,
     );
   }
 
@@ -420,6 +427,7 @@ class GameSession {
       'currentPackId': currentPackId,
       'packEventHistory': packEventHistory,
       'scenarioId': scenarioId,
+      'activeMinisterConflicts': activeMinisterConflicts.map((c) => c.toMap()).toList(),
     };
   }
 
@@ -597,6 +605,10 @@ class GameSession {
           ? Map<String, int>.from(map['packEventHistory'] as Map<String, dynamic>)
           : const {},
       scenarioId: map['scenarioId'] as String?,
+      activeMinisterConflicts: (map['activeMinisterConflicts'] as List?)
+              ?.map((c) => MinisterConflict.fromMap(c as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 }

@@ -1356,7 +1356,17 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         }
       }
 
+      // 既に対立中の大臣ペアには新たな対立を生成しない
+      final pairsAlreadyInConflict = session.activeMinisterConflicts
+          .where((c) => !c.isResolved)
+          .map((c) => {c.minister1, c.minister2})
+          .toList();
+
       for (final (role1, role2) in rolePairs) {
+        final alreadyInConflict =
+            pairsAlreadyInConflict.any((pair) => pair.contains(role1) && pair.contains(role2));
+        if (alreadyInConflict) continue;
+
         final conflictProb = infightingService.calculateConflictProbability(role1, role2);
         if (Random().nextDouble() < conflictProb) {
           // 対立が発生
@@ -1382,7 +1392,10 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
             stability: (session.status.stability - conflict.tensionLevel * 0.05)
                 .clamp(0.0, 100.0),
           );
-          final updatedSession = session.copyWith(status: updatedStatus);
+          final updatedSession = session.copyWith(
+            status: updatedStatus,
+            activeMinisterConflicts: [...session.activeMinisterConflicts, conflict],
+          );
 
           await _firestore.updateGameSession(updatedSession);
           state = state.copyWith(session: updatedSession);
@@ -1398,8 +1411,28 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
             },
           ));
 
-          // 1回の呼び出しで複数の対立が重複して連鎖するのを避ける
+          // 1回の呼び出しで複数の対立が重複して発生するのを避ける
           break;
+        }
+      }
+
+      // 既存の未解決対立の自然な推移（緊張緩和による自然解決の判定）
+      if (session.activeMinisterConflicts.any((c) => !c.isResolved)) {
+        var anyResolved = false;
+        final updatedConflicts = session.activeMinisterConflicts.map((c) {
+          if (c.isResolved) return c;
+          if (infightingService.shouldConflictResolve(c)) {
+            anyResolved = true;
+            return c.copyWith(isResolved: true);
+          }
+          return c;
+        }).toList();
+
+        if (anyResolved) {
+          final updatedSession = session.copyWith(activeMinisterConflicts: updatedConflicts);
+          await _firestore.updateGameSession(updatedSession);
+          state = state.copyWith(session: updatedSession);
+          session = updatedSession;
         }
       }
 
@@ -1442,6 +1475,83 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorCode: 'loyalty_adjustment_failed',
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.adjustMinisterLoyalty',
+      ));
+      rethrow;
+    }
+  }
+
+  /// 大臣間の対立への対応を処理
+  Future<void> respondToCabinetConflict(
+    GameSession session,
+    String conflictId,
+    CabinetConflictResponse response,
+  ) async {
+    try {
+      final conflict =
+          session.activeMinisterConflicts.firstWhere((c) => c.id == conflictId);
+      final infightingService = CabinetInfightingService(cabinet: session.status.cabinet);
+
+      var updatedStatus = session.status;
+      MinisterConflict updatedConflict;
+
+      switch (response) {
+        case CabinetConflictResponse.mediate:
+          updatedConflict = infightingService.deescalateConflict(conflict, 35);
+          updatedStatus = updatedStatus.copyWith(
+            stability: (updatedStatus.stability + 5).clamp(0.0, 100.0),
+          );
+        case CabinetConflictResponse.favorFirst:
+          updatedStatus = updatedStatus.copyWith(
+            cabinet: updatedStatus.cabinet.applyDeltas({
+              conflict.minister1: 10,
+              conflict.minister2: -15,
+            }),
+          );
+          updatedConflict = infightingService.deescalateConflict(conflict, 20);
+        case CabinetConflictResponse.favorSecond:
+          updatedStatus = updatedStatus.copyWith(
+            cabinet: updatedStatus.cabinet.applyDeltas({
+              conflict.minister2: 10,
+              conflict.minister1: -15,
+            }),
+          );
+          updatedConflict = infightingService.deescalateConflict(conflict, 20);
+        case CabinetConflictResponse.ignore:
+          updatedConflict = infightingService.escalateConflict(conflict, 20);
+          updatedStatus = updatedStatus.copyWith(
+            stability: (updatedStatus.stability - 5).clamp(0.0, 100.0),
+          );
+      }
+
+      if (updatedConflict.tensionLevel <= 10) {
+        updatedConflict = updatedConflict.copyWith(isResolved: true);
+      }
+
+      final updatedConflicts = session.activeMinisterConflicts
+          .map((c) => c.id == conflictId ? updatedConflict : c)
+          .toList();
+
+      final updatedSession = session.copyWith(
+        status: updatedStatus,
+        activeMinisterConflicts: updatedConflicts,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'cabinet_conflict_responded',
+        parameters: {
+          'response': response.name,
+          'tension_level': updatedConflict.tensionLevel,
+          'resolved': updatedConflict.isResolved,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'cabinet_conflict_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToCabinetConflict',
       ));
       rethrow;
     }
