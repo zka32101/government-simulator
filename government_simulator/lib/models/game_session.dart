@@ -113,6 +113,7 @@ class GameSession {
   final List<StoryPackEventProgress> packEventProgress; // イベント進捗追跡
   final String? currentPackId; // 現在のプレイ中のストーリーパック
   final Map<String, int> packEventHistory; // 各パックで発生したイベント数
+  final String? scenarioId; // 開始時に選んだシナリオID（ストーリーパックイベントの発生判定に使用）
 
   const GameSession({
     required this.id,
@@ -180,6 +181,7 @@ class GameSession {
     this.packEventProgress = const [],
     this.currentPackId,
     this.packEventHistory = const {},
+    this.scenarioId,
   });
 
   // プレイ時間（分）
@@ -273,6 +275,7 @@ class GameSession {
     List<StoryPackEventProgress>? packEventProgress,
     String? currentPackId,
     Map<String, int>? packEventHistory,
+    String? scenarioId,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -341,6 +344,7 @@ class GameSession {
       packEventProgress: packEventProgress ?? this.packEventProgress,
       currentPackId: currentPackId ?? this.currentPackId,
       packEventHistory: packEventHistory ?? this.packEventHistory,
+      scenarioId: scenarioId ?? this.scenarioId,
     );
   }
 
@@ -416,6 +420,7 @@ class GameSession {
       'packEventProgress': packEventProgress.map((p) => p.toMap()).toList(),
       'currentPackId': currentPackId,
       'packEventHistory': packEventHistory,
+      'scenarioId': scenarioId,
     };
   }
 
@@ -592,6 +597,7 @@ class GameSession {
       packEventHistory: map['packEventHistory'] != null
           ? Map<String, int>.from(map['packEventHistory'] as Map<String, dynamic>)
           : const {},
+      scenarioId: map['scenarioId'] as String?,
     );
   }
 }
