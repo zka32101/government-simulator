@@ -18,6 +18,7 @@ import 'package:government_simulator/models/political_party.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/debate.dart';
+import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
