@@ -15,6 +15,7 @@ final europeanCrisisEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['ostia'],
     storyText: '''
 IMFからの救済プログラムが承認されようとしています。しかし、その条件は厳しく、
@@ -119,6 +120,7 @@ IMFの要求を完全に受け入れるか、交渉するか、あるいは拒�
     eventType: 'decision_point',
     theme: 'political',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['ostia', 'amanda'],
     storyText: '''
 経済政策をめぐる対立は膠着状態に陥りました。野党は「国民に直接信を問うべきだ」として
@@ -161,6 +163,111 @@ IMFの要求を完全に受け入れるか、交渉するか、あるいは拒�
     isUnique: true,
     tags: ['politics', 'democracy', 'referendum'],
   ),
+  StoryPackEvent(
+    id: 'ec_currency_union_crisis',
+    packId: 'european_crisis',
+    title: '通貨同盟からの離脱圧力',
+    description: '財政赤字の拡大を受け、通貨同盟のパートナー諸国があなたの国への監視強化を要求する。',
+    eventType: 'crisis',
+    theme: 'economic',
+    triggerYear: 2,
+    triggerYearMax: 4,
+    triggerScenarioIds: ['ostia', 'amanda'],
+    storyText: '''
+共通通貨圏の財務相会合で、あなたの国の財政赤字が名指しで問題視されました。
+「規律を守れないなら、圏外に出るべきだ」という声が一部の加盟国から公然と上がっています。
+
+市場はすでに反応しています。あなたの国の国債利回りは急上昇し、投機筋は
+通貨同盟からの離脱（「オスティグジット」とメディアは呼び始めています）に賭け始めました。
+
+パートナー諸国が求める緊縮財政の監視下に入るのか、それとも独自通貨への回帰という
+賭けに出るのか——この決断は数十年先まで語り継がれることになるでしょう。
+''',
+    affectedIndicators: ['gdp', 'stability', 'satisfaction'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ec_accept_oversight',
+        title: '財政監視を受け入れる',
+        description: '緊縮財政の監視下に入り、通貨同盟に留まる。市場は落ち着くが主権の一部を譲る。',
+        outcomes: {'gdp': 15, 'stability': 25, 'satisfaction': -15},
+        consequenceText: '国債利回りは落ち着きましたが、予算編成のたびにパートナー諸国の承認を仰ぐ屈辱が続きます。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ec_negotiate_relief',
+        title: '債務減免を交渉する',
+        description: '規律の受け入れと引き換えに、一部債務の減免を粘り強く交渉する。',
+        outcomes: {'gdp': -5, 'stability': 10, 'satisfaction': 5},
+        consequenceText: '交渉は数ヶ月に及びましたが、あなたは同盟内での発言力を示すことに成功しました。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ec_exit_union',
+        title: '通貨同盟から離脱する',
+        description: '独自通貨を復活させ、金融政策の自由を取り戻す。短期的な混乱は避けられない。',
+        outcomes: {'gdp': -60, 'stability': -30, 'satisfaction': 15},
+        consequenceText: '離脱直後、通貨は暴落し銀行には長蛇の列ができました。しかし数年後を見据えた賭けです。',
+        difficulty: 2,
+      ),
+    ],
+    priority: 5,
+    isUnique: true,
+    tags: ['economy', 'currency', 'sovereignty'],
+  ),
+  StoryPackEvent(
+    id: 'ec_populist_surge',
+    packId: 'european_crisis',
+    title: 'ポピュリズム政党の台頭',
+    description: '既存政治への不信を背景に、国際協調を否定する新興政党が世論調査で急伸している。',
+    eventType: 'plot_twist',
+    theme: 'political',
+    triggerYear: 4,
+    triggerYearMax: 6,
+    triggerScenarioIds: ['ostia', 'amanda'],
+    storyText: '''
+「エリートはもう国民の声を聞いていない」——そう訴える新興政党が、直近の世論調査で
+第一党に迫る勢いを見せています。彼らはEUからの離脱、移民の大幅制限、
+そして「主権の完全な回復」を公約に掲げています。
+
+長年の緊縮財政と経済的な不安が、伝統的な政党への不信を決定的なものにしました。
+既存の政治エリートであるあなたにも、この波にどう向き合うかが問われています。
+
+彼らの主張の一部を取り込むのか、正面から対抗するのか、あるいは第三の道を探るのか。
+この選択は、あなたの国の政治風景を長く規定することになります。
+''',
+    affectedIndicators: ['satisfaction', 'stability', 'nationalPower'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ec_coopt_rhetoric',
+        title: '主張の一部を取り込む',
+        description: '移民政策などで一定の強硬姿勢を示し、支持層の一部を取り戻す。',
+        outcomes: {'satisfaction': 10, 'stability': -15, 'nationalPower': -5},
+        consequenceText: '一部の支持は取り戻しましたが、「原則を売り渡した」という批判が国際社会から寄せられています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ec_defend_order',
+        title: '国際協調の立場を貫く',
+        description: '既存の国際的枠組みと自由主義的価値観を正面から擁護する。支持は割れる。',
+        outcomes: {'satisfaction': -10, 'stability': 5, 'nationalPower': 15},
+        consequenceText: '国際社会からの評価は高まりましたが、国内の一部からは「国民より外国を向いている」と非難されています。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ec_technocratic_coalition',
+        title: '実務重視の連立で包囲する',
+        description: '既存政党を幅広く糾合し、争点をイデオロギーから実務課題にずらす。',
+        outcomes: {'satisfaction': 0, 'stability': 15, 'nationalPower': 0},
+        consequenceText: '過激な主張は勢いを失いつつありますが、連立の足並みを揃え続けるのは容易ではありません。',
+        difficulty: 5,
+      ),
+    ],
+    priority: 4,
+    isUnique: true,
+    tags: ['politics', 'populism', 'election'],
+  ),
 ];
 
 // ==================== 島国政治パック ====================
@@ -174,6 +281,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'diplomatic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['islas'],
     storyText: '''
 隣国の大国から、突然、強硬な通達が届きました。
@@ -276,6 +384,7 @@ final islandPoliticsEvents = <StoryPackEvent>[
     eventType: 'opportunity',
     theme: 'economic',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['islas'],
     storyText: '''
 調査船からの報告に、閣議室がどよめきました。あなたの国の排他的経済水域内で、
@@ -318,6 +427,109 @@ final islandPoliticsEvents = <StoryPackEvent>[
     isUnique: true,
     tags: ['economy', 'resources', 'territory'],
   ),
+  StoryPackEvent(
+    id: 'ip_pandemic_shock',
+    packId: 'island_politics',
+    title: '観光立国を襲う世界的感染症',
+    description: '世界的な感染症の流行で国境が閉ざされ、観光業に依存する経済が崩壊の危機に瀕する。',
+    eventType: 'crisis',
+    theme: 'economic',
+    triggerYear: 2,
+    triggerYearMax: 4,
+    triggerScenarioIds: ['islas'],
+    storyText: '''
+世界中で新たな感染症が猛威を振るい、各国が次々と国境を閉鎖しています。
+あなたの国のGDPの半分近くを支えてきた観光業は、事実上ゼロに近い状態に陥りました。
+
+ホテルは閉鎖され、観光業に従事してきた国民の多くが職を失っています。一方で、
+国境を開放すれば感染爆発のリスクがあり、医療体制の脆弱な島嶼国には大きな負担です。
+
+経済を守るのか、国民の命を守るのか——教科書には載っていない究極の選択が迫っています。
+''',
+    affectedIndicators: ['gdp', 'satisfaction', 'stability'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ip_strict_lockdown',
+        title: '厳格な国境封鎖を維持する',
+        description: '感染拡大を最小限に抑えるが、観光業は壊滅的な打撃を受ける。',
+        outcomes: {'gdp': -55, 'satisfaction': 5, 'stability': 10},
+        consequenceText: '感染者数は低く抑えられましたが、失業率は過去最悪を記録しています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ip_bubble_reopening',
+        title: '「トラベルバブル」で段階的に再開する',
+        description: '感染状況の落ち着いた特定国との間で限定的に往来を再開する。複雑な運用が求められる。',
+        outcomes: {'gdp': -25, 'satisfaction': 10, 'stability': -5},
+        consequenceText: '観光業に薄日が差し込み始めましたが、水際対策の運用の難しさに現場は疲弊しています。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ip_economic_diversification',
+        title: '観光業からの脱却を急ぐ',
+        description: '長年の観光依存からの脱却を図り、デジタル産業や漁業加工など新分野に緊急投資する。',
+        outcomes: {'gdp': -35, 'satisfaction': -5, 'stability': 15},
+        consequenceText: '短期的な痛みは大きいですが、「観光だけに頼らない国」への転換が静かに始まりました。',
+        difficulty: 5,
+      ),
+    ],
+    priority: 4,
+    isUnique: true,
+    tags: ['economy', 'health', 'crisis'],
+  ),
+  StoryPackEvent(
+    id: 'ip_rising_seas',
+    packId: 'island_politics',
+    title: '海面上昇と国土の危機',
+    description: '気候変動による海面上昇で低地の集落が水没の危機に瀕し、国際社会に支援を求める必要に迫られる。',
+    eventType: 'crisis',
+    theme: 'diplomatic',
+    triggerYear: 4,
+    triggerYearMax: 6,
+    triggerScenarioIds: ['islas'],
+    storyText: '''
+最新の観測データが衝撃的な現実を突きつけました。このままのペースで海面上昇が進めば、
+今後30年であなたの国の低地集落の3分の1が居住不可能になるというのです。
+
+国際会議の場では、あなたの国のような島嶼国が「気候変動の被害者」として
+支援と補償を訴え続けてきました。しかし、具体的な資金はまだ十分に届いていません。
+
+国内では、集落ごと高台へ移転させる計画も検討されていますが、先祖代々の土地を
+離れることへの抵抗も根強くあります。この危機への向き合い方が問われています。
+''',
+    affectedIndicators: ['gdp', 'satisfaction', 'nationalPower'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ip_demand_compensation',
+        title: '国際社会に補償を強く求める',
+        description: '気候変動の主要排出国に対し、国際会議の場で補償基金の設立を強硬に要求する。',
+        outcomes: {'gdp': 10, 'satisfaction': 15, 'nationalPower': 10},
+        consequenceText: 'あなたの訴えは大きな注目を集め、小規模ながら国際的な適応基金の設立につながりました。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ip_relocate_communities',
+        title: '国内で集落移転を進める',
+        description: '限られた予算で高台への移転を計画的に進める。国民の反発を覚悟する必要がある。',
+        outcomes: {'gdp': -20, 'satisfaction': -15, 'nationalPower': 5},
+        consequenceText: '移転は難航していますが、最初の集落が高台での新生活を始めています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ip_engineering_solutions',
+        title: '護岸工事などの技術的対策に投資する',
+        description: '防潮堤の建設など、土地を離れずに済む技術的対策に集中投資する。効果は限定的。',
+        outcomes: {'gdp': -15, 'satisfaction': 5, 'nationalPower': -5},
+        consequenceText: '一部の集落は守られましたが、専門家からは「時間を稼いでいるに過ぎない」との指摘も。',
+        difficulty: 2,
+      ),
+    ],
+    priority: 3,
+    isUnique: true,
+    tags: ['environment', 'climate', 'diplomacy'],
+  ),
 ];
 
 // ==================== 北欧安定パック ====================
@@ -331,6 +543,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 2,
+    triggerYearMax: 4,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 あなたの国の気象学者から、予想外の警告が上がってきました。
@@ -434,6 +647,7 @@ final nordicStabilityEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'social',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['norsland'],
     storyText: '''
 近隣地域の政情不安を受け、あなたの国に移民・難民申請が急増しています。
@@ -476,6 +690,112 @@ final nordicStabilityEvents = <StoryPackEvent>[
     isUnique: true,
     tags: ['social', 'immigration', 'integration'],
   ),
+  StoryPackEvent(
+    id: 'ns_populist_breakthrough',
+    packId: 'nordic_stability',
+    title: '合意型政治への挑戦',
+    description: '移民・福祉政策への不満を背景に、反エスタブリッシュメントを掲げる政党が議席を急伸させる。',
+    eventType: 'decision_point',
+    theme: 'political',
+    triggerYear: 3,
+    triggerYearMax: 5,
+    triggerScenarioIds: ['norsland'],
+    storyText: '''
+総選挙の結果、これまで泡沫扱いされてきた国民保守政党が第三党に躍進しました。
+「合意形成型の政治はエリートの談合に過ぎない」と訴える彼らの主張が、
+既存政党の対応に不満を持つ層に広く浸透しています。
+
+あなたの政権は過半数に届かず、この新興政党との連立や閣外協力も現実的な選択肢として
+浮上しています。北欧政治の伝統である「幅広い合意」の精神を守るのか、
+それとも新しい政治の力学を受け入れるのか。
+
+この決断は、コンセンサス型民主主義のモデルそのものの将来を左右します。
+''',
+    affectedIndicators: ['satisfaction', 'stability', 'nationalPower'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ns_grand_coalition',
+        title: '既存政党で大連立を組む',
+        description: '新興政党を排除し、伝統的な政党同士で安定政権を作る。批判の受け皿を与えることになる。',
+        outcomes: {'satisfaction': -10, 'stability': 20, 'nationalPower': 5},
+        consequenceText: '政権は安定しましたが、新興政党は「既得権益の談合」だと勢いを増しています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ns_limited_cooperation',
+        title: '限定的な閣外協力を受け入れる',
+        description: '特定の政策分野に限って協力を得る。影響力は抑えつつ、声を政治に取り込む。',
+        outcomes: {'satisfaction': 5, 'stability': 5, 'nationalPower': -5},
+        consequenceText: '不安定な綱渡りの政権運営が続きますが、急進化の芽は今のところ摘めています。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ns_snap_election',
+        title: '再選挙に打って出る',
+        description: '民意を問い直すため、解散総選挙に踏み切る。結果次第では状況が悪化するリスクもある。',
+        outcomes: {'satisfaction': 0, 'stability': -15, 'nationalPower': 10},
+        consequenceText: '国全体が選挙戦の熱気に包まれています。結果はまだ誰にも分かりません。',
+        difficulty: 5,
+      ),
+    ],
+    priority: 4,
+    isUnique: true,
+    tags: ['politics', 'populism', 'democracy'],
+  ),
+  StoryPackEvent(
+    id: 'ns_disinformation_campaign',
+    packId: 'nordic_stability',
+    title: '選挙を揺るがす偽情報工作',
+    description: '総選挙を目前に控え、国外を発信源とする大規模な偽情報キャンペーンが世論を混乱させる。',
+    eventType: 'plot_twist',
+    theme: 'diplomatic',
+    triggerYear: 4,
+    triggerYearMax: 6,
+    triggerScenarioIds: ['norsland'],
+    storyText: '''
+情報機関から緊急の報告が届きました。SNS上で拡散している「政府の秘密計画」を
+めぐるセンセーショナルな投稿の多くが、国外の組織的なネットワークから
+発信されているというのです。
+
+真偽不明の情報が有権者の間に急速に広まり、社会の分断を煽っています。
+これまで高い信頼を誇ってきたメディアと政府への信頼も揺らぎ始めました。
+
+表現の自由を尊重する国の伝統を守りながら、この情報工作にどう対抗するのか。
+選挙の公正性そのものが試されています。
+''',
+    affectedIndicators: ['satisfaction', 'stability', 'nationalPower'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'ns_fact_check_campaign',
+        title: '官民連携のファクトチェック体制を作る',
+        description: 'メディアや市民団体と連携し、迅速な事実確認・反証の体制を構築する。',
+        outcomes: {'satisfaction': 10, 'stability': 15, 'nationalPower': 5},
+        consequenceText: '効果には時間がかかりますが、国民の情報リテラシーへの関心が高まっています。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'ns_platform_regulation',
+        title: 'プラットフォーム企業への規制を強化する',
+        description: 'SNS企業に偽情報の即時削除を義務付ける法整備を急ぐ。表現の自由との緊張が生じる。',
+        outcomes: {'satisfaction': -5, 'stability': 10, 'nationalPower': 0},
+        consequenceText: '偽情報の拡散速度は落ちましたが、「検閲だ」という批判も一部から噴出しています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'ns_public_calm',
+        title: '静観し国民の理性を信じる',
+        description: '過度な介入を避け、国民の判断力を信頼する伝統的な姿勢を貫く。',
+        outcomes: {'satisfaction': -15, 'stability': -10, 'nationalPower': -10},
+        consequenceText: '「無策だ」との批判が強まる中、分断を煽る投稿はなおも拡散を続けています。',
+        difficulty: 2,
+      ),
+    ],
+    priority: 3,
+    isUnique: true,
+    tags: ['diplomacy', 'security', 'democracy'],
+  ),
 ];
 
 // ==================== 植民地遺産パック ====================
@@ -489,6 +809,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'crisis',
     theme: 'economic',
     triggerYear: 1,
+    triggerYearMax: 3,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 経済分析が明確な現実を示しています：あなたの国の輸出の70%は、かつての宗主国と
@@ -592,6 +913,7 @@ final colonialLegacyEvents = <StoryPackEvent>[
     eventType: 'plot_twist',
     theme: 'diplomatic',
     triggerYear: 3,
+    triggerYearMax: 5,
     triggerScenarioIds: ['terranova'],
     storyText: '''
 思いがけない申し出が旧宗主国から届きました。植民地時代に持ち去られた
@@ -634,6 +956,112 @@ final colonialLegacyEvents = <StoryPackEvent>[
     priority: 3,
     isUnique: true,
     tags: ['diplomacy', 'culture', 'identity'],
+  ),
+  StoryPackEvent(
+    id: 'cl_debt_default_crisis',
+    packId: 'colonial_legacy',
+    title: '対外債務、返済の岐路',
+    description: '積み重なった対外債務の返済期限が迫るが、国庫にその資金はない。デフォルトの足音が近づく。',
+    eventType: 'crisis',
+    theme: 'economic',
+    triggerYear: 2,
+    triggerYearMax: 4,
+    triggerScenarioIds: ['terranova'],
+    storyText: '''
+財務省からの報告は深刻でした。来月に迫った対外債務の利払いに、国庫の資金は
+明らかに不足しています。過去数十年、この種の危機はこの地域の国々を
+繰り返し襲ってきました。
+
+国際金融機関は追加融資と引き換えに、公共支出の大幅削減という
+おなじみの条件を突きつけています。一方でデフォルトを選べば、
+今後何年も国際金融市場から締め出されることになるでしょう。
+
+過去に同じ道をたどった国々の教訓を胸に、あなたはこの岐路に立たされています。
+''',
+    affectedIndicators: ['gdp', 'satisfaction', 'stability'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'cl_accept_austerity',
+        title: '追加融資と緊縮策を受け入れる',
+        description: '国際金融機関からの融資で急場をしのぐ。国民生活への負担は大きい。',
+        outcomes: {'gdp': 25, 'satisfaction': -25, 'stability': 15},
+        consequenceText: 'デフォルトは回避されましたが、公共サービスの削減に国民の不満が高まっています。',
+        difficulty: 3,
+      ),
+      StoryPackEventChoice(
+        id: 'cl_unilateral_default',
+        title: '一方的に債務不履行を宣言する',
+        description: '返済を停止し、国内向けの支出を優先する。国際的な信用は大きく損なわれる。',
+        outcomes: {'gdp': -30, 'satisfaction': 20, 'stability': -20},
+        consequenceText: '国民は歓迎しましたが、外国からの投資は干上がり、通貨は下落を続けています。',
+        difficulty: 2,
+      ),
+      StoryPackEventChoice(
+        id: 'cl_negotiated_restructuring',
+        title: '債権者と再編交渉を進める',
+        description: '返済スケジュールの見直しを粘り強く交渉する。時間はかかるが持続可能な道を探る。',
+        outcomes: {'gdp': -5, 'satisfaction': 0, 'stability': 10},
+        consequenceText: '交渉は長期化していますが、無理のない返済計画への道筋が見え始めています。',
+        difficulty: 4,
+      ),
+    ],
+    priority: 4,
+    isUnique: true,
+    tags: ['economy', 'debt', 'crisis'],
+  ),
+  StoryPackEvent(
+    id: 'cl_resource_nationalization',
+    packId: 'colonial_legacy',
+    title: '資源国有化という賭け',
+    description: '国民の間で、外国企業が支配してきた天然資源産業を国有化すべきだという声が高まっている。',
+    eventType: 'decision_point',
+    theme: 'economic',
+    triggerYear: 4,
+    triggerYearMax: 6,
+    triggerScenarioIds: ['terranova'],
+    storyText: '''
+「我々の資源は我々のものだ」——長年外国企業が採掘権を握ってきた鉱物資源をめぐり、
+国有化を求める声が全国的な運動へと広がっています。
+
+国有化を断行すれば、国民の熱狂的な支持と資源収入の増加が期待できます。
+しかし、過去に同様の道を選んだ国々は、外国資本の急激な撤退や
+国際的な制裁・訴訟に直面してきました。
+
+慎重な漸進策をとるべきか、国民の熱意に応えて大胆に踏み切るべきか——
+この決断は、あなたの国の経済的将来を大きく左右します。
+''',
+    affectedIndicators: ['gdp', 'nationalPower', 'satisfaction'],
+    impacts: {},
+    choices: [
+      StoryPackEventChoice(
+        id: 'cl_full_nationalization',
+        title: '全面的に国有化を断行する',
+        description: '外国企業の資産を接収し、資源産業を完全に国家管理下に置く。国際的な反発は必至。',
+        outcomes: {'gdp': -25, 'nationalPower': 35, 'satisfaction': 30},
+        consequenceText: '国民は熱狂しましたが、外国企業は一斉に撤退し、技術者不足が深刻化しています。',
+        difficulty: 2,
+      ),
+      StoryPackEventChoice(
+        id: 'cl_renegotiate_terms',
+        title: '契約条件の再交渉を求める',
+        description: '資本参加比率とロイヤルティの引き上げを外国企業に迫る。時間はかかるが穏当な道。',
+        outcomes: {'gdp': 10, 'nationalPower': 15, 'satisfaction': 10},
+        consequenceText: '交渉は難航しましたが、資源収入の国庫への配分が着実に増え始めています。',
+        difficulty: 4,
+      ),
+      StoryPackEventChoice(
+        id: 'cl_maintain_status_quo',
+        title: '現状の投資環境を維持する',
+        description: '外国投資の安定を優先し、国有化運動には慎重に距離を置く。国内の不満は残る。',
+        outcomes: {'gdp': 15, 'nationalPower': -15, 'satisfaction': -20},
+        consequenceText: '投資家からの信頼は保たれましたが、「外国の代理人」との批判が街頭で叫ばれています。',
+        difficulty: 3,
+      ),
+    ],
+    priority: 3,
+    isUnique: true,
+    tags: ['economy', 'resources', 'sovereignty'],
   ),
 ];
 

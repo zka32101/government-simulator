@@ -55,7 +55,14 @@ class PackEventEngine {
       }
 
       final matchesScenario = event.triggerScenarioIds.contains(scenarioId);
-      final matchesYear = event.triggerYear == null || event.triggerYear == currentYear;
+      bool matchesYear;
+      if (event.triggerYear == null) {
+        matchesYear = true;
+      } else if (event.triggerYearMax == null) {
+        matchesYear = currentYear == event.triggerYear;
+      } else {
+        matchesYear = currentYear >= event.triggerYear! && currentYear <= event.triggerYearMax!;
+      }
 
       if (matchesScenario && matchesYear) {
         triggeredEvents.add(event);

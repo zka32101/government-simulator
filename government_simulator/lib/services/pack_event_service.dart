@@ -31,16 +31,22 @@ class PackEventService {
         .toList();
   }
 
-  /// 特定の年に発生するイベント一覧を取得
+  /// 特定の年に発生しうるイベント一覧を取得（発生年に幅がある場合はその範囲を含む）
   static List<StoryPackEvent> getEventsForYear(int year) {
-    return allEvents.where((e) => e.triggerYear == year).toList();
+    return allEvents.where((e) => _matchesYear(e, year)).toList();
   }
 
-  /// 指定パック内で特定の年に発生するイベント一覧を取得
+  /// 指定パック内で特定の年に発生しうるイベント一覧を取得
   static List<StoryPackEvent> getEventsForPackAndYear(String packId, int year) {
     return allEvents
-        .where((e) => e.packId == packId && e.triggerYear == year)
+        .where((e) => e.packId == packId && _matchesYear(e, year))
         .toList();
+  }
+
+  static bool _matchesYear(StoryPackEvent event, int year) {
+    if (event.triggerYear == null) return false;
+    if (event.triggerYearMax == null) return event.triggerYear == year;
+    return year >= event.triggerYear! && year <= event.triggerYearMax!;
   }
 
   /// パックで優先度の高いイベントを取得
