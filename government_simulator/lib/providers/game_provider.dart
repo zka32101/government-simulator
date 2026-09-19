@@ -36,7 +36,6 @@ import 'package:government_simulator/services/random_crisis_generator.dart';
 import 'package:government_simulator/services/citizen_survey_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
-import 'package:government_simulator/models/scandal_event.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -1092,7 +1091,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       }).toList();
 
       // 政治的信頼度を更新
-      final trustDamage = respondedScandale.trustDamage;
       final newApproval = (session.nationalApproval - (respondedScandale.baseImpact * 0.5))
           .clamp(0.0, 100.0);
 
