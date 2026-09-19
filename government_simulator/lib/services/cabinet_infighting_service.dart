@@ -6,6 +6,25 @@ library;
 import 'dart:math';
 import 'package:government_simulator/models/minister.dart';
 
+/// 大臣間の対立への対応方法
+enum CabinetConflictResponse {
+  /// 仲裁する（穏当に鎮静化させる）
+  mediate('仲裁する'),
+
+  /// 一方の大臣（minister1）を支持する
+  favorFirst('大臣1を支持する'),
+
+  /// もう一方の大臣（minister2）を支持する
+  favorSecond('大臣2を支持する'),
+
+  /// 静観する（対立は自然に推移する）
+  ignore('静観する');
+
+  final String label;
+
+  const CabinetConflictResponse(this.label);
+}
+
 /// 大臣間の確執を表すイベント
 class MinisterConflict {
   /// イベントID
