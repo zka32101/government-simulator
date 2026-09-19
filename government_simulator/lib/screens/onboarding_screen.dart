@@ -5,7 +5,7 @@ import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'scenario_select_screen.dart';
 import 'country_stage_select_screen.dart';
-import 'scenario_selection_screen.dart';
+import 'story_packs_screen.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final void Function(String countryName, String difficulty) onStart;
@@ -103,7 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final name = _nameController.text.trim();
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ScenarioSelectionScreen(
+        builder: (_) => StoryPacksScreen(
           onScenarioSelected: (scenario) async {
             await widget.onStartGameScenario(
                 name.isEmpty ? '新興共和国' : name, scenario);
@@ -333,7 +333,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     ),
                   ),
                   child: const Text(
-                    '🎭 シナリオパック - 仮想国で統治する',
+                    '🎭 ストーリーパック - 物語のある国で統治する',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ),

@@ -121,8 +121,9 @@ class PackEventEngine {
             satisfaction: (updatedStatus.satisfaction + value).clamp(0, 100),
           );
         case 'stability':
-          // TODO: Add stability field to CountryStatus if needed
-          break;
+          updatedStatus = updatedStatus.copyWith(
+            stability: (updatedStatus.stability + value).clamp(0, 100),
+          );
         case 'debt':
           // TODO: Add debt field to CountryStatus if needed
           break;

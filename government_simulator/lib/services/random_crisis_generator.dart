@@ -5,7 +5,6 @@ library;
 
 import 'dart:math';
 import 'package:government_simulator/models/crisis.dart';
-import 'package:government_simulator/models/game_session.dart';
 
 /// 危機の連鎖イベント
 class CrisisChain {

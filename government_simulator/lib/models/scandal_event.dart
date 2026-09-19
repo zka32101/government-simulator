@@ -44,8 +44,6 @@ class ScandalEvent {
 
   /// デフォルトの応答選択肢を生成
   static List<ScandalEventOption> getDefaultOptions(Scandal scandal) {
-    final severity = scandal.severity;
-
     return [
       ScandalEventOption(
         response: ScandalResponse.apologize,

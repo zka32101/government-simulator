@@ -38,6 +38,8 @@ import 'campaign_screen.dart';
 import 'diplomatic_event_screen.dart';
 import 'crisis_alert_screen.dart';
 import 'citizen_survey_screen.dart';
+import 'story_pack_event_screen.dart';
+import 'package:government_simulator/models/story_pack_event.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -219,6 +221,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final newCrisis = monthlyResult.newCrisis;
       if (newCrisis != null && mounted) {
         await _handleCrisis(newCrisis);
+      }
+
+      // ストーリーパックの物語イベント
+      if (mounted) {
+        final storyEvent = await ref
+            .read(gameSessionProvider.notifier)
+            .checkAndStartStoryPackEvent(ref.read(gameSessionProvider).session ?? session);
+        if (storyEvent != null && mounted) {
+          await _handleStoryPackEvent(storyEvent);
+        }
       }
 
       // ゲームオーバー判定
@@ -446,6 +458,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           crisis.id,
           selected!.response,
         );
+  }
+
+  /// ストーリーパックの物語イベントの対応画面を表示
+  Future<void> _handleStoryPackEvent(StoryPackEvent event) async {
+    final choice = await Navigator.of(context).push<StoryPackEventChoice>(
+      MaterialPageRoute(
+        builder: (_) => StoryPackEventScreen(event: event),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null) return;
+
+    await ref.read(gameSessionProvider.notifier).respondToStoryPackEvent(
+          session,
+          event.id,
+          choice.id,
+        );
+
+    if (choice.consequenceText != null && mounted) {
+      _showEventBanner('📖 ${event.title}', choice.consequenceText!);
+    }
   }
 
   List<String> _buildHeadlines(CountryStatus s, String country) {

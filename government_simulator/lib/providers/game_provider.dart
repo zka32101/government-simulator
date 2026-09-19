@@ -25,6 +25,9 @@ import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/services/story_pack_service.dart';
+import 'package:government_simulator/services/pack_event_engine.dart';
+import 'package:government_simulator/models/story_pack_event.dart';
 import 'package:government_simulator/services/scandal_service.dart';
 import 'package:government_simulator/services/diplomacy_service.dart';
 import 'package:government_simulator/services/cabinet_infighting_service.dart';
@@ -33,7 +36,6 @@ import 'package:government_simulator/services/random_crisis_generator.dart';
 import 'package:government_simulator/services/citizen_survey_service.dart';
 import 'package:government_simulator/models/scenario.dart';
 import 'package:government_simulator/models/scandal.dart';
-import 'package:government_simulator/models/scandal_event.dart';
 import 'package:uuid/uuid.dart';
 
 /// applyChoice の結果（実績解除・ゲームオーバー・内閣裏切り・公約の顛末）
@@ -331,6 +333,8 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         securitySatisfaction: gameScenario.securitySatisfaction,
         healthcareSatisfaction: gameScenario.healthcareSatisfaction,
         nationRelationships: scenarioData['nationRelationships'] as Map<String, NationRelationship>,
+        scenarioId: gameScenario.id,
+        currentPackId: StoryPackService.getPackForScenario(gameScenario.id)?.id,
       );
 
       // シナリオの初期状態をスナップショットとして記録
@@ -1087,7 +1091,6 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       }).toList();
 
       // 政治的信頼度を更新
-      final trustDamage = respondedScandale.trustDamage;
       final newApproval = (session.nationalApproval - (respondedScandale.baseImpact * 0.5))
           .clamp(0.0, 100.0);
 
@@ -1874,6 +1877,97 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         errorMessage: e.toString(),
         context: 'GameSessionNotifier.processMonthlyOpinionShifts',
       ));
+    }
+  }
+
+  /// ストーリーパックイベント：現在のシナリオ・年で発生すべきイベントが
+  /// あれば、それを「発生済み」として記録した上で返す（優先度が最も
+  /// 高いもの1件のみ）。プレイヤーへの提示は呼び出し側の責務。
+  Future<StoryPackEvent?> checkAndStartStoryPackEvent(GameSession session) async {
+    try {
+      final packId = session.currentPackId;
+      final scenarioId = session.scenarioId;
+      if (packId == null || scenarioId == null) return null;
+
+      final triggered = PackEventEngine.getTriggeredEvents(
+        packId,
+        scenarioId,
+        session.status.year,
+        session.packEventProgress,
+      );
+      if (triggered.isEmpty) return null;
+
+      final event = triggered.first;
+      final progress = PackEventEngine.startEvent(event.id);
+      final updatedProgress =
+          PackEventEngine.updateEventProgress(session.packEventProgress, progress);
+      final updatedHistory = Map<String, int>.from(session.packEventHistory);
+      updatedHistory[packId] = (updatedHistory[packId] ?? 0) + 1;
+
+      final updatedSession = session.copyWith(
+        packEventProgress: updatedProgress,
+        packEventHistory: updatedHistory,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'story_pack_event_triggered',
+        parameters: {
+          'pack_id': packId,
+          'event_id': event.id,
+          'event_type': event.eventType,
+        },
+      ));
+
+      return event;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'story_pack_event_check_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.checkAndStartStoryPackEvent',
+      ));
+      return null;
+    }
+  }
+
+  /// ストーリーパックイベントへのプレイヤーの選択を処理し、結果をセッションに適用する
+  Future<void> respondToStoryPackEvent(
+    GameSession session,
+    String eventId,
+    String choiceId,
+  ) async {
+    try {
+      var updatedSession = PackEventEngine.applyEventOutcomes(session, eventId, choiceId);
+
+      final existingProgress = updatedSession.packEventProgress.firstWhere(
+        (p) => p.eventId == eventId,
+        orElse: () => PackEventEngine.startEvent(eventId),
+      );
+      final completed = PackEventEngine.completeEvent(existingProgress, choiceId);
+      final updatedProgress =
+          PackEventEngine.updateEventProgress(updatedSession.packEventProgress, completed);
+
+      updatedSession = updatedSession.copyWith(packEventProgress: updatedProgress);
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'story_pack_event_resolved',
+        parameters: {
+          'event_id': eventId,
+          'choice_id': choiceId,
+        },
+      ));
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'story_pack_event_response_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.respondToStoryPackEvent',
+      ));
+      rethrow;
     }
   }
 
