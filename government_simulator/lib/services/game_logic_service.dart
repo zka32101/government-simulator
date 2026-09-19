@@ -29,6 +29,9 @@ class GameLogicService {
     return _eventCache!;
   }
 
+  /// イベントプールの総数（直近履歴の上限をプール規模に応じて決めるため公開）
+  int get eventPoolSize => _allEvents.length;
+
   GameSession createNewSession({
     required String userId,
     required String countryName,
@@ -442,25 +445,19 @@ class GameLogicService {
   GameEvent generateRandomEvent(CountryStatus status,
       {Set<String> recentIds = const {}}) {
     final crisis = status.crisisLevel;
-    List<GameEvent> pool = _allEvents;
-
-    // 危機時は経済・雇用イベントの重みを2倍
-    if (crisis == CrisisLevel.critical || crisis == CrisisLevel.high) {
-      pool = pool.map((e) {
-        if ([EventCategory.employment, EventCategory.economic]
-            .contains(e.category)) {
-          return GameEvent(
-            id: e.id,
-            title: e.title,
-            description: e.description,
-            category: e.category,
-            weight: e.weight * 2,
-            choices: e.choices,
-          );
-        }
-        return e;
-      }).toList();
-    }
+    List<GameEvent> pool = _allEvents.map((e) {
+      final multiplier = _contextualWeightMultiplier(e.category, status, crisis);
+      if (multiplier == 1.0) return e;
+      final scaledWeight = (e.weight * multiplier).round();
+      return GameEvent(
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        category: e.category,
+        weight: scaledWeight < 1 ? 1 : scaledWeight,
+        choices: e.choices,
+      );
+    }).toList();
 
     // 直近と同じイベントは除外（同じイベントが続かないように）
     if (recentIds.isNotEmpty) {
@@ -471,11 +468,92 @@ class GameLogicService {
     // 加重ランダム選択
     final totalWeight = pool.fold(0, (sum, e) => sum + e.weight);
     var randomValue = _random.nextInt(totalWeight);
+    GameEvent selected = pool.first;
     for (final event in pool) {
       randomValue -= event.weight;
-      if (randomValue < 0) return event;
+      if (randomValue < 0) {
+        selected = event;
+        break;
+      }
     }
-    return pool.first;
+
+    // 選ばれたイベントの影響には、現実の政策執行のようなブレ幅（±15%）を
+    // 一度だけ与える。イベント選出時に確定させることで、事前プレビュー
+    // （createPolicyPreview）と実際の適用結果が食い違わないようにする。
+    return GameEvent(
+      id: selected.id,
+      title: selected.title,
+      description: selected.description,
+      category: selected.category,
+      weight: selected.weight,
+      isRandom: selected.isRandom,
+      choices: selected.choices.map((c) {
+        return Choice(
+          id: c.id,
+          text: c.text,
+          shortDescription: c.shortDescription,
+          impact: _jitterImpact(c.impact),
+          promiseTarget: c.promiseTarget,
+        );
+      }).toList(),
+    );
+  }
+
+  /// 国家の状況に応じたイベントカテゴリの重み倍率を計算
+  /// （現実の政治力学に寄せた文脈依存の出やすさ）
+  double _contextualWeightMultiplier(
+      EventCategory category, CountryStatus status, CrisisLevel crisis) {
+    double multiplier = 1.0;
+
+    // 危機時は経済・雇用イベントが起こりやすい
+    if (crisis == CrisisLevel.critical || crisis == CrisisLevel.high) {
+      if (category == EventCategory.employment || category == EventCategory.economic) {
+        multiplier *= 2.0;
+      }
+    }
+
+    switch (category) {
+      case EventCategory.political:
+        // 汚職が進むほど政治スキャンダル的なイベントが起こりやすい
+        if (status.corruption > 50) multiplier *= 1.5;
+        if (status.factions.isCoupRisk) multiplier *= 1.8;
+      case EventCategory.social:
+        // 満足度が極端（非常に高い／低い）なほど社会的な動きが起こりやすい
+        if (status.satisfaction < 30 || status.satisfaction > 80) multiplier *= 1.4;
+      case EventCategory.military:
+        // 安定度が低いほど軍事的緊張イベントが起こりやすい
+        if (status.stability < 40) multiplier *= 1.6;
+      case EventCategory.external:
+        // 国力が低い国は対外ショックの影響を受けやすい
+        if (status.nationalPower < 30) multiplier *= 1.3;
+      case EventCategory.economic:
+      case EventCategory.employment:
+      case EventCategory.environmental:
+        break;
+    }
+
+    return multiplier;
+  }
+
+  /// 政策の効果に現実的な執行ブレ（±[variance]）を与える
+  Impact _jitterImpact(Impact impact, {double variance = 0.15}) {
+    double jitter(double value) {
+      if (value == 0.0) return 0.0;
+      final factor = 1 + (_random.nextDouble() * 2 - 1) * variance;
+      return value * factor;
+    }
+
+    return Impact(
+      gdpChange: jitter(impact.gdpChange),
+      unemploymentChange: jitter(impact.unemploymentChange),
+      satisfactionChange: jitter(impact.satisfactionChange),
+      nationalPowerChange: jitter(impact.nationalPowerChange),
+      inflationChange: jitter(impact.inflationChange),
+      stabilityChange: jitter(impact.stabilityChange),
+      publicDebtChange: jitter(impact.publicDebtChange),
+      delayedEffects: impact.delayedEffects,
+      criticalEventChance: impact.criticalEventChance,
+    );
   }
 
   // 複数の政策の相互作用を計算（複雑なゲーム性）

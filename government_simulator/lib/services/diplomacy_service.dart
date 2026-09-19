@@ -3,10 +3,14 @@
 
 library;
 
+import 'dart:math';
+import 'package:uuid/uuid.dart';
 import 'package:government_simulator/models/international_relations.dart';
 
 /// 外交サービス
 class DiplomacyService {
+  static final Random _random = Random();
+  static const _uuid = Uuid();
   /// 各国との関係
   final Map<String, NationRelationship> nationRelationships;
 
@@ -272,6 +276,251 @@ class DiplomacyService {
     pastEvents.add(event.copyWith(
       resolvedDate: DateTime.now(),
     ));
+  }
+
+  /// 関係の自然減衰を計算（放置された良好な関係は中立に向かって緩やかに冷める）
+  /// 敵対関係や戦争中の関係は減衰しない（対応しない限り改善しない）
+  double calculateRelationshipDecay(NationRelationship nation, int weeks) {
+    if (nation.isAtWar) return 0.0;
+    if (nation.standingScore <= 5) return 0.0;
+    return (weeks * 0.5).clamp(0.0, nation.standingScore);
+  }
+
+  /// 月間の外交イベントをシミュレーション（確率的に1件まで発生）
+  List<DiplomaticEvent> simulateMonthlyDiplomacy({
+    required int month,
+    required int year,
+  }) {
+    if (nationRelationships.isEmpty) return const [];
+
+    // 既に未解決のイベントが2件以上ある場合は新規発生を抑制
+    if (activeEvents.length >= 2) return const [];
+
+    // 20%の確率で新しい外交イベントが発生
+    if (_random.nextDouble() > 0.2) return const [];
+
+    final candidates = nationRelationships.values.toList();
+    final nation = candidates[_random.nextInt(candidates.length)];
+    final event = _generateEventForNation(nation);
+
+    activeEvents.add(event);
+    return [event];
+  }
+
+  /// 特定の国との関係に応じた外交イベントを生成
+  DiplomaticEvent _generateEventForNation(NationRelationship nation) {
+    final status = nation.getStatus();
+
+    final DiplomaticEventType type;
+    if (status == RelationshipStatus.allied || status == RelationshipStatus.cordial) {
+      type = _random.nextBool()
+          ? DiplomaticEventType.tradeNegotiation
+          : DiplomaticEventType.culturalExchange;
+    } else if (status == RelationshipStatus.hostile || status == RelationshipStatus.enemy) {
+      type = _random.nextBool()
+          ? DiplomaticEventType.borderIncident
+          : DiplomaticEventType.sanctions;
+    } else {
+      type = _random.nextBool()
+          ? DiplomaticEventType.tradeNegotiation
+          : DiplomaticEventType.humanitarianAid;
+    }
+
+    return DiplomaticEvent(
+      id: _uuid.v4(),
+      type: type,
+      title: _titleForType(type, nation.nationName),
+      description: _descriptionForType(type, nation.nationName),
+      involvedNations: nation.nationName,
+      occurredDate: DateTime.now(),
+      availableOptions: _optionsForType(type),
+    );
+  }
+
+  String _titleForType(DiplomaticEventType type, String nationName) {
+    return switch (type) {
+      DiplomaticEventType.tradeNegotiation => '$nationNameとの貿易交渉',
+      DiplomaticEventType.borderIncident => '$nationNameとの国境紛争',
+      DiplomaticEventType.allianceProposal => '$nationNameからの同盟提案',
+      DiplomaticEventType.sanctions => '$nationNameへの制裁要求',
+      DiplomaticEventType.culturalExchange => '$nationNameとの文化交流',
+      DiplomaticEventType.humanitarianAid => '$nationNameへの人道支援要請',
+      DiplomaticEventType.warDeclaration => '$nationNameとの軍事的緊張',
+      DiplomaticEventType.peaceTreaty => '$nationNameとの和平交渉',
+    };
+  }
+
+  String _descriptionForType(DiplomaticEventType type, String nationName) {
+    return switch (type) {
+      DiplomaticEventType.tradeNegotiation =>
+        '$nationNameが新たな貿易協定の締結を提案してきた。応じ方によって両国の経済関係が変化する。',
+      DiplomaticEventType.borderIncident =>
+        '$nationNameとの国境付近で小規模な衝突が発生した。対応を誤れば関係が更に悪化する。',
+      DiplomaticEventType.allianceProposal =>
+        '$nationNameが軍事同盟の締結を打診してきた。受け入れれば安全保障が強化されるが、他国との関係に影響する。',
+      DiplomaticEventType.sanctions =>
+        '国際社会が$nationNameへの制裁を求めている。同調するかどうかの判断が迫られている。',
+      DiplomaticEventType.culturalExchange =>
+        '$nationNameから文化交流プログラムの提案があった。国民感情の改善が期待できる。',
+      DiplomaticEventType.humanitarianAid =>
+        '$nationNameが人道支援を要請してきた。応じるかどうかで国際的評価が変わる。',
+      DiplomaticEventType.warDeclaration =>
+        '$nationNameとの緊張が高まっている。対応を誤れば軍事衝突に発展しかねない。',
+      DiplomaticEventType.peaceTreaty =>
+        '$nationNameが和平交渉を持ちかけてきた。',
+    };
+  }
+
+  List<DiplomaticOption> _optionsForType(DiplomaticEventType type) {
+    return switch (type) {
+      DiplomaticEventType.tradeNegotiation => const [
+          DiplomaticOption(
+            label: '協定に合意する',
+            description: '有利な条件で貿易協定を締結する。',
+            economicCost: 0,
+            relationshipChange: 12,
+            approvalImpact: 1.5,
+          ),
+          DiplomaticOption(
+            label: '交渉を打ち切る',
+            description: '協定の締結を見送る。',
+            economicCost: 0,
+            relationshipChange: -6,
+            approvalImpact: 0,
+          ),
+        ],
+      DiplomaticEventType.borderIncident => const [
+          DiplomaticOption(
+            label: '外交的に解決する',
+            description: '交渉団を派遣し、平和的な解決を目指す。',
+            economicCost: 50000000,
+            relationshipChange: 8,
+            approvalImpact: -1.0,
+          ),
+          DiplomaticOption(
+            label: '強硬姿勢を取る',
+            description: '軍を展開し、断固とした対応を示す。',
+            economicCost: 150000000,
+            relationshipChange: -20,
+            approvalImpact: 3.0,
+            sideEffect: '国際的な緊張が高まる可能性がある。',
+          ),
+        ],
+      DiplomaticEventType.allianceProposal => const [
+          DiplomaticOption(
+            label: '同盟を受け入れる',
+            description: '軍事同盟を締結し、安全保障を強化する。',
+            economicCost: 0,
+            relationshipChange: 30,
+            approvalImpact: 2.0,
+            sideEffect: '他国からの信頼度に影響する可能性がある。',
+          ),
+          DiplomaticOption(
+            label: '提案を辞退する',
+            description: '中立の立場を維持する。',
+            economicCost: 0,
+            relationshipChange: -10,
+            approvalImpact: 0,
+          ),
+        ],
+      DiplomaticEventType.sanctions => const [
+          DiplomaticOption(
+            label: '制裁に同調する',
+            description: '国際社会と足並みを揃える。',
+            economicCost: 30000000,
+            relationshipChange: -25,
+            approvalImpact: 1.0,
+          ),
+          DiplomaticOption(
+            label: '同調しない',
+            description: '独自路線を維持し、二国間関係を優先する。',
+            economicCost: 0,
+            relationshipChange: 10,
+            approvalImpact: -2.0,
+            sideEffect: '国際的な評価が下がる可能性がある。',
+          ),
+        ],
+      DiplomaticEventType.culturalExchange => const [
+          DiplomaticOption(
+            label: '交流を推進する',
+            description: '文化交流プログラムに予算を投じる。',
+            economicCost: 10000000,
+            relationshipChange: 15,
+            approvalImpact: 1.0,
+          ),
+          DiplomaticOption(
+            label: '見送る',
+            description: '予算上の理由で見送る。',
+            economicCost: 0,
+            relationshipChange: -3,
+            approvalImpact: 0,
+          ),
+        ],
+      DiplomaticEventType.humanitarianAid => const [
+          DiplomaticOption(
+            label: '支援を送る',
+            description: '人道支援物資と資金を提供する。',
+            economicCost: 80000000,
+            relationshipChange: 20,
+            approvalImpact: 2.0,
+          ),
+          DiplomaticOption(
+            label: '要請を断る',
+            description: '国内事情を優先し、要請を断る。',
+            economicCost: 0,
+            relationshipChange: -12,
+            approvalImpact: -1.0,
+          ),
+        ],
+      DiplomaticEventType.warDeclaration => const [
+          DiplomaticOption(
+            label: '緊張緩和に努める',
+            description: '外交チャネルを通じて事態の沈静化を図る。',
+            economicCost: 20000000,
+            relationshipChange: 10,
+            approvalImpact: -1.0,
+          ),
+          DiplomaticOption(
+            label: '軍事的圧力で応じる',
+            description: '国境部隊を増強し、強い姿勢を示す。',
+            economicCost: 200000000,
+            relationshipChange: -30,
+            approvalImpact: 4.0,
+            sideEffect: '全面的な軍事衝突に発展するリスクがある。',
+          ),
+        ],
+      DiplomaticEventType.peaceTreaty => const [
+          DiplomaticOption(
+            label: '和平を受け入れる',
+            description: '和平条約に署名し、敵対関係を終わらせる。',
+            economicCost: 0,
+            relationshipChange: 40,
+            approvalImpact: 2.0,
+          ),
+          DiplomaticOption(
+            label: '交渉を拒否する',
+            description: '敵対関係を継続する。',
+            economicCost: 0,
+            relationshipChange: -15,
+            approvalImpact: -1.0,
+          ),
+        ],
+    };
+  }
+
+  /// 外交イベントへのプレイヤーの選択を処理し、対象国との関係を更新する
+  NationRelationship respondToDiplomaticEvent(
+    String targetNationId,
+    DiplomaticOption choice,
+  ) {
+    final nation = nationRelationships[targetNationId] ??
+        NationRelationship(nationId: targetNationId, nationName: targetNationId);
+    final updated = nation.copyWith(
+      standingScore: (nation.standingScore + choice.relationshipChange).clamp(-100.0, 100.0),
+      lastInteraction: DateTime.now(),
+    );
+    nationRelationships[targetNationId] = updated;
+    return updated;
   }
 
   /// コピー・変更用メソッド

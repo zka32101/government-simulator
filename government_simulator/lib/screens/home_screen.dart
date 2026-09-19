@@ -6,9 +6,13 @@ import 'package:government_simulator/models/decision.dart';
 import 'package:government_simulator/models/faction.dart';
 import 'package:government_simulator/models/minister.dart';
 import 'package:government_simulator/models/user_profile.dart';
+import 'package:government_simulator/models/scandal.dart';
+import 'package:government_simulator/models/international_relations.dart';
+import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
+import 'package:government_simulator/services/crisis_event_service.dart';
 import 'package:government_simulator/utils/app_theme.dart';
 import 'package:government_simulator/utils/constants.dart';
 import 'package:government_simulator/widgets/policy_card.dart';
@@ -31,6 +35,9 @@ import 'ending_screen.dart';
 import 'world_map_screen.dart';
 import 'weekly_poll_screen.dart';
 import 'campaign_screen.dart';
+import 'diplomatic_event_screen.dart';
+import 'crisis_alert_screen.dart';
+import 'citizen_survey_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -80,7 +87,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       recentIds: _recentEventIds,
     );
     _recentEventIds.add(event.id);
-    if (_recentEventIds.length > 3) {
+    // イベントプールの規模に対して直近履歴が大きすぎないよう、
+    // プールの半分程度を上限に「しばらく同じイベントが出ない」体験を作る。
+    final maxRecent = (_gameLogic.eventPoolSize / 2).floor().clamp(3, 20);
+    while (_recentEventIds.length > maxRecent) {
       _recentEventIds.remove(_recentEventIds.first);
     }
     setState(() => _currentEvent = event);
@@ -175,6 +185,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // 公約の顛末（果たされた／破られた）
       for (final r in choiceResult.promiseResolutions) {
         _showEventBanner(r.fulfilled ? '🤝 公約履行' : '💔 公約破棄', r.narrative);
+      }
+
+      // スキャンダル発生時は対応を求める
+      final newScandal = choiceResult.newScandal;
+      if (newScandal != null && mounted) {
+        await _handleScandal(newScandal);
+      }
+
+      // 外交・内閣・危機の月次処理と、その結果の通知
+      if (!mounted) return;
+      final monthlyResult =
+          await ref.read(gameSessionProvider.notifier).processMonthlySystems();
+
+      final newBetrayal = monthlyResult.newBetrayal;
+      if (newBetrayal != null) {
+        _showEventBanner(
+          '⚔️ 大臣の背信',
+          '${newBetrayal.traitor.label}が背信行為に及んだ。理由：${newBetrayal.reason}',
+        );
+      }
+
+      final newConflict = monthlyResult.newConflict;
+      if (newConflict != null) {
+        _showEventBanner('🔥 内閣内の対立', newConflict.description);
+      }
+
+      for (final event in monthlyResult.newDiplomaticEvents) {
+        if (!mounted) break;
+        await _handleDiplomaticEvent(event);
+      }
+
+      final newCrisis = monthlyResult.newCrisis;
+      if (newCrisis != null && mounted) {
+        await _handleCrisis(newCrisis);
       }
 
       // ゲームオーバー判定
@@ -311,6 +355,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  /// スキャンダル発生時の対応選択ダイアログ
+  Future<void> _handleScandal(Scandal scandal) async {
+    final response = await showDialog<ScandalResponse>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('📰 ${scandal.title}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(scandal.description),
+              const SizedBox(height: 8),
+              Text('深刻度：${scandal.severity.label}',
+                  style: Theme.of(ctx).textTheme.labelMedium),
+            ],
+          ),
+        ),
+        actions: ScandalResponse.values
+            .map(
+              (r) => TextButton(
+                onPressed: () => Navigator.pop(ctx, r),
+                child: Text(r.label),
+              ),
+            )
+            .toList(),
+      ),
+    );
+
+    if (response == null || !mounted) return;
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null) return;
+
+    await ref.read(gameSessionProvider.notifier).respondToScandale(
+          session,
+          scandal.id,
+          response,
+        );
+  }
+
+  /// 外交イベントの対応画面を表示
+  Future<void> _handleDiplomaticEvent(DiplomaticEvent event) async {
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null || !mounted) return;
+
+    // イベントに紐づく国家IDを、国名の一致から逆引きする
+    final matches = session.nationRelationships.entries
+        .where((e) => e.value.nationName == event.involvedNations);
+    final targetNationId =
+        matches.isNotEmpty ? matches.first.key : event.involvedNations;
+
+    final choice = await Navigator.of(context).push<DiplomaticOption>(
+      MaterialPageRoute(
+        builder: (_) => DiplomaticEventScreen(event: event),
+      ),
+    );
+
+    if (choice == null || !mounted) return;
+    await ref.read(gameSessionProvider.notifier).respondToDiplomaticEvent(
+          ref.read(gameSessionProvider).session ?? session,
+          event.id,
+          choice,
+          targetNationId,
+        );
+  }
+
+  /// 危機の対応画面を表示
+  Future<void> _handleCrisis(Crisis crisis) async {
+    final display = CrisisEventService().generateEventDisplay(crisis);
+    CrisisOption? selected;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CrisisAlertScreen(
+          crisis: crisis,
+          crisisDisplay: display,
+          onResponseSelected: (option) => selected = option,
+        ),
+      ),
+    );
+
+    if (selected == null || !mounted) return;
+    final session = ref.read(gameSessionProvider).session;
+    if (session == null) return;
+
+    await ref.read(gameSessionProvider.notifier).respondToCrisis(
+          session,
+          crisis.id,
+          selected!.response,
+        );
+  }
+
   List<String> _buildHeadlines(CountryStatus s, String country) {
     return [
       'GDP \$${s.gdp.toStringAsFixed(0)}B｜失業率 ${s.unemployment.toStringAsFixed(1)}%',
@@ -442,6 +579,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => AchievementsScreen(session: session),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.groups,
+                          color: AppTheme.textSecondary),
+                      tooltip: '国民世論調査',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CitizenSurveyScreen(),
                         ),
                       ),
                     ),

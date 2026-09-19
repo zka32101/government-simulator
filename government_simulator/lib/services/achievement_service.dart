@@ -178,7 +178,7 @@ class AchievementService {
           unlockedAt: DateTime.now(),
           gameStateSnapshot: {
             'year': session.status.year,
-            'month': session.status.month,
+            'day': session.status.day,
             'gdp': session.status.gdp,
             'satisfaction': session.status.satisfaction,
             'stability': session.status.stability,
