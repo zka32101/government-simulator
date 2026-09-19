@@ -87,7 +87,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       recentIds: _recentEventIds,
     );
     _recentEventIds.add(event.id);
-    if (_recentEventIds.length > 3) {
+    // イベントプールの規模に対して直近履歴が大きすぎないよう、
+    // プールの半分程度を上限に「しばらく同じイベントが出ない」体験を作る。
+    final maxRecent = (_gameLogic.eventPoolSize / 2).floor().clamp(3, 20);
+    while (_recentEventIds.length > maxRecent) {
       _recentEventIds.remove(_recentEventIds.first);
     }
     setState(() => _currentEvent = event);
