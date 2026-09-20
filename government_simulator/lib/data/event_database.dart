@@ -13,7 +13,7 @@ class EventDatabase {
   ];
 
   // =====================
-  // 経済系イベント (11件)
+  // 経済系イベント (14件)
   // =====================
   static final List<GameEvent> _economicEvents = [
     GameEvent(
@@ -330,10 +330,95 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'eco_12_crypto_bubble',
+      title: '仮想通貨バブルの崩壊',
+      description: '国内で急拡大していた仮想通貨市場が暴落し、多くの個人投資家が損失を被りました。\n規制の是非が問われています。',
+      category: EventCategory.economic,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'eco_12_a',
+          text: '仮想通貨取引を厳格に規制する',
+          shortDescription: '将来のリスク低減 | 投資家・業界の反発',
+          impact: Impact(gdpChange: -0.8, satisfactionChange: -5, nationalPowerChange: -3, stabilityChange: 6),
+        ),
+        Choice(
+          id: 'eco_12_b',
+          text: '被害者救済に公的資金を投入する',
+          shortDescription: '国民の安心感↑ | 財政負担 | モラルハザード懸念',
+          impact: Impact(gdpChange: -0.3, satisfactionChange: 12, publicDebtChange: 3.5, stabilityChange: 2),
+        ),
+        Choice(
+          id: 'eco_12_c',
+          text: '自己責任として静観する',
+          shortDescription: '財政負担なし | 「無策」との批判',
+          impact: Impact(satisfactionChange: -12, stabilityChange: -4),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'eco_13_privatization',
+      title: '国営企業の民営化論争',
+      description: '非効率が指摘されてきた国営企業について、民営化を求める声が経済界から強まっています。',
+      category: EventCategory.economic,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'eco_13_a',
+          text: '主要国営企業を全面民営化する',
+          shortDescription: '効率化・財政収入↑ | 雇用不安・料金高騰リスク',
+          impact: Impact(gdpChange: 2.0, satisfactionChange: -10, unemploymentChange: 1.0, publicDebtChange: -6.0),
+          promiseTarget: Faction.business,
+        ),
+        Choice(
+          id: 'eco_13_b',
+          text: '部分的な株式売却にとどめる',
+          shortDescription: '穏健な改革 | 効果は限定的',
+          impact: Impact(gdpChange: 0.8, satisfactionChange: -2, publicDebtChange: -2.0),
+        ),
+        Choice(
+          id: 'eco_13_c',
+          text: '国営を維持し経営改革のみ行う',
+          shortDescription: '雇用維持 | 財政負担は継続',
+          impact: Impact(satisfactionChange: 6, stabilityChange: 3, publicDebtChange: 1.0),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'eco_14_supply_chain',
+      title: 'サプライチェーンの寸断',
+      description: '世界的な物流混乱と部品不足により、国内製造業の生産ラインが相次いで停止しています。',
+      category: EventCategory.economic,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'eco_14_a',
+          text: '国内生産回帰（リショアリング）を補助する',
+          shortDescription: '長期的な強靭性↑ | 短期コスト増 | 雇用↑',
+          impact: Impact(gdpChange: -0.5, unemploymentChange: -1.0, nationalPowerChange: 6, publicDebtChange: 2.5),
+        ),
+        Choice(
+          id: 'eco_14_b',
+          text: '複数の調達先を緊急開拓する',
+          shortDescription: '迅速だがコスト増 | リスク分散',
+          impact: Impact(gdpChange: -1.0, inflationChange: 1.2, stabilityChange: 3),
+        ),
+        Choice(
+          id: 'eco_14_c',
+          text: '企業の自助努力に任せる',
+          shortDescription: '財政負担なし | 生産停止が長期化',
+          impact: Impact(gdpChange: -2.2, unemploymentChange: 1.5, satisfactionChange: -10),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 雇用系イベント (6件)
+  // 雇用系イベント (9件)
   // =====================
   static final List<GameEvent> _employmentEvents = [
     GameEvent(
@@ -510,10 +595,96 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'emp_07_remote_work',
+      title: 'リモートワークの大転換',
+      description: '在宅勤務を恒久化する企業が急増し、オフィス街の空洞化と働き方の分断が進んでいます。',
+      category: EventCategory.employment,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'emp_07_a',
+          text: 'リモートワークを法的権利として保障する',
+          shortDescription: '労働者満足度↑ | 都市部経済への打撃',
+          impact: Impact(satisfactionChange: 14, gdpChange: -0.5, stabilityChange: -2),
+          promiseTarget: Faction.labor,
+        ),
+        Choice(
+          id: 'emp_07_b',
+          text: 'オフィス回帰を企業に促す優遇策を導入する',
+          shortDescription: '都市経済維持 | 労働者の反発',
+          impact: Impact(gdpChange: 1.0, satisfactionChange: -10, nationalPowerChange: 2),
+        ),
+        Choice(
+          id: 'emp_07_c',
+          text: '企業の判断に委ねる',
+          shortDescription: '介入なし | 分断が固定化',
+          impact: Impact(stabilityChange: -3),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'emp_08_general_strike',
+      title: '労働組合のゼネスト警告',
+      description: '賃上げと待遇改善を求める労働組合連合が、応じなければ全国規模のストライキも辞さないと通告してきました。',
+      category: EventCategory.employment,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'emp_08_a',
+          text: '要求をほぼ全面的に受け入れる',
+          shortDescription: '労働者満足度↑↑ | 企業負担増・GDP↓',
+          impact: Impact(satisfactionChange: 18, gdpChange: -1.5, unemploymentChange: 0.5, stabilityChange: 5),
+          promiseTarget: Faction.labor,
+        ),
+        Choice(
+          id: 'emp_08_b',
+          text: '部分的な譲歩で妥協点を探る',
+          shortDescription: 'バランス型 | 双方に不満残る',
+          impact: Impact(satisfactionChange: 5, gdpChange: -0.3, stabilityChange: 2),
+        ),
+        Choice(
+          id: 'emp_08_c',
+          text: '要求を拒否し法的措置も辞さない構えを見せる',
+          shortDescription: '財界の支持↑ | ストライキ決行のリスク',
+          impact: Impact(satisfactionChange: -20, nationalPowerChange: -3, stabilityChange: -8),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'emp_09_elderly_employment',
+      title: '高齢者雇用延長の義務化論争',
+      description: '年金財政の悪化を受け、企業に70歳までの雇用延長を義務付ける法案が検討されています。',
+      category: EventCategory.employment,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'emp_09_a',
+          text: '雇用延長を義務化する',
+          shortDescription: '年金負担↓ | 若年層の雇用機会減少への懸念',
+          impact: Impact(satisfactionChange: 6, unemploymentChange: 0.8, publicDebtChange: -2.0, stabilityChange: 2),
+        ),
+        Choice(
+          id: 'emp_09_b',
+          text: '企業への補助金で緩やかに促す',
+          shortDescription: '穏健な移行 | 財政負担あり',
+          impact: Impact(satisfactionChange: 4, publicDebtChange: 1.5),
+        ),
+        Choice(
+          id: 'emp_09_c',
+          text: '現行の年金制度・定年を維持する',
+          shortDescription: '変化なし | 年金財政の悪化は継続',
+          impact: Impact(stabilityChange: -4, publicDebtChange: -1.0),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 社会系イベント (6件)
+  // 社会系イベント (9件)
   // =====================
   static final List<GameEvent> _socialEvents = [
     GameEvent(
@@ -690,10 +861,95 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'soc_07_religious_tension',
+      title: '宗教・信仰をめぐる社会対立',
+      description: '公共施設での宗教的シンボルの扱いをめぐり、異なる信仰を持つ市民の間で対立が激化しています。',
+      category: EventCategory.social,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'soc_07_a',
+          text: '公共空間での宗教的表現を制限する（世俗主義の徹底）',
+          shortDescription: '一部から強い支持 | 信仰者コミュニティの反発',
+          impact: Impact(satisfactionChange: -6, stabilityChange: -4, nationalPowerChange: 2),
+        ),
+        Choice(
+          id: 'soc_07_b',
+          text: '多様な信仰の共存を積極的に推進する',
+          shortDescription: '寛容な社会像 | 保守層からの反発',
+          impact: Impact(satisfactionChange: 5, stabilityChange: -3),
+        ),
+        Choice(
+          id: 'soc_07_c',
+          text: '対話の場を設け当面は現状を維持する',
+          shortDescription: '穏健だが根本解決にはならない',
+          impact: Impact(stabilityChange: 2),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'soc_08_minority_rights',
+      title: '少数民族・言語政策の見直し',
+      description: '国内の少数民族コミュニティから、言語教育と文化的権利の公的保障を求める声が強まっています。',
+      category: EventCategory.social,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'soc_08_a',
+          text: '少数言語教育を公的に保障する',
+          shortDescription: '多様性尊重↑ | 統合を懸念する層の反発',
+          impact: Impact(satisfactionChange: 8, stabilityChange: -3, publicDebtChange: 1.0),
+          promiseTarget: Faction.citizen,
+        ),
+        Choice(
+          id: 'soc_08_b',
+          text: '国語教育を優先し統合を重視する',
+          shortDescription: '一体感を重視 | 少数派の疎外感増大',
+          impact: Impact(satisfactionChange: -8, stabilityChange: 3, nationalPowerChange: 2),
+        ),
+        Choice(
+          id: 'soc_08_c',
+          text: '地域ごとの裁量に委ねる',
+          shortDescription: '中央の摩擦を回避 | 地域差が拡大',
+          impact: Impact(stabilityChange: 1),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'soc_09_social_media_mental_health',
+      title: 'SNS依存と若者のメンタルヘルス',
+      description: 'SNSの長時間利用と若年層のメンタルヘルス悪化の関連が専門家から指摘され、規制論が高まっています。',
+      category: EventCategory.social,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'soc_09_a',
+          text: '未成年のSNS利用を法規制する',
+          shortDescription: '保護者からの支持 | 若者・IT業界の反発',
+          impact: Impact(satisfactionChange: 6, gdpChange: -0.4, nationalPowerChange: -2, stabilityChange: 3),
+        ),
+        Choice(
+          id: 'soc_09_b',
+          text: '学校教育でのメディアリテラシーを強化する',
+          shortDescription: '穏健な対応 | 効果は緩やか',
+          impact: Impact(satisfactionChange: 4, publicDebtChange: 1.0),
+        ),
+        Choice(
+          id: 'soc_09_c',
+          text: '企業の自主規制に任せる',
+          shortDescription: '介入なし | 問題の放置との批判',
+          impact: Impact(satisfactionChange: -6, stabilityChange: -2),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 政治系イベント (5件)
+  // 政治系イベント (8件)
   // =====================
   static final List<GameEvent> _politicalEvents = [
     GameEvent(
@@ -835,10 +1091,94 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'pol_06_constitution',
+      title: '憲法改正論争',
+      description: '与党内から憲法改正を求める声が強まり、国を二分する議論に発展しています。',
+      category: EventCategory.political,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'pol_06_a',
+          text: '改正案を国会に提出し議論を進める',
+          shortDescription: '支持層の結集 | 国論分裂のリスク',
+          impact: Impact(nationalPowerChange: 6, satisfactionChange: -8, stabilityChange: -6),
+        ),
+        Choice(
+          id: 'pol_06_b',
+          text: '国民的合意ができるまで議論を続ける',
+          shortDescription: '慎重だが「決められない政治」との批判も',
+          impact: Impact(stabilityChange: 2, satisfactionChange: -2),
+        ),
+        Choice(
+          id: 'pol_06_c',
+          text: '改正論議を凍結する',
+          shortDescription: '対立回避 | 改正派からの強い不満',
+          impact: Impact(stabilityChange: 4, satisfactionChange: -4, nationalPowerChange: -3),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'pol_07_opposition_scandal',
+      title: '野党指導者のスキャンダル発覚',
+      description: '最大野党の指導者に金銭スキャンダルが発覚し、政界全体に激震が走っています。対応が問われます。',
+      category: EventCategory.political,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'pol_07_a',
+          text: '徹底追及し政治的優位を最大限利用する',
+          shortDescription: '短期的な支持率↑ | 「政治利用」との批判リスク',
+          impact: Impact(satisfactionChange: 10, nationalPowerChange: 4, stabilityChange: -3),
+        ),
+        Choice(
+          id: 'pol_07_b',
+          text: '司法の判断に委ね静観する',
+          shortDescription: '公正な印象 | 政治的な機会損失',
+          impact: Impact(stabilityChange: 3),
+        ),
+        Choice(
+          id: 'pol_07_c',
+          text: '「政治全体の信頼回復」を訴え自らも身を引く姿勢を示す',
+          shortDescription: '高潔なイメージ | 支持層の一部が困惑',
+          impact: Impact(satisfactionChange: 5, nationalPowerChange: -4, stabilityChange: 5),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'pol_08_special_prosecutor',
+      title: '特別検察官の任命要求',
+      description: '政権に近い企業への便宜供与疑惑を受け、独立した特別検察官の任命を求める声が強まっています。',
+      category: EventCategory.political,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'pol_08_a',
+          text: '要求を受け入れ独立捜査を認める',
+          shortDescription: '透明性への評価↑ | 政権基盤へのリスク',
+          impact: Impact(satisfactionChange: 12, stabilityChange: -6, nationalPowerChange: -3),
+        ),
+        Choice(
+          id: 'pol_08_b',
+          text: '内部調査で対応し外部介入を拒む',
+          shortDescription: '政権基盤は守れる | 「隠蔽」との疑念',
+          impact: Impact(satisfactionChange: -14, stabilityChange: -2),
+        ),
+        Choice(
+          id: 'pol_08_c',
+          text: '限定的な権限の調査委員会を設置する',
+          shortDescription: '妥協案 | 双方から不十分との批判',
+          impact: Impact(satisfactionChange: -2, stabilityChange: 1),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 環境系イベント (5件)
+  // 環境系イベント (8件)
   // =====================
   static final List<GameEvent> _environmentalEvents = [
     GameEvent(
@@ -980,10 +1320,95 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'env_06_drought',
+      title: '深刻な干ばつと水資源危機',
+      description: '記録的な少雨により主要河川の水位が低下し、農業と飲料水の供給に深刻な影響が出ています。',
+      category: EventCategory.environmental,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'env_06_a',
+          text: '大規模な水利インフラに緊急投資する',
+          shortDescription: '長期的な解決 | 財政負担大',
+          impact: Impact(satisfactionChange: 6, gdpChange: -1.5, publicDebtChange: 4.0, stabilityChange: 4),
+        ),
+        Choice(
+          id: 'env_06_b',
+          text: '節水を義務化し配給制を導入する',
+          shortDescription: '即効性あり | 国民生活への強い制約',
+          impact: Impact(satisfactionChange: -12, gdpChange: -0.5, stabilityChange: 2),
+        ),
+        Choice(
+          id: 'env_06_c',
+          text: '農業用水を優先し他は自然解決を待つ',
+          shortDescription: '農業は守れる | 都市部の不満増大',
+          impact: Impact(satisfactionChange: -8, gdpChange: -0.3),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'env_07_deforestation',
+      title: '森林伐採と生物多様性の損失',
+      description: '木材産業と農地拡大により森林伐採が加速し、国際社会から生物多様性保護の対応を求められています。',
+      category: EventCategory.environmental,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'env_07_a',
+          text: '伐採を厳格に規制し保護区を拡大する',
+          shortDescription: '国際評価↑ | 林業・農業関係者の反発',
+          impact: Impact(nationalPowerChange: 8, gdpChange: -1.2, satisfactionChange: -6, stabilityChange: -2),
+        ),
+        Choice(
+          id: 'env_07_b',
+          text: '持続可能な林業への転換を段階的に進める',
+          shortDescription: '穏健な移行 | 効果は緩やか',
+          impact: Impact(nationalPowerChange: 3, gdpChange: -0.3, satisfactionChange: 2),
+        ),
+        Choice(
+          id: 'env_07_c',
+          text: '経済優先で現状の産業を維持する',
+          shortDescription: '短期的な産業維持 | 国際的な批判',
+          impact: Impact(gdpChange: 1.0, nationalPowerChange: -6, satisfactionChange: -3),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'env_08_nuclear_power',
+      title: '原子力発電所の新設論争',
+      description: 'エネルギー安全保障と脱炭素を両立させる手段として、原子力発電所の新設が国会で議論されています。',
+      category: EventCategory.environmental,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'env_08_a',
+          text: '新設を承認し原子力を推進する',
+          shortDescription: '長期的な電力安定 | 安全性への不安・反対運動',
+          impact: Impact(gdpChange: 1.5, nationalPowerChange: 8, satisfactionChange: -10, stabilityChange: -4),
+        ),
+        Choice(
+          id: 'env_08_b',
+          text: '既存施設の稼働継続のみ認め新設は見送る',
+          shortDescription: '妥協案 | 電力不足のリスクは残る',
+          impact: Impact(gdpChange: 0.3, satisfactionChange: 2),
+        ),
+        Choice(
+          id: 'env_08_c',
+          text: '原子力から完全に撤退し再エネへ全面転換する',
+          shortDescription: '国民の支持厚い層あり | 電力コスト上昇',
+          impact: Impact(gdpChange: -1.8, satisfactionChange: 8, inflationChange: 1.0, stabilityChange: -3),
+          promiseTarget: Faction.citizen,
+        ),
+      ],
+    ),
   ];
 
   // ========================
-  // 外部ショック系イベント (5件)
+  // 外部ショック系イベント (8件)
   // ========================
   static final List<GameEvent> _externalShockEvents = [
     GameEvent(
@@ -1125,10 +1550,94 @@ class EventDatabase {
         ),
       ],
     ),
+
+    GameEvent(
+      id: 'ext_06_sanctions_target',
+      title: '国際制裁の対象国に指定される',
+      description: '人権問題を理由に、国際社会から経済制裁の対象として指定される可能性が急速に高まっています。',
+      category: EventCategory.external,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'ext_06_a',
+          text: '国際社会の要求に応じ改善策を示す',
+          shortDescription: '制裁回避の可能性 | 「屈服」との国内批判',
+          impact: Impact(nationalPowerChange: -5, satisfactionChange: -6, stabilityChange: 3, gdpChange: 0.5),
+        ),
+        Choice(
+          id: 'ext_06_b',
+          text: '主権を主張し要求を拒否する',
+          shortDescription: '国内の一部から強い支持 | 制裁による経済打撃',
+          impact: Impact(nationalPowerChange: 5, satisfactionChange: 8, gdpChange: -2.5, stabilityChange: -3),
+        ),
+        Choice(
+          id: 'ext_06_c',
+          text: '第三国を通じた外交交渉で時間を稼ぐ',
+          shortDescription: '穏健な対応 | 決定的な解決にはならない',
+          impact: Impact(gdpChange: -0.3, stabilityChange: 1),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'ext_07_currency_crisis',
+      title: '通貨暴落と資本流出',
+      description: '投資家の信頼低下から自国通貨が急落し、資本が海外へ流出しています。緊急対応が求められています。',
+      category: EventCategory.external,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'ext_07_a',
+          text: '政策金利を大幅に引き上げる',
+          shortDescription: '通貨安定化 | 国内経済の冷え込み',
+          impact: Impact(gdpChange: -2.0, unemploymentChange: 1.5, satisfactionChange: -10, stabilityChange: 5),
+        ),
+        Choice(
+          id: 'ext_07_b',
+          text: '外貨準備を投入し為替介入する',
+          shortDescription: '即効性あり | 外貨準備の急速な減少',
+          impact: Impact(gdpChange: -0.8, stabilityChange: 4, publicDebtChange: 3.0),
+        ),
+        Choice(
+          id: 'ext_07_c',
+          text: '資本規制を導入し流出を止める',
+          shortDescription: '流出は止まる | 国際的信用の失墜',
+          impact: Impact(nationalPowerChange: -8, gdpChange: -1.5, stabilityChange: 2),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'ext_08_space_race',
+      title: '国際的な宇宙開発競争',
+      description: '大国間の宇宙開発競争が激化し、自国も参加すべきだとの機運が高まっています。',
+      category: EventCategory.external,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'ext_08_a',
+          text: '国家宇宙計画に大規模投資する',
+          shortDescription: '国際的威信↑↑ | 巨額の財政負担',
+          impact: Impact(nationalPowerChange: 15, satisfactionChange: 5, publicDebtChange: 6.0, gdpChange: 0.5),
+        ),
+        Choice(
+          id: 'ext_08_b',
+          text: '民間企業との連携で低コストに参加する',
+          shortDescription: 'バランス型 | 効果は限定的',
+          impact: Impact(nationalPowerChange: 6, gdpChange: 0.8),
+        ),
+        Choice(
+          id: 'ext_08_c',
+          text: '参加を見送り国内課題に予算を集中する',
+          shortDescription: '財政健全性維持 | 国際的地位の低下',
+          impact: Impact(nationalPowerChange: -6, satisfactionChange: 3, publicDebtChange: -1.5),
+        ),
+      ],
+    ),
   ];
 
   // =====================
-  // 軍事系イベント (5件)
+  // 軍事系イベント (8件)
   // =====================
   static final List<GameEvent> _militaryEvents = [
     GameEvent(
@@ -1268,6 +1777,91 @@ class EventDatabase {
           text: '最小限の対応にとどめ様子を見る',
           shortDescription: '介入コスト回避 | 事態悪化のリスク',
           impact: Impact(stabilityChange: -15, satisfactionChange: -10, nationalPowerChange: -5, gdpChange: -1.5),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'mil_06_civilian_control',
+      title: '軍の政治介入と文民統制の危機',
+      description: '軍高官が政府批判の声明を公然と発表し、文民統制の原則が揺らいでいます。対応を迫られています。',
+      category: EventCategory.military,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'mil_06_a',
+          text: '当該高官を即座に更迭する',
+          shortDescription: '文民統制の再確立 | 軍内部の反発リスク',
+          impact: Impact(nationalPowerChange: -6, stabilityChange: -8, satisfactionChange: 8),
+        ),
+        Choice(
+          id: 'mil_06_b',
+          text: '内々に注意し公にはしない',
+          shortDescription: '軍との衝突回避 | 「弱腰」との批判',
+          impact: Impact(satisfactionChange: -8, stabilityChange: -2),
+        ),
+        Choice(
+          id: 'mil_06_c',
+          text: '軍の待遇改善と対話で関係修復を図る',
+          shortDescription: '穏健な対応 | 財政負担・前例化のリスク',
+          impact: Impact(publicDebtChange: 2.0, stabilityChange: 4, satisfactionChange: -3),
+          promiseTarget: Faction.military,
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'mil_07_conscription',
+      title: '徴兵制の復活論争',
+      description: '安全保障環境の悪化を受け、志願制から徴兵制への転換を求める声が国会で強まっています。',
+      category: EventCategory.military,
+      weight: 1,
+      choices: [
+        Choice(
+          id: 'mil_07_a',
+          text: '徴兵制を復活させる',
+          shortDescription: '軍事力↑↑ | 若年層・国民の強い反発',
+          impact: Impact(nationalPowerChange: 15, satisfactionChange: -20, stabilityChange: -6, gdpChange: -1.0),
+        ),
+        Choice(
+          id: 'mil_07_b',
+          text: '志願制を維持し待遇改善で人員を確保する',
+          shortDescription: '穏健な対応 | 効果は限定的',
+          impact: Impact(nationalPowerChange: 3, publicDebtChange: 1.5, satisfactionChange: 2),
+        ),
+        Choice(
+          id: 'mil_07_c',
+          text: '徴兵制を明確に否定する',
+          shortDescription: '国民の支持↑ | 軍部からの不満',
+          impact: Impact(satisfactionChange: 10, nationalPowerChange: -8),
+        ),
+      ],
+    ),
+
+    GameEvent(
+      id: 'mil_08_border_smuggling',
+      title: '国境地帯の密輸・治安悪化',
+      description: '国境地帯で武器・薬物の密輸ネットワークが拡大し、地元自治体から治安対策の強化を求められています。',
+      category: EventCategory.military,
+      weight: 2,
+      choices: [
+        Choice(
+          id: 'mil_08_a',
+          text: '国境警備に軍を動員する',
+          shortDescription: '即効性あり | 「軍の国内治安介入」への懸念',
+          impact: Impact(stabilityChange: 8, satisfactionChange: -4, nationalPowerChange: 3, publicDebtChange: 1.5),
+        ),
+        Choice(
+          id: 'mil_08_b',
+          text: '警察組織の増員と機材強化で対応する',
+          shortDescription: '穏健な対応 | 効果はやや緩やか',
+          impact: Impact(stabilityChange: 5, publicDebtChange: 2.0),
+        ),
+        Choice(
+          id: 'mil_08_c',
+          text: '近隣国と共同で取締りを強化する',
+          shortDescription: '外交関係強化 | 主権・調整コストの問題',
+          impact: Impact(stabilityChange: 4, nationalPowerChange: 2, gdpChange: -0.3),
         ),
       ],
     ),
