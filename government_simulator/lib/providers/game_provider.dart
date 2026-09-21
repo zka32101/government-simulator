@@ -948,6 +948,7 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         gdpChange: gdpChangeAnalytics,
         decisionsInYear: session.status.decisionsCount,
       ));
+      return null;
     } catch (e) {
       // Error tracking for year progression
       unawaited(_analytics.trackError(
