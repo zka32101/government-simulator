@@ -20,6 +20,7 @@ import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/crisis.dart';
 import 'package:government_simulator/models/election_result.dart';
+import 'package:government_simulator/models/executive_action.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -960,6 +961,75 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// 統治アクション：ランダムイベントの発生を待たず、プレイヤーが自らの
+  /// 判断で能動的に実行できる。種類ごとに年1回までで、実行できた場合は
+  /// 結果メッセージを、その年すでに使用済みなら null を返す。
+  Future<String?> performExecutiveAction(
+    GameSession session,
+    ExecutiveActionType type, {
+    Faction? targetFaction,
+    MinisterRole? targetMinister,
+  }) async {
+    try {
+      final year = session.status.year;
+      if (session.executiveActionLastUsedYear[type.name] == year) {
+        return null;
+      }
+
+      var status = session.status;
+      String resultMessage;
+
+      switch (type) {
+        case ExecutiveActionType.addressNation:
+          status = status.copyWith(
+            satisfaction: (status.satisfaction + 4).clamp(0, 100).toDouble(),
+          );
+          resultMessage = '国民への演説を行い、支持率がわずかに上昇した。';
+        case ExecutiveActionType.negotiateFaction:
+          final faction = targetFaction ?? Faction.citizen;
+          status = status.copyWith(
+            factions: status.factions.applyDeltas({faction: 6}),
+            stability: (status.stability - 1).clamp(0, 100).toDouble(),
+          );
+          resultMessage = '${faction.label}と交渉し、関係が改善した。';
+        case ExecutiveActionType.encourageCabinet:
+          final role = targetMinister ?? MinisterRole.finance;
+          status = status.copyWith(
+            cabinet: status.cabinet.applyDeltas({role: 8}),
+          );
+          resultMessage = '${role.label}を激励し、忠誠度が高まった。';
+      }
+
+      final updatedUsage =
+          Map<String, int>.from(session.executiveActionLastUsedYear)
+            ..[type.name] = year;
+      final updatedSession = session.copyWith(
+        status: status,
+        executiveActionLastUsedYear: updatedUsage,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'executive_action_used',
+        parameters: {
+          'type': type.name,
+          'year': year,
+        },
+      ));
+
+      return resultMessage;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'executive_action_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.performExecutiveAction',
+      ));
+      rethrow;
+    }
+  }
+
   /// キャンペーンを開始する
   Future<void> launchCampaign({
     required CampaignType type,
@@ -1224,14 +1294,32 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       );
 
       // 外交選択を処理
-      final updatedNation = diplomacyService.respondToDiplomaticEvent(
+      diplomacyService.respondToDiplomaticEvent(
         targetNationId,
         choice,
       );
 
+      // 同盟提案・宣戦布告・和平交渉は、関係値の増減だけでなく同盟/戦争
+      // 状態そのものも更新する必要がある。選択肢の1番目が「受け入れる」側。
+      final isAcceptedChoice = event.availableOptions.isNotEmpty &&
+          choice.label == event.availableOptions.first.label;
+      switch (event.type) {
+        case DiplomaticEventType.allianceProposal:
+          if (isAcceptedChoice) diplomacyService.makeAlliance(targetNationId);
+        case DiplomaticEventType.warDeclaration:
+          if (!isAcceptedChoice) diplomacyService.declareWar(targetNationId);
+        case DiplomaticEventType.peaceTreaty:
+          if (isAcceptedChoice) diplomacyService.proposePeace(targetNationId);
+        default:
+          break;
+      }
+
       // 国家関係を更新
+      final updatedNation = diplomacyService.nationRelationships[targetNationId];
       final updatedRelationships = {...session.nationRelationships};
-      updatedRelationships[targetNationId] = updatedNation;
+      if (updatedNation != null) {
+        updatedRelationships[targetNationId] = updatedNation;
+      }
 
       // イベントを解決済みに
       final resolvedEvent = event.copyWith(
