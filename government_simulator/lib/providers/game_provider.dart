@@ -1294,14 +1294,32 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
       );
 
       // 外交選択を処理
-      final updatedNation = diplomacyService.respondToDiplomaticEvent(
+      diplomacyService.respondToDiplomaticEvent(
         targetNationId,
         choice,
       );
 
+      // 同盟提案・宣戦布告・和平交渉は、関係値の増減だけでなく同盟/戦争
+      // 状態そのものも更新する必要がある。選択肢の1番目が「受け入れる」側。
+      final isAcceptedChoice = event.availableOptions.isNotEmpty &&
+          choice.label == event.availableOptions.first.label;
+      switch (event.type) {
+        case DiplomaticEventType.allianceProposal:
+          if (isAcceptedChoice) diplomacyService.makeAlliance(targetNationId);
+        case DiplomaticEventType.warDeclaration:
+          if (!isAcceptedChoice) diplomacyService.declareWar(targetNationId);
+        case DiplomaticEventType.peaceTreaty:
+          if (isAcceptedChoice) diplomacyService.proposePeace(targetNationId);
+        default:
+          break;
+      }
+
       // 国家関係を更新
+      final updatedNation = diplomacyService.nationRelationships[targetNationId];
       final updatedRelationships = {...session.nationRelationships};
-      updatedRelationships[targetNationId] = updatedNation;
+      if (updatedNation != null) {
+        updatedRelationships[targetNationId] = updatedNation;
+      }
 
       // イベントを解決済みに
       final resolvedEvent = event.copyWith(

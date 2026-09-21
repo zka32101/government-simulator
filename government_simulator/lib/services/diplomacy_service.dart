@@ -311,20 +311,38 @@ class DiplomacyService {
   DiplomaticEvent _generateEventForNation(NationRelationship nation) {
     final status = nation.getStatus();
 
-    final DiplomaticEventType type;
-    if (status == RelationshipStatus.allied || status == RelationshipStatus.cordial) {
-      type = _random.nextBool()
-          ? DiplomaticEventType.tradeNegotiation
-          : DiplomaticEventType.culturalExchange;
+    // 現在の関係状態に応じて発生しうるイベント種別の候補を組み立てる
+    final candidates = <DiplomaticEventType>[];
+    if (nation.isAtWar) {
+      // 戦争中は和平交渉が中心的な選択肢になる（重み付けのため2回追加）
+      candidates.addAll([
+        DiplomaticEventType.peaceTreaty,
+        DiplomaticEventType.peaceTreaty,
+        DiplomaticEventType.warDeclaration,
+      ]);
+    } else if (status == RelationshipStatus.allied || status == RelationshipStatus.cordial) {
+      candidates.addAll([
+        DiplomaticEventType.tradeNegotiation,
+        DiplomaticEventType.culturalExchange,
+      ]);
+      if (!nation.isAlly) candidates.add(DiplomaticEventType.allianceProposal);
     } else if (status == RelationshipStatus.hostile || status == RelationshipStatus.enemy) {
-      type = _random.nextBool()
-          ? DiplomaticEventType.borderIncident
-          : DiplomaticEventType.sanctions;
+      candidates.addAll([
+        DiplomaticEventType.borderIncident,
+        DiplomaticEventType.sanctions,
+      ]);
+      // 関係が著しく悪化している場合、軍事的緊張がエスカレートしうる
+      if (nation.standingScore <= -40) {
+        candidates.add(DiplomaticEventType.warDeclaration);
+      }
     } else {
-      type = _random.nextBool()
-          ? DiplomaticEventType.tradeNegotiation
-          : DiplomaticEventType.humanitarianAid;
+      candidates.addAll([
+        DiplomaticEventType.tradeNegotiation,
+        DiplomaticEventType.humanitarianAid,
+      ]);
     }
+
+    final type = candidates[_random.nextInt(candidates.length)];
 
     return DiplomaticEvent(
       id: _uuid.v4(),
@@ -338,37 +356,79 @@ class DiplomacyService {
   }
 
   String _titleForType(DiplomaticEventType type, String nationName) {
-    return switch (type) {
-      DiplomaticEventType.tradeNegotiation => '$nationNameとの貿易交渉',
-      DiplomaticEventType.borderIncident => '$nationNameとの国境紛争',
-      DiplomaticEventType.allianceProposal => '$nationNameからの同盟提案',
-      DiplomaticEventType.sanctions => '$nationNameへの制裁要求',
-      DiplomaticEventType.culturalExchange => '$nationNameとの文化交流',
-      DiplomaticEventType.humanitarianAid => '$nationNameへの人道支援要請',
-      DiplomaticEventType.warDeclaration => '$nationNameとの軍事的緊張',
-      DiplomaticEventType.peaceTreaty => '$nationNameとの和平交渉',
+    final variants = switch (type) {
+      DiplomaticEventType.tradeNegotiation => [
+          '$nationNameとの貿易交渉',
+          '$nationNameからの通商協定案',
+        ],
+      DiplomaticEventType.borderIncident => [
+          '$nationNameとの国境紛争',
+          '$nationNameとの国境地帯での衝突',
+        ],
+      DiplomaticEventType.allianceProposal => [
+          '$nationNameからの同盟提案',
+          '$nationNameとの安全保障協力構想',
+        ],
+      DiplomaticEventType.sanctions => [
+          '$nationNameへの制裁要求',
+          '$nationNameを巡る国際的圧力',
+        ],
+      DiplomaticEventType.culturalExchange => [
+          '$nationNameとの文化交流',
+          '$nationNameからの友好プログラム提案',
+        ],
+      DiplomaticEventType.humanitarianAid => [
+          '$nationNameへの人道支援要請',
+          '$nationNameからの緊急支援要請',
+        ],
+      DiplomaticEventType.warDeclaration => [
+          '$nationNameとの軍事的緊張',
+          '$nationNameとの一触即発の対立',
+        ],
+      DiplomaticEventType.peaceTreaty => [
+          '$nationNameとの和平交渉',
+          '$nationNameからの停戦打診',
+        ],
     };
+    return variants[_random.nextInt(variants.length)];
   }
 
   String _descriptionForType(DiplomaticEventType type, String nationName) {
-    return switch (type) {
-      DiplomaticEventType.tradeNegotiation =>
-        '$nationNameが新たな貿易協定の締結を提案してきた。応じ方によって両国の経済関係が変化する。',
-      DiplomaticEventType.borderIncident =>
-        '$nationNameとの国境付近で小規模な衝突が発生した。対応を誤れば関係が更に悪化する。',
-      DiplomaticEventType.allianceProposal =>
-        '$nationNameが軍事同盟の締結を打診してきた。受け入れれば安全保障が強化されるが、他国との関係に影響する。',
-      DiplomaticEventType.sanctions =>
-        '国際社会が$nationNameへの制裁を求めている。同調するかどうかの判断が迫られている。',
-      DiplomaticEventType.culturalExchange =>
-        '$nationNameから文化交流プログラムの提案があった。国民感情の改善が期待できる。',
-      DiplomaticEventType.humanitarianAid =>
-        '$nationNameが人道支援を要請してきた。応じるかどうかで国際的評価が変わる。',
-      DiplomaticEventType.warDeclaration =>
-        '$nationNameとの緊張が高まっている。対応を誤れば軍事衝突に発展しかねない。',
-      DiplomaticEventType.peaceTreaty =>
-        '$nationNameが和平交渉を持ちかけてきた。',
+    final variants = switch (type) {
+      DiplomaticEventType.tradeNegotiation => [
+          '$nationNameが新たな貿易協定の締結を提案してきた。応じ方によって両国の経済関係が変化する。',
+          '$nationNameの通商代表団が来訪し、関税引き下げを含む協定を持ちかけてきた。',
+        ],
+      DiplomaticEventType.borderIncident => [
+          '$nationNameとの国境付近で小規模な衝突が発生した。対応を誤れば関係が更に悪化する。',
+          '$nationNameとの国境地帯で偶発的な発砲事件が起きた。事態の収拾が急務となっている。',
+        ],
+      DiplomaticEventType.allianceProposal => [
+          '$nationNameが軍事同盟の締結を打診してきた。受け入れれば安全保障が強化されるが、他国との関係に影響する。',
+          '$nationNameから正式な同盟条約の草案が届いた。両国の防衛協力を大きく前進させる内容だ。',
+        ],
+      DiplomaticEventType.sanctions => [
+          '国際社会が$nationNameへの制裁を求めている。同調するかどうかの判断が迫られている。',
+          '$nationNameの人権状況を巡り、国際機関から制裁への参加を強く求められている。',
+        ],
+      DiplomaticEventType.culturalExchange => [
+          '$nationNameから文化交流プログラムの提案があった。国民感情の改善が期待できる。',
+          '$nationNameとの学術・芸術交流の拡大案が持ち込まれた。両国民の相互理解が深まる好機だ。',
+        ],
+      DiplomaticEventType.humanitarianAid => [
+          '$nationNameが人道支援を要請してきた。応じるかどうかで国際的評価が変わる。',
+          '$nationNameで深刻な災害が発生し、緊急の人道支援が要請されている。',
+        ],
+      DiplomaticEventType.warDeclaration => [
+          '$nationNameとの緊張が高まっている。対応を誤れば軍事衝突に発展しかねない。',
+          '$nationNameとの間で軍事的挑発が相次いでいる。もはや一触即発の状態だ。',
+        ],
+      DiplomaticEventType.peaceTreaty => [
+          '$nationNameが和平交渉を持ちかけてきた。',
+          '長引く敵対関係に疲弊した$nationNameが、停戦への意思を示してきた。',
+        ],
     };
+    return variants[_random.nextInt(variants.length)];
   }
 
   List<DiplomaticOption> _optionsForType(DiplomaticEventType type) {
