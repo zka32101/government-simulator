@@ -25,6 +25,7 @@ import 'package:government_simulator/services/purchase_service.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
 import 'package:government_simulator/services/analytics_service.dart';
 import 'package:government_simulator/services/scenario_service.dart';
+import 'package:government_simulator/models/story_pack.dart';
 import 'package:government_simulator/services/story_pack_service.dart';
 import 'package:government_simulator/services/pack_event_engine.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
@@ -2049,8 +2050,10 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
-  /// ストーリーパックイベントへのプレイヤーの選択を処理し、結果をセッションに適用する
-  Future<void> respondToStoryPackEvent(
+  /// ストーリーパックイベントへのプレイヤーの選択を処理し、結果をセッションに適用する。
+  /// この選択でパック内の全イベントが完了した場合、そのパックIDを返す（呼び出し側で
+  /// 次のおすすめパックの提示に使える）。まだ完了していなければ null を返す。
+  Future<String?> respondToStoryPackEvent(
     GameSession session,
     String eventId,
     String choiceId,
@@ -2078,6 +2081,17 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           'choice_id': choiceId,
         },
       ));
+
+      final packId = updatedSession.currentPackId;
+      if (packId != null) {
+        final completedCount =
+            PackEventEngine.getCompletedEventCountInPack(packId, updatedProgress);
+        final totalCount = PackEventEngine.getTotalEventCountInPack(packId);
+        if (totalCount > 0 && completedCount >= totalCount) {
+          return packId;
+        }
+      }
+      return null;
     } catch (e) {
       unawaited(_analytics.trackError(
         errorCode: 'story_pack_event_response_failed',
@@ -2085,6 +2099,43 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
         context: 'GameSessionNotifier.respondToStoryPackEvent',
       ));
       rethrow;
+    }
+  }
+
+  /// パック完走時に、次にプレイすべきおすすめパックを1件返す。
+  /// このプレイヤーが未プレイのパックを優先し、全パック既プレイなら
+  /// 今回完走したパック以外から提案する（提案できるパックがなければ null）。
+  Future<StoryPack?> getRecommendedNextPack(String justCompletedPackId) async {
+    try {
+      final session = state.session;
+      if (session == null) return null;
+
+      final pastSessions = await _firestore.getUserGameSessions(session.userId);
+      final playedPackIds = <String>{justCompletedPackId};
+      for (final past in pastSessions) {
+        final pastScenarioId = past.scenarioId;
+        final pid = past.currentPackId ??
+            (pastScenarioId != null
+                ? StoryPackService.getPackForScenario(pastScenarioId)?.id
+                : null);
+        if (pid != null) playedPackIds.add(pid);
+      }
+
+      final candidates = StoryPackService.getUnlockedPacks();
+      final unplayed = candidates.where((p) => !playedPackIds.contains(p.id)).toList()
+        ..sort((a, b) => a.order.compareTo(b.order));
+      if (unplayed.isNotEmpty) return unplayed.first;
+
+      final others = candidates.where((p) => p.id != justCompletedPackId).toList()
+        ..sort((a, b) => a.order.compareTo(b.order));
+      return others.isEmpty ? null : others.first;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'recommend_next_pack_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.getRecommendedNextPack',
+      ));
+      return null;
     }
   }
 
