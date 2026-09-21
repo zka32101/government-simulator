@@ -1764,16 +1764,19 @@ class GameLogicService {
   }
 
   /// Determine if election should be held based on game progress
+  /// 任期は4年：ゲーム開始からの経過年数が4の倍数になった年に選挙を実施する
   static bool shouldHoldElection(GameSession session) {
-    // Elections typically held annually or at specific game milestones
-    return false; // Placeholder
+    final year = session.status.year;
+    return year > 0 && year % 4 == 0;
   }
 
   /// Initialize rival candidates for election
   static List<RivalCandidate> initializeRivalCandidatesForElection(
       GameSession session) {
-    // Use existing rivals or create new ones
-    return session.rivalCandidates;
+    // Use existing rivals or fall back to the default challenger set
+    return session.rivalCandidates.isNotEmpty
+        ? session.rivalCandidates
+        : RivalCandidates.createDefault();
   }
 
   /// Determine scandal severity based on impact

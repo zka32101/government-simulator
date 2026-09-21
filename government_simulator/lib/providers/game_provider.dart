@@ -19,6 +19,7 @@ import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/country_status.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/crisis.dart';
+import 'package:government_simulator/models/election_result.dart';
 import 'package:government_simulator/services/auth_service.dart';
 import 'package:government_simulator/services/firestore_service.dart';
 import 'package:government_simulator/services/purchase_service.dart';
@@ -792,10 +793,13 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     return updatedSession;
   }
 
-  Future<void> continueToNextYear() async {
+  /// 年を1つ進める。この年が選挙年であれば選挙を実施し、その結果を返す
+  /// （呼び出し側で選挙結果画面・落選時のゲームオーバー表示に使う）。
+  /// 選挙年でなければ null を返す。
+  Future<ElectionResult?> continueToNextYear() async {
     try {
       final session = state.session;
-      if (session == null) return;
+      if (session == null) return null;
 
       final yearEndStatus = _logic.simulateYearPassed(session.status);
 
@@ -916,13 +920,20 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
           upcomingDebate: scheduledDebate,
         );
 
-        // 落選時はゲームオーバー
-        if (!electionResult.playerWon) {
-          // 選挙落選によるゲームオーバーフラグを設定
-          await _firestore.updateGameSession(finalSession);
-          // ゲームオーバーを通知（UI層で処理）
-          return;
-        }
+        await _firestore.updateGameSession(finalSession);
+        state = state.copyWith(session: finalSession);
+
+        unawaited(_analytics.trackEvent(
+          name: 'election_held',
+          parameters: {
+            'year': finalYearEndStatus.year,
+            'player_won': electionResult.playerWon,
+            'vote_share': electionResult.playerVoteShare,
+          },
+        ));
+
+        // 選挙結果（当選/落選いずれも）はUI層で結果画面・ゲームオーバー処理に使う
+        return electionResult;
       }
 
       await _firestore.updateGameSession(finalSession);
