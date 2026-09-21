@@ -27,6 +27,7 @@ import 'package:government_simulator/widgets/cabinet_panel.dart';
 import 'package:government_simulator/widgets/news_ticker.dart';
 import 'package:government_simulator/widgets/achievement_popup.dart';
 import 'package:government_simulator/widgets/tutorial_overlay.dart';
+import 'package:government_simulator/widgets/country_map_background.dart';
 import 'event_detail_screen.dart';
 import 'graph_screen.dart';
 import 'country_history_screen.dart';
@@ -646,12 +647,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final advisor =
         _advisors[_currentEvent!.category] ?? '🏛️';
 
-    final home = Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: AppTheme.crisisGradient(status.crisisLevel),
+    final home = Stack(
+      children: [
+        // 没入感を高めるためのドラッグ・ピンチ操作で動かせる仮想地図背景
+        const Positioned.fill(child: CountryMapBackground()),
+        // 危機レベルに応じた半透明のムードグラデーション（地図の上に重ねる）
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: AppTheme.crisisGradient(status.crisisLevel)
+                      .colors
+                      .map((c) => c.withOpacity(0.86))
+                      .toList(),
+                ),
+              ),
+            ),
+          ),
         ),
-        child: SafeArea(
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          body: SafeArea(
           child: Column(
             children: [
               // ヘッダー
@@ -843,6 +862,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
+      ],
     );
 
     // 初回プレイ時のみ操作チュートリアルを重ねて表示する。
