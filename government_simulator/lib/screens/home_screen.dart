@@ -9,6 +9,9 @@ import 'package:government_simulator/models/user_profile.dart';
 import 'package:government_simulator/models/scandal.dart';
 import 'package:government_simulator/models/international_relations.dart';
 import 'package:government_simulator/models/crisis.dart';
+import 'package:government_simulator/models/election_result.dart';
+import 'package:government_simulator/models/game_session.dart';
+import 'package:government_simulator/models/achievement.dart';
 import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/providers/analytics_provider.dart';
 import 'package:government_simulator/services/game_logic_service.dart';
@@ -38,6 +41,7 @@ import 'weekly_poll_screen.dart';
 import 'campaign_screen.dart';
 import 'diplomatic_event_screen.dart';
 import 'crisis_alert_screen.dart';
+import 'election_screen.dart';
 import 'citizen_survey_screen.dart';
 import 'story_pack_event_screen.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
@@ -290,14 +294,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (_continuingYear) return;
     _continuingYear = true;
     try {
-      await ref.read(gameSessionProvider.notifier).continueToNextYear();
-      final updatedStatus = ref.read(gameSessionProvider).session?.status;
+      final electionResult =
+          await ref.read(gameSessionProvider.notifier).continueToNextYear();
+      final updatedSession = ref.read(gameSessionProvider).session;
+      final updatedStatus = updatedSession?.status;
       if (updatedStatus != null && mounted) {
         Navigator.of(context).pop();
+
+        if (electionResult != null) {
+          await _handleElectionResult(electionResult, updatedSession!);
+          if (!mounted || !electionResult.playerWon) return;
+        }
+
         _pickNextEvent(updatedStatus);
       }
     } finally {
       _continuingYear = false;
+    }
+  }
+
+  /// 選挙結果画面を表示し、落選していればゲームオーバー画面に遷移する
+  Future<void> _handleElectionResult(
+      ElectionResult result, GameSession session) async {
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ElectionScreen(
+          result: result,
+          countryName: session.countryName,
+          rivals: session.rivalCandidates,
+        ),
+      ),
+    );
+
+    if (!result.playerWon && mounted) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => GameOverScreen(
+            session: session,
+            type: GameOverType.electionLoss,
+            onRestart: _onRestartGame,
+          ),
+        ),
+      );
     }
   }
 
