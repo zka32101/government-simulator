@@ -118,6 +118,9 @@ class GameSession {
   // 内閣内紛システム
   final List<MinisterConflict> activeMinisterConflicts; // 大臣間の対立（未解決分）
 
+  // 統治アクション：種類名（ExecutiveActionType.name）→ 最後に実行した年
+  final Map<String, int> executiveActionLastUsedYear;
+
   const GameSession({
     required this.id,
     required this.userId,
@@ -186,6 +189,7 @@ class GameSession {
     this.packEventHistory = const {},
     this.scenarioId,
     this.activeMinisterConflicts = const [],
+    this.executiveActionLastUsedYear = const {},
   });
 
   // プレイ時間（分）
@@ -281,6 +285,7 @@ class GameSession {
     Map<String, int>? packEventHistory,
     String? scenarioId,
     List<MinisterConflict>? activeMinisterConflicts,
+    Map<String, int>? executiveActionLastUsedYear,
   }) {
     return GameSession(
       id: id ?? this.id,
@@ -351,6 +356,8 @@ class GameSession {
       packEventHistory: packEventHistory ?? this.packEventHistory,
       scenarioId: scenarioId ?? this.scenarioId,
       activeMinisterConflicts: activeMinisterConflicts ?? this.activeMinisterConflicts,
+      executiveActionLastUsedYear:
+          executiveActionLastUsedYear ?? this.executiveActionLastUsedYear,
     );
   }
 
@@ -428,6 +435,7 @@ class GameSession {
       'packEventHistory': packEventHistory,
       'scenarioId': scenarioId,
       'activeMinisterConflicts': activeMinisterConflicts.map((c) => c.toMap()).toList(),
+      'executiveActionLastUsedYear': executiveActionLastUsedYear,
     };
   }
 
@@ -609,6 +617,10 @@ class GameSession {
               ?.map((c) => MinisterConflict.fromMap(c as Map<String, dynamic>))
               .toList() ??
           const [],
+      executiveActionLastUsedYear: map['executiveActionLastUsedYear'] != null
+          ? Map<String, int>.from(
+              map['executiveActionLastUsedYear'] as Map<String, dynamic>)
+          : const {},
     );
   }
 }

@@ -42,6 +42,7 @@ import 'campaign_screen.dart';
 import 'diplomatic_event_screen.dart';
 import 'crisis_alert_screen.dart';
 import 'election_screen.dart';
+import 'executive_action_screen.dart';
 import 'citizen_survey_screen.dart';
 import 'story_pack_event_screen.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
@@ -709,6 +710,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           builder: (_) => CampaignScreen(
                             countryName: session.countryName,
                           ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.record_voice_over,
+                          color: AppTheme.textSecondary),
+                      tooltip: '統治アクション',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ExecutiveActionScreen(),
                         ),
                       ),
                     ),
