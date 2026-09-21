@@ -41,6 +41,7 @@ import 'crisis_alert_screen.dart';
 import 'citizen_survey_screen.dart';
 import 'story_pack_event_screen.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
+import 'package:government_simulator/models/story_pack.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -517,15 +518,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final session = ref.read(gameSessionProvider).session;
     if (session == null) return;
 
-    await ref.read(gameSessionProvider.notifier).respondToStoryPackEvent(
-          session,
-          event.id,
-          choice.id,
-        );
+    final completedPackId =
+        await ref.read(gameSessionProvider.notifier).respondToStoryPackEvent(
+              session,
+              event.id,
+              choice.id,
+            );
 
     if (choice.consequenceText != null && mounted) {
       _showEventBanner('📖 ${event.title}', choice.consequenceText!);
     }
+
+    if (completedPackId != null && mounted) {
+      final recommended = await ref
+          .read(gameSessionProvider.notifier)
+          .getRecommendedNextPack(completedPackId);
+      if (recommended != null && mounted) {
+        await _showRecommendedPackDialog(recommended);
+      }
+    }
+  }
+
+  /// ストーリーパック完走時に、次にプレイすべきおすすめパックを提示する
+  Future<void> _showRecommendedPackDialog(StoryPack pack) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('🎉 パック完走！'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('次におすすめのパックはこちら：'),
+              const SizedBox(height: 12),
+              Text('${pack.emoji} ${pack.title}',
+                  style: Theme.of(ctx).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(pack.description),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('後で'),
+          ),
+        ],
+      ),
+    );
   }
 
   List<String> _buildHeadlines(CountryStatus s, String country) {
