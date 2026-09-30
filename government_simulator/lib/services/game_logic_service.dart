@@ -1317,6 +1317,8 @@ class GameLogicService {
   }
 
   /// 次の選挙のための討論会をスケジュール設定
+  /// 3ラウンド分のトピック・声明・基礎スコアをあらかじめ生成しておく
+  /// （討論会画面はこの `rounds` を前提に組まれている）
   Debate? scheduleDebate({
     required GameSession session,
     required RivalCandidate opponent,
@@ -1328,10 +1330,34 @@ class GameLogicService {
       return null;
     }
 
+    final topics = List<DebateTopic>.from(DebateTopic.values)..shuffle(_random);
+    final selectedTopics = topics.take(3).toList();
+
+    final rounds = <DebateRound>[
+      for (var i = 0; i < selectedTopics.length; i++)
+        DebateRound(
+          roundNumber: i + 1,
+          topic: selectedTopics[i],
+          weekNumber: i + 1,
+          playerStatement: DebateManager.generatePlayerStatement(selectedTopics[i]),
+          rivalStatement: DebateManager.generateRivalStatement(selectedTopics[i]),
+          playerRoundScore: calculatePlayerRoundPerformance(
+            session: session,
+            topic: selectedTopics[i],
+            difficulty: session.difficulty,
+          ),
+          rivalRoundScore: calculateRivalRoundPerformance(
+            rival: opponent,
+            topic: selectedTopics[i],
+            difficulty: session.difficulty,
+          ),
+        ),
+    ];
+
     return Debate(
       id: _uuid.v4(),
       electionYear: electionYear,
-      rounds: [],
+      rounds: rounds,
       opponentId: opponent.id,
       opponentName: opponent.name,
       scheduledAt: DateTime.now(),
