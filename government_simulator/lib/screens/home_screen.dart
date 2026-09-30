@@ -44,6 +44,7 @@ import 'diplomatic_event_screen.dart';
 import 'crisis_alert_screen.dart';
 import 'election_screen.dart';
 import 'executive_action_screen.dart';
+import 'debate_preparation_screen.dart';
 import 'citizen_survey_screen.dart';
 import 'story_pack_event_screen.dart';
 import 'package:government_simulator/models/story_pack_event.dart';
@@ -296,6 +297,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (_continuingYear) return;
     _continuingYear = true;
     try {
+      final previousDebateId =
+          ref.read(gameSessionProvider).session?.upcomingDebate?.id;
       final electionResult =
           await ref.read(gameSessionProvider.notifier).continueToNextYear();
       final updatedSession = ref.read(gameSessionProvider).session;
@@ -308,7 +311,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           if (!mounted || !electionResult.playerWon) return;
         }
 
-        _pickNextEvent(updatedStatus);
+        final newDebate = updatedSession?.upcomingDebate;
+        if (newDebate != null &&
+            newDebate.id != previousDebateId &&
+            !newDebate.isCompleted &&
+            mounted) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => DebatePreparationScreen(debate: newDebate),
+            ),
+          );
+        }
+
+        if (mounted) {
+          _pickNextEvent(updatedStatus);
+        }
       }
     } finally {
       _continuingYear = false;

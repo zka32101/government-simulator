@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:government_simulator/models/debate.dart';
 import 'package:government_simulator/models/debate_choice.dart';
+import 'package:government_simulator/providers/game_provider.dart';
 import 'package:government_simulator/utils/animation_configs.dart';
 import 'debate_round_screen.dart';
 import 'debate_summary_screen.dart';
 
 /// 討論会ラウンド結果画面
 /// ラウンドのスコア、コメンタリー、モメンタムを表示（アニメーション付き）
-class DebateRoundResultScreen extends StatefulWidget {
+class DebateRoundResultScreen extends ConsumerStatefulWidget {
   final Debate debate;
   final int currentRoundIndex;
   final ArgumentTone selectedTone;
@@ -24,17 +26,25 @@ class DebateRoundResultScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<DebateRoundResultScreen> createState() => _DebateRoundResultScreenState();
+  ConsumerState<DebateRoundResultScreen> createState() =>
+      _DebateRoundResultScreenState();
 }
 
-class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
+class _DebateRoundResultScreenState extends ConsumerState<DebateRoundResultScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late List<Animation<double>> _staggeredAnimations;
+  late final double _playerScore;
+  late final double _opponentScore;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
     super.initState();
+    final round = widget.debate.rounds[widget.currentRoundIndex];
+    _playerScore = _calculatePlayerScore(round);
+    _opponentScore = _calculateOpponentScore(round);
+
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -60,11 +70,7 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
   @override
   Widget build(BuildContext context) {
     final round = widget.debate.rounds[widget.currentRoundIndex];
-
-    // スコア計算（簡略版：トーンと強調による補正）
-    final playerScore = _calculatePlayerScore(round);
-    final opponentScore = _calculateOpponentScore(round);
-    final momentum = playerScore - opponentScore;
+    final momentum = _playerScore - _opponentScore;
 
     return WillPopScope(
       onWillPop: () async => false, // 戻るボタンを無効化
@@ -91,8 +97,8 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: _ScoreComparison(
-                      playerScore: playerScore,
-                      opponentScore: opponentScore,
+                      playerScore: _playerScore,
+                      opponentScore: _opponentScore,
                       opponentName: widget.debate.opponentName,
                     ),
                   ),
@@ -117,8 +123,8 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: _RoundCommentary(
-                      playerScore: playerScore,
-                      opponentScore: opponentScore,
+                      playerScore: _playerScore,
+                      opponentScore: _opponentScore,
                       selectedTone: widget.selectedTone,
                       selectedEmphasis: widget.selectedEmphasis,
                       topic: round.topic,
@@ -161,7 +167,8 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
                   child: SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => _continueDebate(context),
+                      onPressed:
+                          _isSubmitting ? null : () => _continueDebate(context),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
@@ -214,12 +221,27 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
     return score.clamp(0.0, 100.0);
   }
 
-  void _continueDebate(BuildContext context) {
+  Future<void> _continueDebate(BuildContext context) async {
+    // このラウンドのスコアを討論会全体の累積スコアに加算した Debate を
+    // 次の画面に引き継ぐ（今後のラウンドの playerRoundScore/rivalRoundScore
+    // の勝敗判定には使わない、討論会全体の集計スコア）
+    final accumulatedDebate = widget.debate.copyWith(
+      playerScore: widget.debate.playerScore + _playerScore,
+      rivalScore: widget.debate.rivalScore + _opponentScore,
+    );
+
     if (widget.isLastRound) {
+      setState(() => _isSubmitting = true);
+      final session = ref.read(gameSessionProvider).session;
+      if (session == null) return;
+      final completedDebate = await ref
+          .read(gameSessionProvider.notifier)
+          .completeDebate(session, accumulatedDebate);
+      if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => DebateSummaryScreen(
-            debate: widget.debate,
+            debate: completedDebate,
           ),
         ),
       );
@@ -227,7 +249,7 @@ class _DebateRoundResultScreenState extends State<DebateRoundResultScreen>
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => DebateRoundScreen(
-            debate: widget.debate,
+            debate: accumulatedDebate,
             currentRoundIndex: widget.currentRoundIndex + 1,
           ),
         ),

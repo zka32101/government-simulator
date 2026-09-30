@@ -961,6 +961,58 @@ class GameSessionNotifier extends StateNotifier<GameSessionState> {
     }
   }
 
+  /// 討論会の全ラウンドが終了した際に呼ぶ。勝敗を判定し、名声・討論履歴・
+  /// 今後数週間のキャンペーン効果（campaignMultiplier）に反映した上で、
+  /// 確定した Debate（outcome/completedAt 設定済み）を返す。
+  Future<Debate> completeDebate(
+    GameSession session,
+    Debate finishedDebate,
+  ) async {
+    try {
+      final outcome = _logic.determineDebateWinner(
+        playerScore: finishedDebate.playerScore,
+        rivalScore: finishedDebate.rivalScore,
+      );
+
+      final completedDebate = finishedDebate.copyWith(
+        completedAt: DateTime.now(),
+        outcome: outcome,
+        weekCompletedIn: session.status.week,
+        yearCompletedIn: session.status.year,
+      );
+
+      final newReputation =
+          (session.playerReputation + outcome.reputationChange).clamp(0, 100);
+
+      final updatedSession = session.copyWith(
+        upcomingDebate: completedDebate,
+        debateHistory: [...session.debateHistory, completedDebate],
+        playerReputation: newReputation,
+      );
+
+      await _firestore.updateGameSession(updatedSession);
+      state = state.copyWith(session: updatedSession);
+
+      unawaited(_analytics.trackEvent(
+        name: 'debate_completed',
+        parameters: {
+          'outcome': outcome.name,
+          'player_score': completedDebate.playerScore,
+          'rival_score': completedDebate.rivalScore,
+        },
+      ));
+
+      return completedDebate;
+    } catch (e) {
+      unawaited(_analytics.trackError(
+        errorCode: 'debate_completion_failed',
+        errorMessage: e.toString(),
+        context: 'GameSessionNotifier.completeDebate',
+      ));
+      rethrow;
+    }
+  }
+
   /// 統治アクション：ランダムイベントの発生を待たず、プレイヤーが自らの
   /// 判断で能動的に実行できる。種類ごとに年1回までで、実行できた場合は
   /// 結果メッセージを、その年すでに使用済みなら null を返す。

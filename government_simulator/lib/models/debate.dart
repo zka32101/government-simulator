@@ -212,6 +212,36 @@ class Debate {
     return week >= electionYear * 100 - 6 && week <= electionYear * 100 - 4;
   }
 
+  Debate copyWith({
+    String? id,
+    int? electionYear,
+    List<DebateRound>? rounds,
+    String? opponentId,
+    String? opponentName,
+    DateTime? scheduledAt,
+    DateTime? completedAt,
+    double? playerScore,
+    double? rivalScore,
+    DebateOutcome? outcome,
+    int? weekCompletedIn,
+    int? yearCompletedIn,
+  }) {
+    return Debate(
+      id: id ?? this.id,
+      electionYear: electionYear ?? this.electionYear,
+      rounds: rounds ?? this.rounds,
+      opponentId: opponentId ?? this.opponentId,
+      opponentName: opponentName ?? this.opponentName,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      completedAt: completedAt ?? this.completedAt,
+      playerScore: playerScore ?? this.playerScore,
+      rivalScore: rivalScore ?? this.rivalScore,
+      outcome: outcome ?? this.outcome,
+      weekCompletedIn: weekCompletedIn ?? this.weekCompletedIn,
+      yearCompletedIn: yearCompletedIn ?? this.yearCompletedIn,
+    );
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,
